@@ -25,3 +25,9 @@ Packages:
 - `build/crowbar-qt --list-package <file.vpk|file.gma>` lists the files in a package.
 - `build/crowbar-qt --unpack <file.vpk|file.gma> <output dir>` unpacks it without needing the game's tools.
 - `build/crowbar-qt --pack <appid> <vpk|gma> <folder> <output file> [--multi] [packer options]` packs a folder with the game's `vpk` or `gmad`.
+
+Workshop (Garry's Mod, through the game's `gmpublish`):
+
+- `build/crowbar-qt --workshop-list <appid>` lists your published items.
+- `build/crowbar-qt --publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]` creates an item, or updates item N.
+  Any image works as the icon; it is converted to the 512x512 JPEG gmpublish requires.

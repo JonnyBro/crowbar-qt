@@ -1,6 +1,7 @@
 #include "core/Hlmv.h"
 #include "core/Package.h"
 #include "core/Packer.h"
+#include "core/Publisher.h"
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
@@ -9,6 +10,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <QTextStream>
 
 #include <cstring>
@@ -139,6 +141,60 @@ int pack(QCoreApplication &app, quint32 appId, const QString &formatName, const 
     return files.isEmpty() ? 1 : 0;
 }
 
+int workshopList(QCoreApplication &app, quint32 appId)
+{
+    const auto game = findApp(appId);
+    if (!game)
+        return 1;
+    publisher::ListParser parser;
+    ToolProcess process;
+    QObject::connect(&process, &ToolProcess::outputLine, [&](const QString &line) { parser.addLine(line); });
+    QObject::connect(&process, &ToolProcess::failedToStart, [&](const QString &error) {
+        QTextStream(stderr) << error << Qt::endl;
+        app.exit(1);
+    });
+    QObject::connect(&process, &ToolProcess::finished, [&](int exitCode, bool) { app.exit(exitCode); });
+    const launcher::Command command = publisher::listCommand(*game);
+    if (!command.isValid()) {
+        QTextStream(stderr) << command.error << Qt::endl;
+        return 1;
+    }
+    process.start(command);
+    const int result = app.exec();
+    QTextStream out(stdout);
+    for (const publisher::WorkshopItem &item : parser.items())
+        out << item.id << '\t' << item.size << '\t' << item.title << '\n';
+    return result;
+}
+
+int publish(QCoreApplication &app, quint32 appId, const QStringList &args)
+{
+    const auto game = findApp(appId);
+    if (!game)
+        return 1;
+    publisher::Request request;
+    for (int i = 0; i + 1 < args.size(); i += 2) {
+        if (args[i] == "--id")
+            request.id = args[i + 1].toULongLong();
+        else if (args[i] == "--addon")
+            request.gmaFile = args[i + 1];
+        else if (args[i] == "--icon")
+            request.iconFile = args[i + 1];
+        else if (args[i] == "--changes")
+            request.changes = args[i + 1];
+    }
+    if (!request.iconFile.isEmpty()) {
+        static QTemporaryDir temp;
+        QString error;
+        request.iconFile = publisher::prepareIcon(request.iconFile, temp.filePath("icon.jpg"), &error);
+        if (request.iconFile.isEmpty()) {
+            QTextStream(stderr) << error << Qt::endl;
+            return 1;
+        }
+    }
+    return run(app, publisher::publishCommand(*game, request));
+}
+
 int view(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &mdlFile)
 {
     for (const steam::Installation &installation : steam::scanAll()) {
@@ -219,6 +275,18 @@ int main(int argc, char *argv[])
             return pack(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(), QString::fromLocal8Bit(argv[i + 2]),
                         QString::fromLocal8Bit(argv[i + 3]), QString::fromLocal8Bit(argv[i + 4]),
                         QCoreApplication::arguments().mid(i + 5));
+        }
+        if (std::strcmp(argv[i], "--workshop-list") == 0 && i + 1 < argc) {
+            QCoreApplication app(argc, argv);
+            return workshopList(app, QString::fromLocal8Bit(argv[i + 1]).toUInt());
+        }
+        if (std::strcmp(argv[i], "--publish") == 0) {
+            if (i + 1 >= argc) {
+                QTextStream(stderr) << "Usage: crowbar-qt --publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]\n";
+                return 2;
+            }
+            QCoreApplication app(argc, argv);
+            return publish(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(), QCoreApplication::arguments().mid(i + 2));
         }
         if (std::strcmp(argv[i], "--view") == 0) {
             if (i + 2 >= argc) {

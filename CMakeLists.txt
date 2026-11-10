@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Widgets)
 find_package(LibLZMA REQUIRED)
 qt_standard_project_setup()
 
@@ -22,6 +22,8 @@ add_library(crowbar_core STATIC
     src/core/Package.h
     src/core/Packer.cpp
     src/core/Packer.h
+    src/core/Publisher.cpp
+    src/core/Publisher.h
     src/core/Steam.cpp
     src/core/Steam.h
     src/core/Studiomdl.cpp
@@ -30,7 +32,7 @@ add_library(crowbar_core STATIC
     src/core/ToolProcess.h
 )
 target_include_directories(crowbar_core PUBLIC src)
-target_link_libraries(crowbar_core PUBLIC Qt6::Core PRIVATE LibLZMA::LibLZMA)
+target_link_libraries(crowbar_core PUBLIC Qt6::Core Qt6::Gui PRIVATE LibLZMA::LibLZMA)
 
 qt_add_executable(crowbar-qt
     src/main.cpp
@@ -46,6 +48,8 @@ qt_add_executable(crowbar-qt
     src/ui/GamesTab.h
     src/ui/PackTab.cpp
     src/ui/PackTab.h
+    src/ui/PublishTab.cpp
+    src/ui/PublishTab.h
     src/ui/UnpackTab.cpp
     src/ui/UnpackTab.h
     src/ui/ViewTab.cpp
@@ -59,7 +63,7 @@ install(TARGETS crowbar-qt)
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    foreach(test tst_vdf tst_steam tst_launcher tst_package)
+    foreach(test tst_vdf tst_steam tst_launcher tst_package tst_publisher)
         qt_add_executable(${test} tests/${test}.cpp)
         target_link_libraries(${test} PRIVATE crowbar_core Qt6::Test)
         add_test(NAME ${test} COMMAND ${test})
