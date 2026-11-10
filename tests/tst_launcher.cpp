@@ -150,7 +150,8 @@ private slots:
     {
         launcher::Command command;
         command.program = "/bin/sh";
-        command.arguments = {"-c", "echo 'ntsync: up and running.'; echo 'writing Z:\\tmp\\a.mdl'; printf 'tail'; exit 3"};
+        // printf, not echo: dash's echo (Ubuntu's /bin/sh) turns \t and \a into control characters.
+        command.arguments = {"-c", "printf '%s\\n' 'ntsync: up and running.' 'writing Z:\\tmp\\a.mdl'; printf 'tail'; exit 3"};
         command.environment = QProcessEnvironment::systemEnvironment();
 
         ToolProcess process;
