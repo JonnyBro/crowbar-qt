@@ -14,29 +14,29 @@
 #include <QTabWidget>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+	: QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("Crowbar Qt"));
+	setWindowTitle(QStringLiteral("Crowbar Qt"));
 
-    auto *games = new GameList(this);
-    games->refresh();
+	auto *games = new GameList(this);
+	games->refresh();
 
-    auto *tabs = new QTabWidget(this);
-    tabs->addTab(new GamesTab(games, tabs), tr("Games"));
-    tabs->addTab(new CompileTab(games, tabs), tr("Compile"));
-    tabs->addTab(new ViewTab(games, tabs), tr("View"));
-    tabs->addTab(new PackTab(games, tabs), tr("Pack"));
-    tabs->addTab(new UnpackTab(tabs), tr("Unpack"));
-    tabs->addTab(new PublishTab(games, tabs), tr("Publish"));
-    tabs->addTab(new DownloadTab(games, tabs), tr("Download"));
-    setCentralWidget(tabs);
+	auto *tabs = new QTabWidget(this);
+	tabs->addTab(new GamesTab(games, tabs), tr("Games"));
+	tabs->addTab(new CompileTab(games, tabs), tr("Compile"));
+	tabs->addTab(new ViewTab(games, tabs), tr("View"));
+	tabs->addTab(new PackTab(games, tabs), tr("Pack"));
+	tabs->addTab(new UnpackTab(tabs), tr("Unpack"));
+	tabs->addTab(new PublishTab(games, tabs), tr("Publish"));
+	tabs->addTab(new DownloadTab(games, tabs), tr("Download"));
+	setCentralWidget(tabs);
 
-    resize(1000, 600);
-    restoreGeometry(QSettings().value("window/geometry").toByteArray());
+	resize(1000, 600);
+	restoreGeometry(QSettings().value("window/geometry").toByteArray());
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    QSettings().setValue("window/geometry", saveGeometry());
-    QMainWindow::closeEvent(event);
+	QSettings().setValue("window/geometry", saveGeometry());
+	QMainWindow::closeEvent(event);
 }
