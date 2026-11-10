@@ -2,6 +2,7 @@
 #include "core/Package.h"
 #include "core/Packer.h"
 #include "core/Publisher.h"
+#include "core/Runner.h"
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
@@ -10,6 +11,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QProcess>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -287,6 +289,22 @@ int main(int argc, char *argv[])
             }
             QCoreApplication app(argc, argv);
             return publish(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(), QCoreApplication::arguments().mid(i + 2));
+        }
+        if ((std::strcmp(argv[i], "--run-game") == 0 || std::strcmp(argv[i], "--hammer") == 0) && i + 2 < argc) {
+            QCoreApplication app(argc, argv);
+            const auto game = findApp(QString::fromLocal8Bit(argv[i + 1]).toUInt());
+            if (!game)
+                return 1;
+            const QString gameDir = QFileInfo(QString::fromLocal8Bit(argv[i + 2])).absoluteFilePath();
+            if (std::strcmp(argv[i], "--hammer") == 0)
+                return run(app, runner::hammerCommand(*game, gameDir));
+            const launcher::Command command = runner::gameCommand(*game, gameDir, QCoreApplication::arguments().mid(i + 3));
+            if (!command.isValid()) {
+                QTextStream(stderr) << command.error << Qt::endl;
+                return 1;
+            }
+            QTextStream(stdout) << command.displayString() << Qt::endl;
+            return QProcess::startDetached(command.program, command.arguments) ? 0 : 1;
         }
         if (std::strcmp(argv[i], "--view") == 0) {
             if (i + 2 >= argc) {

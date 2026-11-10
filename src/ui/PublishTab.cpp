@@ -14,6 +14,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -166,9 +167,17 @@ void PublishTab::refreshList()
 void PublishTab::browseContent()
 {
     const QString start = QFileInfo(m_content->text()).absolutePath();
-    QString file = QFileDialog::getOpenFileName(this, tr("Select GMA file"), start, tr("GMA files (*.gma);;All files (*)"));
-    if (!file.isEmpty())
-        m_content->setText(file);
+    QMenu menu(this);
+    const QAction *fileAction = menu.addAction(tr("GMA File…"));
+    const QAction *folderAction = menu.addAction(tr("Folder to Pack…"));
+    const QAction *chosen = menu.exec(QCursor::pos());
+    QString path;
+    if (chosen == fileAction)
+        path = QFileDialog::getOpenFileName(this, tr("Select GMA file"), start, tr("GMA files (*.gma);;All files (*)"));
+    else if (chosen == folderAction)
+        path = QFileDialog::getExistingDirectory(this, tr("Select folder with addon.json"), start);
+    if (!path.isEmpty())
+        m_content->setText(path);
 }
 
 void PublishTab::browseIcon()

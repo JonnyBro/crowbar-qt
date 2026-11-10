@@ -24,6 +24,8 @@ add_library(crowbar_core STATIC
     src/core/Packer.h
     src/core/Publisher.cpp
     src/core/Publisher.h
+    src/core/Runner.cpp
+    src/core/Runner.h
     src/core/Steam.cpp
     src/core/Steam.h
     src/core/Studiomdl.cpp

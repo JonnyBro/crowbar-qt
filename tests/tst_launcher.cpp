@@ -1,5 +1,6 @@
 #include "core/Hlmv.h"
 #include "core/Launcher.h"
+#include "core/Runner.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
 
@@ -207,6 +208,38 @@ private slots:
         command = hlmv::viewCommand(app, dir + "/game/hl2", {});
         QCOMPARE(command.arguments.size(), 5);
         QVERIFY(!hlmv::viewCommand(app, dir + "/game/hl2", dir + "/missing.mdl").isValid());
+    }
+
+    void runCommands()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString dir = temp.path();
+        writeFile(dir + "/game/bin/hammer.exe", "MZ");
+
+        steam::App app;
+        app.id = 4000;
+        app.installPath = dir + "/game";
+        app.steamRoot = dir + "/steam";
+        app.toolsPath = dir + "/game/bin";
+        app.protonPath = dir + "/proton";
+        app.compatDataPath = dir + "/compatdata";
+
+        launcher::Command command = runner::hammerCommand(app, dir + "/game/garrysmod");
+        QCOMPARE(command.arguments, QStringList({"run", dir + "/game/bin/hammer.exe", "-nop4", "-game",
+                                                 launcher::toWindowsPath(dir + "/game/garrysmod")}));
+
+        command = runner::gameCommand(app, dir + "/game/garrysmod", {"-dev", "+map", "gm_construct"});
+        if (command.isValid())
+            QCOMPARE(command.arguments, QStringList({"-applaunch", "4000", "-game", "garrysmod", "-dev", "+map", "gm_construct"}));
+
+        app.steamRoot = QDir::homePath() + "/.var/app/com.valvesoftware.Steam/.local/share/Steam";
+        command = runner::gameCommand(app, dir + "/game/garrysmod", {});
+        if (command.isValid())
+            QCOMPARE(command.arguments.mid(0, 4), QStringList({"run", "com.valvesoftware.Steam", "-applaunch", "4000"}));
+
+        app.toolsPath.clear();
+        QVERIFY(!runner::hammerCommand(app, dir + "/game/garrysmod").isValid());
     }
 
     void failedToStart()

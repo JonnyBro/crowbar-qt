@@ -31,3 +31,8 @@ Workshop (Garry's Mod, through the game's `gmpublish`):
 - `build/crowbar-qt --workshop-list <appid>` lists your published items.
 - `build/crowbar-qt --publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]` creates an item, or updates item N.
   Any image works as the icon; it is converted to the 512x512 JPEG gmpublish requires.
+
+Running:
+
+- `build/crowbar-qt --run-game <appid> <game dir> [options]` starts the game through Steam with `-game`.
+- `build/crowbar-qt --hammer <appid> <game dir>` opens Hammer for that game folder.
