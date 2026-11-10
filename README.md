@@ -5,7 +5,7 @@ Works with games installed natively and through Proton.
 
 ## Building
 
-Requires CMake, a C++20 compiler and Qt 6.6 or newer.
+Requires CMake, a C++20 compiler, Qt 6.6 or newer and liblzma (xz).
 
 ```bash
 cmake -B build
@@ -19,3 +19,9 @@ Run `build/crowbar-qt`, or `build/crowbar-qt --list-games` to print the detected
 With an output dir, the compiled files are moved there from the game's `models` folder.
 
 `build/crowbar-qt --view <appid> <game dir> [mdl file]` opens HLMV, optionally with a model.
+
+Packages:
+
+- `build/crowbar-qt --list-package <file.vpk|file.gma>` lists the files in a package.
+- `build/crowbar-qt --unpack <file.vpk|file.gma> <output dir>` unpacks it without needing the game's tools.
+- `build/crowbar-qt --pack <appid> <vpk|gma> <folder> <output file> [--multi] [packer options]` packs a folder with the game's `vpk` or `gmad`.

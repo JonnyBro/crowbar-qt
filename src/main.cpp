@@ -1,4 +1,6 @@
 #include "core/Hlmv.h"
+#include "core/Package.h"
+#include "core/Packer.h"
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
@@ -6,6 +8,7 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QTextStream>
 
 #include <cstring>
@@ -59,6 +62,81 @@ int run(QCoreApplication &app, const launcher::Command &command)
     });
     process.start(command);
     return app.exec();
+}
+
+std::optional<steam::App> findApp(quint32 appId)
+{
+    for (const steam::Installation &installation : steam::scanAll()) {
+        for (const steam::App &game : installation.apps) {
+            if (game.id == appId)
+                return game;
+        }
+    }
+    QTextStream(stderr) << "App " << appId << " is not installed." << Qt::endl;
+    return std::nullopt;
+}
+
+int listPackage(const QString &file)
+{
+    QString error;
+    const auto package = package::Package::open(file, &error);
+    if (!package) {
+        QTextStream(stderr) << error << Qt::endl;
+        return 1;
+    }
+    QTextStream out(stdout);
+    for (const package::Entry &entry : package->entries())
+        out << entry.size << '\t' << entry.path << '\n';
+    return 0;
+}
+
+int unpack(const QString &file, const QString &outputDir)
+{
+    QTextStream err(stderr);
+    QString error;
+    const auto package = package::Package::open(file, &error);
+    if (!package) {
+        err << error << Qt::endl;
+        return 1;
+    }
+    int failed = 0;
+    for (const package::Entry &entry : package->entries()) {
+        if (!package->extract(entry, outputDir, &error)) {
+            err << error << Qt::endl;
+            ++failed;
+        }
+    }
+    QTextStream(stdout) << package->format() << ": " << package->entries().size() - failed << " file(s) unpacked, "
+                        << failed << " failed" << Qt::endl;
+    return failed ? 1 : 0;
+}
+
+int pack(QCoreApplication &app, quint32 appId, const QString &formatName, const QString &folder,
+         const QString &outputFile, const QStringList &flags)
+{
+    const auto game = findApp(appId);
+    if (!game)
+        return 1;
+    const auto format = formatName == "gma" ? packer::Format::Gma : packer::Format::Vpk;
+    const QString output = QFileInfo(outputFile).absoluteFilePath();
+    packer::Options options;
+    for (const QString &flag : flags) {
+        if (flag == "--multi")
+            options.multiChunk = true;
+        else if (flag == "-warninvalid")
+            options.warnInvalid = true;
+        else
+            options.extra << flag;
+    }
+    const QDateTime started = QDateTime::currentDateTime();
+    const int result = run(app, packer::packCommand(*game, format, folder, output, options));
+    if (result != 0)
+        return result;
+    QStringList log;
+    const QStringList files = packer::finishPack(format, folder, output, options, started, log);
+    for (const QString &line : log)
+        QTextStream(stdout) << line << Qt::endl;
+    return files.isEmpty() ? 1 : 0;
 }
 
 int view(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &mdlFile)
@@ -123,6 +201,24 @@ int main(int argc, char *argv[])
         if (std::strcmp(argv[i], "--list-games") == 0) {
             QCoreApplication app(argc, argv);
             return listGames();
+        }
+        if (std::strcmp(argv[i], "--list-package") == 0 && i + 1 < argc) {
+            QCoreApplication app(argc, argv);
+            return listPackage(QString::fromLocal8Bit(argv[i + 1]));
+        }
+        if (std::strcmp(argv[i], "--unpack") == 0 && i + 2 < argc) {
+            QCoreApplication app(argc, argv);
+            return unpack(QString::fromLocal8Bit(argv[i + 1]), QString::fromLocal8Bit(argv[i + 2]));
+        }
+        if (std::strcmp(argv[i], "--pack") == 0) {
+            if (i + 4 >= argc) {
+                QTextStream(stderr) << "Usage: crowbar-qt --pack <appid> <vpk|gma> <folder> <output file> [--multi] [packer options]\n";
+                return 2;
+            }
+            QCoreApplication app(argc, argv);
+            return pack(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(), QString::fromLocal8Bit(argv[i + 2]),
+                        QString::fromLocal8Bit(argv[i + 3]), QString::fromLocal8Bit(argv[i + 4]),
+                        QCoreApplication::arguments().mid(i + 5));
         }
         if (std::strcmp(argv[i], "--view") == 0) {
             if (i + 2 >= argc) {

@@ -3,6 +3,8 @@
 #include "ui/CompileTab.h"
 #include "ui/GameList.h"
 #include "ui/GamesTab.h"
+#include "ui/PackTab.h"
+#include "ui/UnpackTab.h"
 #include "ui/ViewTab.h"
 
 #include <QCloseEvent>
@@ -21,6 +23,8 @@ MainWindow::MainWindow(QWidget *parent)
     tabs->addTab(new GamesTab(games, tabs), tr("Games"));
     tabs->addTab(new CompileTab(games, tabs), tr("Compile"));
     tabs->addTab(new ViewTab(games, tabs), tr("View"));
+    tabs->addTab(new PackTab(games, tabs), tr("Pack"));
+    tabs->addTab(new UnpackTab(tabs), tr("Unpack"));
     setCentralWidget(tabs);
 
     resize(1000, 600);
