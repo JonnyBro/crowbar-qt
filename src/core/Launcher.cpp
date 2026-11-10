@@ -25,6 +25,18 @@ bool isWindowsExecutable(const QString &path)
     return file.open(QIODevice::ReadOnly) && file.read(2) == "MZ";
 }
 
+QString findTool(const steam::App &app, const QString &name)
+{
+    if (app.toolsPath.isEmpty())
+        return {};
+    for (const QString &fileName : {name + ".exe", name}) {
+        const QString path = app.toolsPath + '/' + fileName;
+        if (QFile::exists(path))
+            return path;
+    }
+    return {};
+}
+
 QString toWindowsPath(const QString &hostPath)
 {
     QString path = QDir::cleanPath(QFileInfo(hostPath).absoluteFilePath());
@@ -88,6 +100,9 @@ Command build(const steam::App &app, const QString &executable, const QStringLis
     command.environment.insert("STEAM_COMPAT_CLIENT_INSTALL_PATH", app.steamRoot);
     command.environment.insert("SteamAppId", appId);
     command.environment.insert("SteamGameId", appId);
+    // Under Wine's Wayland driver the menus of these old Win32 tools close as
+    // soon as they open, so a global PROTON_ENABLE_WAYLAND=1 must not reach them.
+    command.environment.remove("PROTON_ENABLE_WAYLAND");
     return command;
 }
 

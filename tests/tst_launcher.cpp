@@ -1,3 +1,4 @@
+#include "core/Hlmv.h"
 #include "core/Launcher.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
@@ -67,6 +68,7 @@ private slots:
 
         app.protonPath = dir + "/proton";
         app.compatDataPath = dir + "/compatdata/4000";
+        qputenv("PROTON_ENABLE_WAYLAND", "1");
         studiomdl::Options options;
         options.verbose = true;
         options.extra = {"-nox360"};
@@ -79,6 +81,7 @@ private slots:
         QCOMPARE(command.workingDirectory, dir + "/src");
         QCOMPARE(command.environment.value("STEAM_COMPAT_DATA_PATH"), app.compatDataPath);
         QCOMPARE(command.environment.value("SteamAppId"), "4000");
+        QVERIFY(!command.environment.contains("PROTON_ENABLE_WAYLAND"));
 
         command = launcher::build(app, dir + "/game/bin/studiomdl.exe", {}, launcher::Mode::Gui);
         QCOMPARE(command.arguments.first(), "run");
@@ -165,7 +168,7 @@ private slots:
     {
         launcher::Command command;
         command.program = "/bin/sh";
-        command.arguments = {"-c", "sleep 30 & sleep 30"};
+        command.arguments = {"-c", "setsid sleep 31.7 & sleep 30 & sleep 30"};
         command.environment = QProcessEnvironment::systemEnvironment();
 
         ToolProcess process;
@@ -176,6 +179,34 @@ private slots:
         process.cancel();
         QVERIFY(finished.wait(5000));
         QCOMPARE(finished[0][1].toBool(), false);
+
+        // The setsid child left our process group, like Windows programs under Wine do.
+        QTRY_COMPARE(QProcess::execute("pgrep", {"-f", "^sleep 31\\.7$"}), 1);
+    }
+
+    void hlmvCommand()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString dir = temp.path();
+        writeFile(dir + "/game/bin/hlmv.exe", "MZ");
+        writeFile(dir + "/models/a.mdl");
+
+        steam::App app;
+        app.id = 4000;
+        app.toolsPath = dir + "/game/bin";
+        app.protonPath = dir + "/proton";
+        app.compatDataPath = dir + "/compatdata";
+
+        launcher::Command command = hlmv::viewCommand(app, dir + "/game/hl2", dir + "/models/a.mdl");
+        QVERIFY(command.isValid());
+        QCOMPARE(command.arguments,
+                 QStringList({"run", dir + "/game/bin/hlmv.exe", "-olddialogs", "-game",
+                              launcher::toWindowsPath(dir + "/game/hl2"), launcher::toWindowsPath(dir + "/models/a.mdl")}));
+
+        command = hlmv::viewCommand(app, dir + "/game/hl2", {});
+        QCOMPARE(command.arguments.size(), 5);
+        QVERIFY(!hlmv::viewCommand(app, dir + "/game/hl2", dir + "/missing.mdl").isValid());
     }
 
     void failedToStart()

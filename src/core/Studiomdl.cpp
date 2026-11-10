@@ -11,14 +11,7 @@ namespace studiomdl {
 
 QString findExecutable(const steam::App &app)
 {
-    if (app.toolsPath.isEmpty())
-        return {};
-    for (const char *name : {"studiomdl.exe", "studiomdl"}) {
-        const QString path = app.toolsPath + '/' + name;
-        if (QFile::exists(path))
-            return path;
-    }
-    return {};
+    return launcher::findTool(app, "studiomdl");
 }
 
 launcher::Command compileCommand(const steam::App &app, const QString &gameDir,

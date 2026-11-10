@@ -13,6 +13,8 @@ add_compile_options(-Wall -Wextra)
 add_library(crowbar_core STATIC
     src/core/Vdf.cpp
     src/core/Vdf.h
+    src/core/Hlmv.cpp
+    src/core/Hlmv.h
     src/core/Launcher.cpp
     src/core/Launcher.h
     src/core/Steam.cpp
@@ -31,10 +33,14 @@ qt_add_executable(crowbar-qt
     src/ui/MainWindow.h
     src/ui/CompileTab.cpp
     src/ui/CompileTab.h
+    src/ui/GameCombo.cpp
+    src/ui/GameCombo.h
     src/ui/GameList.cpp
     src/ui/GameList.h
     src/ui/GamesTab.cpp
     src/ui/GamesTab.h
+    src/ui/ViewTab.cpp
+    src/ui/ViewTab.h
 )
 target_link_libraries(crowbar-qt PRIVATE crowbar_core Qt6::Widgets)
 target_compile_definitions(crowbar-qt PRIVATE CROWBAR_VERSION="${PROJECT_VERSION}")

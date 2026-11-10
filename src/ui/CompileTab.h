@@ -1,9 +1,8 @@
 #pragma once
 
-#include "core/Steam.h"
-
 #include <QWidget>
 
+class GameCombo;
 class GameList;
 class QCheckBox;
 class QComboBox;
@@ -20,12 +19,6 @@ public:
     ~CompileTab() override;
 
 private:
-    struct Target {
-        steam::App app;
-        QString gameDir;
-    };
-
-    void reloadGames();
     void browse();
     void browseOutput();
     void updateOutputWidgets();
@@ -35,15 +28,12 @@ private:
     void setRunning(bool running);
     void saveSettings() const;
 
-    GameList *m_games;
     ToolProcess *m_process;
-    QList<Target> m_targets;
-
     QString m_pendingGameDir;
     QString m_pendingModelName;
     QString m_pendingOutputDir;
 
-    QComboBox *m_game;
+    GameCombo *m_game;
     QLineEdit *m_qcFile;
     QComboBox *m_outputMode;
     QLineEdit *m_outputSubfolder;

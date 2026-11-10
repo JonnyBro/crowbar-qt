@@ -1,7 +1,10 @@
 #include "core/ToolProcess.h"
 
+#include <QDir>
+#include <QFile>
 #include <QProcess>
 #include <QTimer>
+#include <QUuid>
 
 #include <signal.h>
 
@@ -38,7 +41,14 @@ void ToolProcess::start(const launcher::Command &command)
     m_process = new QProcess(this);
     m_process->setProgram(command.program);
     m_process->setArguments(command.arguments);
-    m_process->setProcessEnvironment(command.environment);
+    // Wine starts Windows programs in sessions of their own, so signalling our
+    // process group misses them. They do inherit the environment, which lets
+    // killGroup() find them again by this marker.
+    const QString runId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_marker = "CROWBAR_QT_RUN=" + runId.toLatin1();
+    QProcessEnvironment environment = command.environment;
+    environment.insert("CROWBAR_QT_RUN", runId);
+    m_process->setProcessEnvironment(environment);
     m_process->setWorkingDirectory(command.workingDirectory);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
     m_process->setStandardInputFile(QProcess::nullDevice());
@@ -73,6 +83,19 @@ void ToolProcess::killGroup(int signal)
     const qint64 pid = m_process->processId();
     if (pid > 0)
         ::kill(-pid_t(pid), signal);
+
+    const QDir proc("/proc");
+    for (const QString &entry : proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        bool isPid = false;
+        const pid_t other = entry.toInt(&isPid);
+        if (!isPid)
+            continue;
+        QFile environ(proc.filePath(entry + "/environ"));
+        if (!environ.open(QIODevice::ReadOnly))
+            continue;
+        if (environ.readAll().split('\0').contains(m_marker))
+            ::kill(other, signal);
+    }
 }
 
 void ToolProcess::readOutput(bool flush)

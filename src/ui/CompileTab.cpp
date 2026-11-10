@@ -2,7 +2,7 @@
 
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
-#include "ui/GameList.h"
+#include "ui/GameCombo.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -22,18 +22,12 @@ namespace {
 
 enum OutputMode { GameModels, QcSubfolder, WorkFolder };
 
-QString targetKey(const steam::App &app, const QString &gameDir)
-{
-    return QStringLiteral("%1:%2").arg(app.id).arg(QFileInfo(gameDir).fileName());
-}
-
 } // namespace
 
 CompileTab::CompileTab(GameList *games, QWidget *parent)
     : QWidget(parent)
-    , m_games(games)
     , m_process(new ToolProcess(this))
-    , m_game(new QComboBox(this))
+    , m_game(new GameCombo(games, "studiomdl", "compile/game", this))
     , m_qcFile(new QLineEdit(this))
     , m_outputMode(new QComboBox(this))
     , m_outputSubfolder(new QLineEdit(this))
@@ -102,7 +96,6 @@ CompileTab::CompileTab(GameList *games, QWidget *parent)
     connect(m_outputMode, &QComboBox::currentIndexChanged, this, &CompileTab::updateOutputWidgets);
     connect(m_compile, &QPushButton::clicked, this, &CompileTab::compile);
     connect(m_cancel, &QPushButton::clicked, m_process, &ToolProcess::cancel);
-    connect(m_games, &GameList::changed, this, &CompileTab::reloadGames);
 
     connect(m_process, &ToolProcess::outputLine, m_log, &QPlainTextEdit::appendPlainText);
     connect(m_process, &ToolProcess::failedToStart, this, [this](const QString &error) {
@@ -119,36 +112,11 @@ CompileTab::CompileTab(GameList *games, QWidget *parent)
 
     updateOutputWidgets();
     setRunning(false);
-    reloadGames();
 }
 
 CompileTab::~CompileTab()
 {
     saveSettings();
-}
-
-void CompileTab::reloadGames()
-{
-    const QString previous = m_game->count() > 0
-        ? m_game->currentData().toString()
-        : QSettings().value("compile/game").toString();
-
-    m_targets.clear();
-    m_game->clear();
-    for (const steam::App &app : m_games->apps()) {
-        if (studiomdl::findExecutable(app).isEmpty())
-            continue;
-        for (const QString &gameDir : app.gameDirs) {
-            m_targets << Target{app, gameDir};
-            m_game->addItem(QStringLiteral("%1 — %2").arg(app.name, QFileInfo(gameDir).fileName()),
-                            targetKey(app, gameDir));
-        }
-    }
-
-    const int index = m_game->findData(previous);
-    if (index >= 0)
-        m_game->setCurrentIndex(index);
-    setRunning(m_process->isRunning());
 }
 
 void CompileTab::browse()
@@ -203,12 +171,12 @@ void CompileTab::moveOutput()
 
 void CompileTab::compile()
 {
-    const int index = m_game->currentIndex();
-    if (index < 0 || index >= m_targets.size())
+    const GameCombo::Target *selected = m_game->target();
+    if (!selected)
         return;
+    const GameCombo::Target target = *selected;
     saveSettings();
 
-    const Target &target = m_targets[index];
     studiomdl::Options options;
     options.noP4 = m_noP4->isChecked();
     options.verbose = m_verbose->isChecked();
@@ -233,7 +201,7 @@ void CompileTab::compile()
 
 void CompileTab::setRunning(bool running)
 {
-    m_compile->setEnabled(!running && m_game->count() > 0);
+    m_compile->setEnabled(!running);
     m_cancel->setEnabled(running);
     m_game->setEnabled(!running);
 }
@@ -241,7 +209,7 @@ void CompileTab::setRunning(bool running)
 void CompileTab::saveSettings() const
 {
     QSettings settings;
-    settings.setValue("compile/game", m_game->currentData());
+    m_game->save();
     settings.setValue("compile/qc", m_qcFile->text());
     settings.setValue("compile/outputMode", m_outputMode->currentIndex());
     settings.setValue("compile/outputSubfolder", m_outputSubfolder->text());

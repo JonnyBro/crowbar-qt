@@ -28,4 +28,5 @@ private:
 
     QProcess *m_process = nullptr;
     QByteArray m_buffer;
+    QByteArray m_marker;
 };

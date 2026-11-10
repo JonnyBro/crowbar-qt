@@ -26,6 +26,9 @@ struct Command {
 
 bool isWindowsExecutable(const QString &path);
 
+// Looks for <name>.exe or <name> in the game's bin folder.
+QString findTool(const steam::App &app, const QString &name);
+
 QString toWindowsPath(const QString &hostPath);
 
 // Rewrites every Z:\... path in tool output back to a host path.

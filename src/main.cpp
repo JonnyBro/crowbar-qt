@@ -1,3 +1,4 @@
+#include "core/Hlmv.h"
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
@@ -37,6 +38,39 @@ int listGames()
         }
     }
     return 0;
+}
+
+int run(QCoreApplication &app, const launcher::Command &command)
+{
+    QTextStream out(stdout);
+    QTextStream err(stderr);
+    if (!command.isValid()) {
+        err << command.error << Qt::endl;
+        return 1;
+    }
+    ToolProcess process;
+    QObject::connect(&process, &ToolProcess::outputLine, [&](const QString &line) { out << line << Qt::endl; });
+    QObject::connect(&process, &ToolProcess::failedToStart, [&](const QString &error) {
+        err << error << Qt::endl;
+        app.exit(1);
+    });
+    QObject::connect(&process, &ToolProcess::finished, [&](int exitCode, bool success) {
+        app.exit(success ? 0 : (exitCode ? exitCode : 1));
+    });
+    process.start(command);
+    return app.exec();
+}
+
+int view(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &mdlFile)
+{
+    for (const steam::Installation &installation : steam::scanAll()) {
+        for (const steam::App &game : installation.apps) {
+            if (game.id == appId)
+                return run(app, hlmv::viewCommand(game, gameDir, mdlFile));
+        }
+    }
+    QTextStream(stderr) << "App " << appId << " is not installed." << Qt::endl;
+    return 1;
 }
 
 int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &qcFile,
@@ -89,6 +123,15 @@ int main(int argc, char *argv[])
         if (std::strcmp(argv[i], "--list-games") == 0) {
             QCoreApplication app(argc, argv);
             return listGames();
+        }
+        if (std::strcmp(argv[i], "--view") == 0) {
+            if (i + 2 >= argc) {
+                QTextStream(stderr) << "Usage: crowbar-qt --view <appid> <game dir> [mdl file]\n";
+                return 2;
+            }
+            QCoreApplication app(argc, argv);
+            return view(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(), QString::fromLocal8Bit(argv[i + 2]),
+                        i + 3 < argc ? QString::fromLocal8Bit(argv[i + 3]) : QString());
         }
         if (std::strcmp(argv[i], "--compile") == 0) {
             if (i + 3 >= argc) {

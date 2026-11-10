@@ -17,3 +17,5 @@ Run `build/crowbar-qt`, or `build/crowbar-qt --list-games` to print the detected
 
 `build/crowbar-qt --compile <appid> <game dir> <qc file> [output dir]` compiles a model from the command line.
 With an output dir, the compiled files are moved there from the game's `models` folder.
+
+`build/crowbar-qt --view <appid> <game dir> [mdl file]` opens HLMV, optionally with a model.
