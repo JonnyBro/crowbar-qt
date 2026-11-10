@@ -70,4 +70,4 @@ Then edit `translations/crowbar-qt_ru.ts` with Qt Linguist (`linguist6`) or any 
 crowbar-qt is free software under the GNU General Public License v3 or later; see [LICENSE](LICENSE).
 
 It is a separate program written from scratch and shares no code with
-[Crowbar](https://steamcommunity.com/groups/CrowbarTool) by ZeqMacaw, whose features and behaviour it follows.
+[Crowbar](https://github.com/ZeqMacaw/Crowbar) by ZeqMacaw, whose features and behaviour it follows.
