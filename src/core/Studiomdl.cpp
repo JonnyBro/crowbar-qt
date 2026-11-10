@@ -138,8 +138,10 @@ bool moveCompiledModel(const QString &gameDir, const QString &modelName,
 
     if (moved == 0)
         log << QStringLiteral("WARNING: No compiled files for \"%1\" found in \"%2\".").arg(modelName, sourceDir);
-    // Only removes folders the compile created and the move just emptied.
-    QDir(gameDir + "/models").rmpath(QDir(gameDir + "/models").relativeFilePath(sourceDir));
+    // Drops the subfolders the move emptied, but never "models" itself.
+    QString emptied = sourceDir;
+    for (qsizetype i = subpath.split(u'/', Qt::SkipEmptyParts).size(); i > 0 && QDir().rmdir(emptied); --i)
+        emptied = QFileInfo(emptied).absolutePath();
     return moved > 0;
 }
 

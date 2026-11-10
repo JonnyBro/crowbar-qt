@@ -39,7 +39,8 @@ int listGames()
     return 0;
 }
 
-int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &qcFile)
+int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &qcFile,
+            const QString &outputDir)
 {
     QTextStream out(stdout);
     QTextStream err(stderr);
@@ -54,6 +55,12 @@ int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const 
                 app.exit(1);
             });
             QObject::connect(&process, &ToolProcess::finished, [&](int exitCode, bool success) {
+                if (success && !outputDir.isEmpty()) {
+                    QStringList log;
+                    success = studiomdl::moveCompiledModel(gameDir, studiomdl::readModelName(qcFile), outputDir, log);
+                    for (const QString &line : log)
+                        out << line << Qt::endl;
+                }
                 app.exit(success ? 0 : (exitCode ? exitCode : 1));
             });
             const launcher::Command command = studiomdl::compileCommand(game, gameDir, qcFile, {});
@@ -85,12 +92,13 @@ int main(int argc, char *argv[])
         }
         if (std::strcmp(argv[i], "--compile") == 0) {
             if (i + 3 >= argc) {
-                QTextStream(stderr) << "Usage: crowbar-qt --compile <appid> <game dir> <qc file>\n";
+                QTextStream(stderr) << "Usage: crowbar-qt --compile <appid> <game dir> <qc file> [output dir]\n";
                 return 2;
             }
             QCoreApplication app(argc, argv);
             return compile(app, QString::fromLocal8Bit(argv[i + 1]).toUInt(),
-                           QString::fromLocal8Bit(argv[i + 2]), QString::fromLocal8Bit(argv[i + 3]));
+                           QString::fromLocal8Bit(argv[i + 2]), QString::fromLocal8Bit(argv[i + 3]),
+                           i + 4 < argc ? QString::fromLocal8Bit(argv[i + 4]) : QString());
         }
     }
 

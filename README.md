@@ -15,4 +15,5 @@ ctest --test-dir build
 
 Run `build/crowbar-qt`, or `build/crowbar-qt --list-games` to print the detected Source games without opening a window.
 
-`build/crowbar-qt --compile <appid> <game dir> <qc file>` compiles a model from the command line.
+`build/crowbar-qt --compile <appid> <game dir> <qc file> [output dir]` compiles a model from the command line.
+With an output dir, the compiled files are moved there from the game's `models` folder.

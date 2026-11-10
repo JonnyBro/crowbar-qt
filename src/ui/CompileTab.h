@@ -27,6 +27,10 @@ private:
 
     void reloadGames();
     void browse();
+    void browseOutput();
+    void updateOutputWidgets();
+    QString outputDir() const;
+    void moveOutput();
     void compile();
     void setRunning(bool running);
     void saveSettings() const;
@@ -35,8 +39,16 @@ private:
     ToolProcess *m_process;
     QList<Target> m_targets;
 
+    QString m_pendingGameDir;
+    QString m_pendingModelName;
+    QString m_pendingOutputDir;
+
     QComboBox *m_game;
     QLineEdit *m_qcFile;
+    QComboBox *m_outputMode;
+    QLineEdit *m_outputSubfolder;
+    QLineEdit *m_outputPath;
+    QPushButton *m_outputBrowse;
     QCheckBox *m_noP4;
     QCheckBox *m_verbose;
     QLineEdit *m_extraOptions;

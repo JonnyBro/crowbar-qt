@@ -91,6 +91,57 @@ private slots:
         QVERIFY(!studiomdl::compileCommand(app, dir + "/game/hl2", dir + "/src/missing.qc", {}).isValid());
     }
 
+    void modelName()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString qc = temp.path() + "/a.qc";
+
+        writeFile(qc, "// $modelname \"wrong.mdl\"\n$ModelName \"Props\\\\My Model\\\\Crate.MDL\"\n$body b \"a.smd\"\n");
+        QCOMPARE(studiomdl::readModelName(qc), "Props/My Model/Crate.MDL");
+        writeFile(qc, "$cdmaterials x\n\t$modelname props/crate\n");
+        QCOMPARE(studiomdl::readModelName(qc), "props/crate.mdl");
+        writeFile(qc, "$body b \"a.smd\"\n");
+        QCOMPARE(studiomdl::readModelName(qc), QString());
+    }
+
+    void moveCompiled()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString game = temp.path() + "/game";
+        const QString out = temp.path() + "/out";
+        for (const char *name : {"crate.mdl", "crate.vvd", "crate.dx90.vtx", "crate.phy", "crate.txt", "crate2.mdl"})
+            writeFile(game + "/models/Props/new/" + name, name);
+        writeFile(out + "/models/props/new/crate.mdl", "old");
+
+        QStringList log;
+        QVERIFY(studiomdl::moveCompiledModel(game, "props/new/crate.mdl", out, log));
+        const QDir target(out + "/models/props/new");
+        QCOMPARE(target.entryList(QDir::Files), QStringList({"crate.dx90.vtx", "crate.mdl", "crate.phy", "crate.vvd"}));
+        QFile moved(target.filePath("crate.mdl"));
+        QVERIFY(moved.open(QIODevice::ReadOnly));
+        QCOMPARE(moved.readAll(), "crate.mdl");
+        QCOMPARE(QDir(game + "/models/Props/new").entryList(QDir::Files), QStringList({"crate.txt", "crate2.mdl"}));
+        QCOMPARE(log.size(), 4);
+
+        log.clear();
+        writeFile(game + "/models/solo/dir/a.mdl");
+        QVERIFY(studiomdl::moveCompiledModel(game, "solo/dir/a.mdl", out, log));
+        QVERIFY(!QDir(game + "/models/solo").exists());
+        QVERIFY(QDir(game + "/models").exists());
+
+        writeFile(game + "/models/top.mdl");
+        QVERIFY(studiomdl::moveCompiledModel(game, "top.mdl", out, log));
+        QVERIFY(QFile::exists(out + "/models/top.mdl"));
+        QVERIFY(QDir(game + "/models").exists());
+
+        log.clear();
+        QVERIFY(!studiomdl::moveCompiledModel(game, "missing/x.mdl", out, log));
+        QVERIFY(!studiomdl::moveCompiledModel(game, "props/new/absent.mdl", out, log));
+        QCOMPARE(log.size(), 2);
+    }
+
     void processOutputAndExitCode()
     {
         launcher::Command command;
