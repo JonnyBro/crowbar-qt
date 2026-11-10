@@ -1,5 +1,6 @@
 #include "core/Launcher.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -70,7 +71,7 @@ Command build(const steam::App &app, const QString &executable, const QStringLis
     command.environment = QProcessEnvironment::systemEnvironment();
 
     if (!QFile::exists(executable)) {
-        command.error = QStringLiteral("\"%1\" does not exist.").arg(executable);
+        command.error = QCoreApplication::translate("Crowbar", "\"%1\" does not exist.").arg(executable);
         return command;
     }
 
@@ -81,11 +82,11 @@ Command build(const steam::App &app, const QString &executable, const QStringLis
     }
 
     if (app.protonPath.isEmpty()) {
-        command.error = QStringLiteral("No Proton version found for %1.").arg(app.name);
+        command.error = QCoreApplication::translate("Crowbar", "No Proton version found for %1.").arg(app.name);
         return command;
     }
     if (app.compatDataPath.isEmpty()) {
-        command.error = QStringLiteral("%1 has no Proton prefix yet. Start the game once from Steam.").arg(app.name);
+        command.error = QCoreApplication::translate("Crowbar", "%1 has no Proton prefix yet. Start the game once from Steam.").arg(app.name);
         return command;
     }
 

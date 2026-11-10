@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Crowbar Qt
+GenericName=Source Engine Modding Tool
+GenericName[ru]=Инструмент для моддинга игр на Source
+Comment=Compile, view, pack and publish Source engine models and addons
+Comment[ru]=Компиляция, просмотр, упаковка и публикация моделей и аддонов для игр на Source
+Exec=crowbar-qt
+Icon=crowbar-qt
+Terminal=false
+Categories=Development;
+Keywords=Source;Valve;Garry's Mod;studiomdl;VPK;GMA;Workshop;
+StartupWMClass=crowbar-qt

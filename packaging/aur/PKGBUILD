@@ -1,0 +1,40 @@
+# Maintainer: JonnyBro
+pkgname=crowbar-qt-git
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/JonnyBro/crowbar-qt"
+license=('GPL-3.0-or-later')
+depends=('qt6-base' 'qt6-svg' 'xz' 'hicolor-icon-theme')
+makedepends=('cmake' 'git' 'qt6-tools')
+optdepends=('steam: running the games and Valve tools through Proton'
+            'steamcmd: downloading workshop items you are not subscribed to')
+provides=('crowbar-qt')
+conflicts=('crowbar-qt')
+source=("crowbar-qt::git+https://github.com/JonnyBro/crowbar-qt.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd crowbar-qt
+    # Version from CMakeLists.txt plus the commit, e.g. 1.0.0.r12.g4b1b272.
+    local version
+    version=$(sed -n 's/^project(crowbar-qt VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+    printf "%s.r%s.g%s" "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+    cmake -B build -S crowbar-qt \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -Wno-dev
+    cmake --build build
+}
+
+check() {
+    ctest --test-dir build --output-on-failure
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}

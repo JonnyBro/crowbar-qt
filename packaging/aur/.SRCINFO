@@ -1,0 +1,23 @@
+pkgbase = crowbar-qt-git
+	pkgdesc = Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/JonnyBro/crowbar-qt
+	arch = x86_64
+	arch = aarch64
+	license = GPL-3.0-or-later
+	makedepends = cmake
+	makedepends = git
+	makedepends = qt6-tools
+	depends = qt6-base
+	depends = qt6-svg
+	depends = xz
+	depends = hicolor-icon-theme
+	optdepends = steam: running the games and Valve tools through Proton
+	optdepends = steamcmd: downloading workshop items you are not subscribed to
+	provides = crowbar-qt
+	conflicts = crowbar-qt
+	source = crowbar-qt::git+https://github.com/JonnyBro/crowbar-qt.git
+	sha256sums = SKIP
+
+pkgname = crowbar-qt-git

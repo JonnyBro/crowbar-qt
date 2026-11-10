@@ -1,6 +1,6 @@
 # crowbar-qt
 
-Native Linux tool for Source engine modding, modelled on [Crowbar](https://github.com/ZeqMacaw/Crowbar).
+Native Linux tool for Source engine modding, inspired by [Crowbar](https://github.com/ZeqMacaw/Crowbar).
 Works with games installed natively and through Proton.
 
 ## Building
@@ -39,3 +39,35 @@ Running:
 
 - `build/crowbar-qt --download <link|id> <output dir>` saves a workshop item, from Steam's cache if you are subscribed,
   otherwise from its direct link (old items only). The Download tab can also use `steamcmd` when it is installed.
+
+## Installing
+
+```bash
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build -j
+sudo cmake --install build
+```
+
+This installs the program, a menu entry and, if `packaging/crowbar-qt.svg` or `packaging/crowbar-qt.png` exists, an icon.
+
+- Arch Linux: `packaging/aur/PKGBUILD` builds `crowbar-qt-git` from this repository (`makepkg -si` in that folder).
+- AppImage: `packaging/appimage/build-appimage.sh` downloads linuxdeploy and its Qt plugin, then builds
+  `build-appimage/Crowbar_Qt-<version>-x86_64.AppImage`.
+
+## Translations
+
+The window follows the system language; Russian is included. The command-line modes always print English.
+After changing user-visible strings, refresh the translation file and fill in the new entries:
+
+```bash
+cmake --build build --target update_translations
+```
+
+Then edit `translations/crowbar-qt_ru.ts` with Qt Linguist (`linguist6`) or any text editor.
+
+## License
+
+crowbar-qt is free software under the GNU General Public License v3 or later; see [LICENSE](LICENSE).
+
+It is a separate program written from scratch and shares no code with
+[Crowbar](https://steamcommunity.com/groups/CrowbarTool) by ZeqMacaw, whose features and behaviour it follows.

@@ -16,7 +16,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(tr("Crowbar"));
+    setWindowTitle(QStringLiteral("Crowbar Qt"));
 
     auto *games = new GameList(this);
     games->refresh();

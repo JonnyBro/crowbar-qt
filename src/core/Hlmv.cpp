@@ -1,5 +1,6 @@
 #include "core/Hlmv.h"
 
+#include <QCoreApplication>
 #include <QFileInfo>
 
 namespace hlmv {
@@ -14,11 +15,11 @@ launcher::Command viewCommand(const steam::App &app, const QString &gameDir, con
     launcher::Command command;
     const QString executable = findExecutable(app);
     if (executable.isEmpty()) {
-        command.error = QStringLiteral("%1 has no hlmv in its bin folder.").arg(app.name);
+        command.error = QCoreApplication::translate("Crowbar", "%1 has no hlmv in its bin folder.").arg(app.name);
         return command;
     }
     if (!mdlFile.isEmpty() && !QFileInfo(mdlFile).isFile()) {
-        command.error = QStringLiteral("\"%1\" does not exist.").arg(mdlFile);
+        command.error = QCoreApplication::translate("Crowbar", "\"%1\" does not exist.").arg(mdlFile);
         return command;
     }
 

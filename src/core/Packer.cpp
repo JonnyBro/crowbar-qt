@@ -1,5 +1,6 @@
 #include "core/Packer.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -19,10 +20,10 @@ bool moveFile(const QString &source, const QString &target, QStringList &log)
     QDir().mkpath(QFileInfo(target).absolutePath());
     QFile::remove(target);
     if (!QFile::rename(source, target)) {
-        log << QStringLiteral("WARNING: Could not move \"%1\" to \"%2\".").arg(source, target);
+        log << QCoreApplication::translate("Crowbar", "WARNING: Could not move \"%1\" to \"%2\".").arg(source, target);
         return false;
     }
-    log << QStringLiteral("Moved \"%1\" to \"%2\".").arg(QFileInfo(source).fileName(), QFileInfo(target).absolutePath());
+    log << QCoreApplication::translate("Crowbar", "Moved \"%1\" to \"%2\".").arg(QFileInfo(source).fileName(), QFileInfo(target).absolutePath());
     return true;
 }
 
@@ -44,16 +45,16 @@ launcher::Command packCommand(const steam::App &app, Format format, const QStrin
     launcher::Command command;
     const QString executable = launcher::findTool(app, toolName(format));
     if (executable.isEmpty()) {
-        command.error = QStringLiteral("%1 has no %2 in its bin folder.").arg(app.name, toolName(format));
+        command.error = QCoreApplication::translate("Crowbar", "%1 has no %2 in its bin folder.").arg(app.name, toolName(format));
         return command;
     }
     const QFileInfo input(QDir::cleanPath(folder));
     if (!input.isDir()) {
-        command.error = QStringLiteral("\"%1\" is not a folder.").arg(folder);
+        command.error = QCoreApplication::translate("Crowbar", "\"%1\" is not a folder.").arg(folder);
         return command;
     }
     if (format == Format::Gma && !hasAddonJson(input.absoluteFilePath())) {
-        command.error = QStringLiteral("gmad needs an addon.json file in \"%1\".").arg(folder);
+        command.error = QCoreApplication::translate("Crowbar", "gmad needs an addon.json file in \"%1\".").arg(folder);
         return command;
     }
 
@@ -87,7 +88,7 @@ QStringList finishPack(Format format, const QString &folder, const QString &outp
     if (format == Format::Gma) {
         if (QFile::exists(outputFile))
             return {outputFile};
-        log << QStringLiteral("WARNING: The packer did not create \"%1\".").arg(outputFile);
+        log << QCoreApplication::translate("Crowbar", "WARNING: The packer did not create \"%1\".").arg(outputFile);
         return {};
     }
 
@@ -99,7 +100,7 @@ QStringList finishPack(Format format, const QString &folder, const QString &outp
     if (!options.multiChunk) {
         const QString packed = sourceBase + ".vpk";
         if (!QFile::exists(packed)) {
-            log << QStringLiteral("WARNING: The packer did not create \"%1\".").arg(packed);
+            log << QCoreApplication::translate("Crowbar", "WARNING: The packer did not create \"%1\".").arg(packed);
             return {};
         }
         return moveFile(packed, outputFile, log) ? QStringList{outputFile} : QStringList{};
@@ -119,7 +120,7 @@ QStringList finishPack(Format format, const QString &folder, const QString &outp
             result << target;
     }
     if (result.isEmpty())
-        log << QStringLiteral("WARNING: The packer did not create \"%1_dir.vpk\".").arg(sourceBase);
+        log << QCoreApplication::translate("Crowbar", "WARNING: The packer did not create \"%1_dir.vpk\".").arg(sourceBase);
     return result;
 }
 

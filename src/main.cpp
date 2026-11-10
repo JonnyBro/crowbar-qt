@@ -14,7 +14,11 @@
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QProcess>
+#include <QIcon>
+#include <QLibraryInfo>
+#include <QLocale>
 #include <QTemporaryDir>
+#include <QTranslator>
 #include <QTextStream>
 
 #include <cstring>
@@ -391,6 +395,22 @@ int main(int argc, char *argv[])
     }
 
     QApplication app(argc, argv);
+    // Lets Wayland compositors match the window to crowbar-qt.desktop and its icon.
+    QGuiApplication::setDesktopFileName("crowbar-qt");
+#ifdef CROWBAR_ICON
+    QApplication::setWindowIcon(QIcon::fromTheme("crowbar-qt", QIcon(CROWBAR_ICON)));
+#else
+    QApplication::setWindowIcon(QIcon::fromTheme("crowbar-qt"));
+#endif
+
+    // The command-line modes above stay in English for scripts; only the window is translated.
+    QTranslator qtTranslator;
+    if (qtTranslator.load(QLocale(), "qtbase", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+        app.installTranslator(&qtTranslator);
+    QTranslator appTranslator;
+    if (appTranslator.load(QLocale(), "crowbar-qt", "_", ":/i18n"))
+        app.installTranslator(&appTranslator);
+
     MainWindow window;
     window.show();
     return app.exec();

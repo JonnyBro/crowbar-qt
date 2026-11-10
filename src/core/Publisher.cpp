@@ -1,5 +1,6 @@
 #include "core/Publisher.h"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -61,7 +62,7 @@ launcher::Command listCommand(const steam::App &app)
 {
     const QString executable = findExecutable(app);
     if (executable.isEmpty())
-        return failed(QStringLiteral("%1 has no gmpublish in its bin folder.").arg(app.name));
+        return failed(QCoreApplication::translate("Crowbar", "%1 has no gmpublish in its bin folder.").arg(app.name));
     launcher::Command command = launcher::build(app, executable, {"list"}, launcher::Mode::Console);
     command.workingDirectory = QFileInfo(executable).absolutePath();
     return command;
@@ -71,17 +72,17 @@ launcher::Command publishCommand(const steam::App &app, const Request &request)
 {
     const QString executable = findExecutable(app);
     if (executable.isEmpty())
-        return failed(QStringLiteral("%1 has no gmpublish in its bin folder.").arg(app.name));
+        return failed(QCoreApplication::translate("Crowbar", "%1 has no gmpublish in its bin folder.").arg(app.name));
 
     const bool create = request.id == 0;
     if (request.gmaFile.isEmpty() && (create || request.iconFile.isEmpty()))
-        return failed(create ? QStringLiteral("A new item needs a GMA file and an icon.")
-                             : QStringLiteral("Select a GMA file, an icon or both to update."));
+        return failed(create ? QCoreApplication::translate("Crowbar", "A new item needs a GMA file and an icon.")
+                             : QCoreApplication::translate("Crowbar", "Select a GMA file, an icon or both to update."));
     if (create && request.iconFile.isEmpty())
-        return failed(QStringLiteral("A new item needs an icon."));
+        return failed(QCoreApplication::translate("Crowbar", "A new item needs an icon."));
     for (const QString &file : {request.gmaFile, request.iconFile}) {
         if (!file.isEmpty() && !QFileInfo(file).isFile())
-            return failed(QStringLiteral("\"%1\" does not exist.").arg(file));
+            return failed(QCoreApplication::translate("Crowbar", "\"%1\" does not exist.").arg(file));
     }
 
     const bool windows = launcher::isWindowsExecutable(executable);
@@ -164,7 +165,7 @@ QString prepareIcon(const QString &iconFile, const QString &convertedFile, QStri
 
     QImage image = reader.read();
     if (image.isNull()) {
-        setError(error, QStringLiteral("Could not read the icon \"%1\": %2").arg(iconFile, reader.errorString()));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not read the icon \"%1\": %2").arg(iconFile, reader.errorString()));
         return {};
     }
 
@@ -180,7 +181,7 @@ QString prepareIcon(const QString &iconFile, const QString &convertedFile, QStri
     writer.setQuality(92);
     writer.setProgressiveScanWrite(false);
     if (!writer.write(flat)) {
-        setError(error, QStringLiteral("Could not write \"%1\": %2").arg(convertedFile, writer.errorString()));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not write \"%1\": %2").arg(convertedFile, writer.errorString()));
         return {};
     }
     return convertedFile;

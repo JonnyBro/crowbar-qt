@@ -1,5 +1,6 @@
 #include "core/Studiomdl.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -20,14 +21,14 @@ launcher::Command compileCommand(const steam::App &app, const QString &gameDir,
     const QString executable = findExecutable(app);
     if (executable.isEmpty()) {
         launcher::Command command;
-        command.error = QStringLiteral("%1 has no studiomdl in its bin folder.").arg(app.name);
+        command.error = QCoreApplication::translate("Crowbar", "%1 has no studiomdl in its bin folder.").arg(app.name);
         return command;
     }
 
     const QFileInfo qc(qcFile);
     if (!qc.isFile()) {
         launcher::Command command;
-        command.error = QStringLiteral("\"%1\" does not exist.").arg(qcFile);
+        command.error = QCoreApplication::translate("Crowbar", "\"%1\" does not exist.").arg(qcFile);
         return command;
     }
 
@@ -100,7 +101,7 @@ bool moveCompiledModel(const QString &gameDir, const QString &modelName,
     const QString subpath = model.path() == "." ? QString() : model.path();
     const QString sourceDir = resolveIgnoringCase(gameDir, "models/" + subpath);
     if (sourceDir.isEmpty()) {
-        log << QStringLiteral("WARNING: Compiled model folder \"%1/models/%2\" was not found.").arg(gameDir, subpath);
+        log << QCoreApplication::translate("Crowbar", "WARNING: Compiled model folder \"%1/models/%2\" was not found.").arg(gameDir, subpath);
         return false;
     }
 
@@ -108,7 +109,7 @@ bool moveCompiledModel(const QString &gameDir, const QString &modelName,
     if (QFileInfo(targetDir) == QFileInfo(sourceDir))
         return true;
     if (!QDir().mkpath(targetDir)) {
-        log << QStringLiteral("WARNING: Could not create \"%1\".").arg(targetDir);
+        log << QCoreApplication::translate("Crowbar", "WARNING: Could not create \"%1\".").arg(targetDir);
         return false;
     }
 
@@ -123,14 +124,14 @@ bool moveCompiledModel(const QString &gameDir, const QString &modelName,
         QFile::remove(target);
         if (QFile::rename(file.absoluteFilePath(), target)) {
             ++moved;
-            log << QStringLiteral("Moved \"%1\" to \"%2\".").arg(file.fileName(), targetDir);
+            log << QCoreApplication::translate("Crowbar", "Moved \"%1\" to \"%2\".").arg(file.fileName(), targetDir);
         } else {
-            log << QStringLiteral("WARNING: Could not move \"%1\" to \"%2\".").arg(file.absoluteFilePath(), targetDir);
+            log << QCoreApplication::translate("Crowbar", "WARNING: Could not move \"%1\" to \"%2\".").arg(file.absoluteFilePath(), targetDir);
         }
     }
 
     if (moved == 0)
-        log << QStringLiteral("WARNING: No compiled files for \"%1\" found in \"%2\".").arg(modelName, sourceDir);
+        log << QCoreApplication::translate("Crowbar", "WARNING: No compiled files for \"%1\" found in \"%2\".").arg(modelName, sourceDir);
     // Drops the subfolders the move emptied, but never "models" itself.
     QString emptied = sourceDir;
     for (qsizetype i = subpath.split(u'/', Qt::SkipEmptyParts).size(); i > 0 && QDir().rmdir(emptied); --i)

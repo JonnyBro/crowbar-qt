@@ -2,6 +2,7 @@
 
 #include "core/Package.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -39,13 +40,13 @@ ItemDetails parseDetails(const QByteArray &json)
     ItemDetails details;
     const QJsonArray items = QJsonDocument::fromJson(json).object()["response"].toObject()["publishedfiledetails"].toArray();
     if (items.isEmpty()) {
-        details.error = QStringLiteral("Steam returned no item details.");
+        details.error = QCoreApplication::translate("Crowbar", "Steam returned no item details.");
         return details;
     }
     const QJsonObject item = items.first().toObject();
     details.id = item["publishedfileid"].toString().toULongLong();
     if (item["result"].toInt() != 1) {
-        details.error = QStringLiteral("Item %1 was not found, or it is private or removed.").arg(details.id);
+        details.error = QCoreApplication::translate("Crowbar", "Item %1 was not found, or it is private or removed.").arg(details.id);
         return details;
     }
     details.appId = quint32(item["consumer_app_id"].toInteger());
@@ -88,7 +89,7 @@ launcher::Command steamCmdCommand(const QString &steamCmd, const QString &instal
     launcher::Command command;
     command.environment = QProcessEnvironment::systemEnvironment();
     if (steamCmd.isEmpty()) {
-        command.error = QStringLiteral("steamcmd is not installed.");
+        command.error = QCoreApplication::translate("Crowbar", "steamcmd is not installed.");
         return command;
     }
     command.program = steamCmd;
@@ -118,7 +119,7 @@ QString saveFile(const QString &file, const QString &outputDir, const QString &b
 {
     if (!QDir().mkpath(outputDir)) {
         if (error)
-            *error = QStringLiteral("Could not create \"%1\".").arg(outputDir);
+            *error = QCoreApplication::translate("Crowbar", "Could not create \"%1\".").arg(outputDir);
         return {};
     }
 
@@ -134,7 +135,7 @@ QString saveFile(const QString &file, const QString &outputDir, const QString &b
         if (!QFile::rename(temp, target)) {
             QFile::remove(temp);
             if (error)
-                *error = QStringLiteral("Could not write \"%1\".").arg(target);
+                *error = QCoreApplication::translate("Crowbar", "Could not write \"%1\".").arg(target);
             return {};
         }
         return target;
@@ -147,7 +148,7 @@ QString saveFile(const QString &file, const QString &outputDir, const QString &b
     QFile::remove(target);
     if (!QFile::copy(file, target)) {
         if (error)
-            *error = QStringLiteral("Could not copy \"%1\" to \"%2\".").arg(file, target);
+            *error = QCoreApplication::translate("Crowbar", "Could not copy \"%1\" to \"%2\".").arg(file, target);
         return {};
     }
     return target;
@@ -172,7 +173,7 @@ void Client::fetchDetails(quint64 id)
         ItemDetails details;
         if (reply->error() != QNetworkReply::NoError) {
             details.id = id;
-            details.error = QStringLiteral("Could not reach Steam: %1").arg(reply->errorString());
+            details.error = QCoreApplication::translate("Crowbar", "Could not reach Steam: %1").arg(reply->errorString());
         } else {
             details = parseDetails(reply->readAll());
         }

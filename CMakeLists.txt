@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.21)
-project(crowbar-qt VERSION 0.1.0 LANGUAGES CXX)
+project(crowbar-qt VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Network Widgets)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Network Svg Widgets)
 find_package(LibLZMA REQUIRED)
 qt_standard_project_setup()
 
@@ -61,10 +61,34 @@ qt_add_executable(crowbar-qt
     src/ui/ViewTab.cpp
     src/ui/ViewTab.h
 )
-target_link_libraries(crowbar-qt PRIVATE crowbar_core Qt6::Widgets)
+target_link_libraries(crowbar-qt PRIVATE crowbar_core Qt6::Widgets Qt6::Svg)
 target_compile_definitions(crowbar-qt PRIVATE CROWBAR_VERSION="${PROJECT_VERSION}")
 
+find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+qt_add_translations(crowbar-qt
+    TS_FILES translations/crowbar-qt_ru.ts
+    SOURCE_TARGETS crowbar-qt crowbar_core
+    RESOURCE_PREFIX /i18n
+    LUPDATE_OPTIONS -no-obsolete -locations none
+)
+
+include(GNUInstallDirs)
 install(TARGETS crowbar-qt)
+install(FILES packaging/crowbar-qt.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+
+# The icon is optional: packaging/crowbar-qt.svg or packaging/crowbar-qt.png, whichever exists.
+# Without one the app and its menu entry use the desktop's generic icon.
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/crowbar-qt.svg)
+    set(CROWBAR_ICON crowbar-qt.svg)
+    install(FILES packaging/crowbar-qt.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/crowbar-qt.png)
+    set(CROWBAR_ICON crowbar-qt.png)
+    install(FILES packaging/crowbar-qt.png DESTINATION ${CMAKE_INSTALL_DATADIR}/pixmaps)
+endif()
+if(CROWBAR_ICON)
+    qt_add_resources(crowbar-qt "icon" PREFIX / BASE packaging FILES packaging/${CROWBAR_ICON})
+    target_compile_definitions(crowbar-qt PRIVATE CROWBAR_ICON=":/${CROWBAR_ICON}")
+endif()
 
 include(CTest)
 if(BUILD_TESTING)

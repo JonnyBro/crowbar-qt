@@ -1,5 +1,6 @@
 #include "core/Runner.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
@@ -26,7 +27,7 @@ launcher::Command gameCommand(const steam::App &app, const QString &gameDir, con
         command.arguments = arguments;
     }
     if (command.program.isEmpty())
-        command.error = QStringLiteral("The steam command was not found.");
+        command.error = QCoreApplication::translate("Crowbar", "The steam command was not found.");
     return command;
 }
 
@@ -35,7 +36,7 @@ launcher::Command hammerCommand(const steam::App &app, const QString &gameDir)
     const QString executable = launcher::findTool(app, "hammer");
     if (executable.isEmpty()) {
         launcher::Command command;
-        command.error = QStringLiteral("%1 has no Hammer in its bin folder.").arg(app.name);
+        command.error = QCoreApplication::translate("Crowbar", "%1 has no Hammer in its bin folder.").arg(app.name);
         return command;
     }
     const bool windows = launcher::isWindowsExecutable(executable);

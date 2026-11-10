@@ -1,5 +1,6 @@
 #include "core/Package.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -95,13 +96,13 @@ std::shared_ptr<QTemporaryFile> decompressLzma(const QString &file, QString *err
     QFile in(file);
     auto out = std::make_shared<QTemporaryFile>();
     if (!in.open(QIODevice::ReadOnly) || !out->open()) {
-        setError(error, QStringLiteral("Could not open \"%1\" for decompression.").arg(file));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not open \"%1\" for decompression.").arg(file));
         return nullptr;
     }
 
     lzma_stream stream = LZMA_STREAM_INIT;
     if (lzma_alone_decoder(&stream, UINT64_MAX) != LZMA_OK) {
-        setError(error, QStringLiteral("Could not start the LZMA decoder."));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not start the LZMA decoder."));
         return nullptr;
     }
 
@@ -124,7 +125,7 @@ std::shared_ptr<QTemporaryFile> decompressLzma(const QString &file, QString *err
     lzma_end(&stream);
 
     if (result != LZMA_STREAM_END) {
-        setError(error, QStringLiteral("\"%1\" is not a valid LZMA-compressed package.").arg(QFileInfo(file).fileName()));
+        setError(error, QCoreApplication::translate("Crowbar", "\"%1\" is not a valid LZMA-compressed package.").arg(QFileInfo(file).fileName()));
         return nullptr;
     }
     out->flush();
@@ -144,13 +145,13 @@ std::optional<Package> readVpk(const QString &file, QString *error)
     const QByteArray head = dirFile.read(28);
     Reader header(head);
     if (header.read<quint32>() != VpkSignature) {
-        setError(error, QStringLiteral("Not a VPK directory file. Open the *_dir.vpk file of a multi-part package."));
+        setError(error, QCoreApplication::translate("Crowbar", "Not a VPK directory file. Open the *_dir.vpk file of a multi-part package."));
         return std::nullopt;
     }
     const quint32 version = header.read<quint32>();
     const quint32 treeSize = header.read<quint32>();
     if (!header.ok() || (version != 1 && version != 2)) {
-        setError(error, QStringLiteral("Unsupported VPK version %1.").arg(version));
+        setError(error, QCoreApplication::translate("Crowbar", "Unsupported VPK version %1.").arg(version));
         return std::nullopt;
     }
     const qint64 headerSize = version == 1 ? 12 : 28;
@@ -160,7 +161,7 @@ std::optional<Package> readVpk(const QString &file, QString *error)
     }
     const QByteArray treeData = dirFile.read(treeSize);
     if (quint32(treeData.size()) != treeSize) {
-        setError(error, QStringLiteral("The VPK file table is truncated."));
+        setError(error, QCoreApplication::translate("Crowbar", "The VPK file table is truncated."));
         return std::nullopt;
     }
 
@@ -200,7 +201,7 @@ std::optional<Package> readVpk(const QString &file, QString *error)
                 const quint16 terminator = tree.read<quint16>();
                 entry.preload = tree.bytes(preloadSize);
                 if (!tree.ok() || terminator != VpkEntryTerminator) {
-                    setError(error, QStringLiteral("The VPK file table is corrupt."));
+                    setError(error, QCoreApplication::translate("Crowbar", "The VPK file table is corrupt."));
                     return std::nullopt;
                 }
 
@@ -224,7 +225,7 @@ std::optional<Package> readVpk(const QString &file, QString *error)
         }
     }
     if (!tree.ok()) {
-        setError(error, QStringLiteral("The VPK file table is corrupt."));
+        setError(error, QCoreApplication::translate("Crowbar", "The VPK file table is corrupt."));
         return std::nullopt;
     }
     return result;
@@ -247,7 +248,7 @@ std::optional<Package> readGma(const QString &file, QString *error)
 
         Reader reader(data);
         if (reader.bytes(4) != "GMAD") {
-            setError(error, QStringLiteral("Not a GMA file."));
+            setError(error, QCoreApplication::translate("Crowbar", "Not a GMA file."));
             return std::nullopt;
         }
         const quint8 version = reader.read<quint8>();
@@ -287,7 +288,7 @@ std::optional<Package> readGma(const QString &file, QString *error)
             return result;
         }
         if (wholeFile) {
-            setError(error, QStringLiteral("The GMA file table is corrupt."));
+            setError(error, QCoreApplication::translate("Crowbar", "The GMA file table is corrupt."));
             return std::nullopt;
         }
     }
@@ -315,7 +316,7 @@ std::optional<Package> Package::open(const QString &file, QString *error)
             return std::nullopt;
         auto package = readGma(decompressed->fileName(), nullptr);
         if (!package) {
-            setError(error, QStringLiteral("\"%1\" is LZMA-compressed but holds no GMA addon (it may be a dupe or a save).")
+            setError(error, QCoreApplication::translate("Crowbar", "\"%1\" is LZMA-compressed but holds no GMA addon (it may be a dupe or a save).")
                                 .arg(QFileInfo(file).fileName()));
         } else {
             package->m_file = file;
@@ -332,7 +333,7 @@ std::optional<Package> Package::open(const QString &file, QString *error)
         if (QFile::exists(dirFile))
             return readVpk(dirFile, error);
     }
-    setError(error, QStringLiteral("\"%1\" is not a VPK or GMA package.").arg(QFileInfo(file).fileName()));
+    setError(error, QCoreApplication::translate("Crowbar", "\"%1\" is not a VPK or GMA package.").arg(QFileInfo(file).fileName()));
     return std::nullopt;
 }
 
@@ -349,7 +350,7 @@ bool decompressLzmaFile(const QString &file, const QString &outputFile, QString 
         return false;
     QFile::remove(outputFile);
     if (!QFile::copy(decompressed->fileName(), outputFile)) {
-        setError(error, QStringLiteral("Could not write \"%1\".").arg(outputFile));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not write \"%1\".").arg(outputFile));
         return false;
     }
     return true;
@@ -359,13 +360,13 @@ bool Package::extract(const Entry &entry, const QString &outputDir, QString *err
 {
     const QString relative = safeRelativePath(entry.path);
     if (relative.isEmpty()) {
-        setError(error, QStringLiteral("Unsafe path \"%1\" skipped.").arg(entry.path));
+        setError(error, QCoreApplication::translate("Crowbar", "Unsafe path \"%1\" skipped.").arg(entry.path));
         return false;
     }
 
     const QString target = outputDir + u'/' + relative;
     if (!QDir().mkpath(QFileInfo(target).absolutePath())) {
-        setError(error, QStringLiteral("Could not create the folder for \"%1\".").arg(relative));
+        setError(error, QCoreApplication::translate("Crowbar", "Could not create the folder for \"%1\".").arg(relative));
         return false;
     }
     QFile out(target);
@@ -378,7 +379,7 @@ bool Package::extract(const Entry &entry, const QString &outputDir, QString *err
     if (entry.length > 0) {
         QFile in(entry.archive);
         if (!in.open(QIODevice::ReadOnly) || !in.seek(qint64(entry.offset))) {
-            setError(error, QStringLiteral("%1: cannot read \"%2\".").arg(relative, QFileInfo(entry.archive).fileName()));
+            setError(error, QCoreApplication::translate("Crowbar", "%1: cannot read \"%2\".").arg(relative, QFileInfo(entry.archive).fileName()));
             out.remove();
             return false;
         }
@@ -386,7 +387,7 @@ bool Package::extract(const Entry &entry, const QString &outputDir, QString *err
         while (remaining > 0) {
             const QByteArray chunk = in.read(qint64(qMin<quint64>(remaining, 1 << 20)));
             if (chunk.isEmpty() || out.write(chunk) != chunk.size()) {
-                setError(error, QStringLiteral("%1: data is truncated or the disk is full.").arg(relative));
+                setError(error, QCoreApplication::translate("Crowbar", "%1: data is truncated or the disk is full.").arg(relative));
                 out.remove();
                 return false;
             }
@@ -419,7 +420,7 @@ void ExtractJob::run()
             ++extracted;
         } else {
             ++failed;
-            emit message(QStringLiteral("WARNING: ") + error);
+            emit message(QCoreApplication::translate("Crowbar", "WARNING: ") + error);
         }
         if (i % 64 == 0 || i + 1 == total)
             emit progress(i + 1, total);
