@@ -29,7 +29,9 @@ export QMAKE=${QMAKE:-$(command -v qmake6 || command -v qmake)}
 platforms=$("$QMAKE" -query QT_INSTALL_PLUGINS)/platforms
 extra=()
 for plugin in libqwayland-egl.so libqwayland-generic.so; do
-    [ -f "$platforms/$plugin" ] && extra+=("$plugin")
+    if [ -f "$platforms/$plugin" ]; then
+        extra+=("$plugin")
+    fi
 done
 if [ ${#extra[@]} -gt 0 ]; then
     EXTRA_PLATFORM_PLUGINS=$(IFS=';'; echo "${extra[*]}")
@@ -42,7 +44,7 @@ export OUTPUT=${OUTPUT:-Crowbar_Qt-$version-x86_64.AppImage}
 
 cd "$work"
 # An AppImage must carry an icon, so a project without one gets a blank placeholder.
-icon=$(find AppDir/usr/share/icons AppDir/usr/share/pixmaps -name 'crowbar-qt.*' 2>/dev/null | head -n1)
+icon=$(find AppDir/usr/share -path '*/icons/*' -name 'crowbar-qt.*' -o -path '*/pixmaps/*' -name 'crowbar-qt.*' | head -n1)
 if [ -z "$icon" ]; then
     icon=$work/crowbar-qt.svg
     printf '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"/>\n' > "$icon"
