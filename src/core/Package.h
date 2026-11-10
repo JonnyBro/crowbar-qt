@@ -50,6 +50,10 @@ private:
     friend std::optional<Package> readGma(const QString &file, QString *error);
 };
 
+// Legacy LZMA-compressed workshop files (*_legacy.bin).
+bool isLzmaFile(const QString &file);
+bool decompressLzmaFile(const QString &file, const QString &outputFile, QString *error = nullptr);
+
 class ExtractJob : public QThread {
     Q_OBJECT
 

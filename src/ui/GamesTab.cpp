@@ -5,6 +5,8 @@
 #include "ui/GameList.h"
 
 #include <QDesktopServices>
+#include <QFileDialog>
+#include <QMenu>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -38,6 +40,7 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
     , m_options(new QLineEdit(this))
     , m_runGame(new QPushButton(tr("Run Game"), this))
     , m_runHammer(new QPushButton(tr("Run Hammer"), this))
+    , m_tools(new QPushButton(tr("Tools Folder…"), this))
 {
     m_options->setPlaceholderText(tr("Game launch options, e.g. -dev -console +map gm_construct"));
     m_tree->setColumnCount(ColumnCount);
@@ -51,6 +54,7 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
 
     auto *bar = new QHBoxLayout;
     bar->addWidget(m_status, 1);
+    bar->addWidget(m_tools);
     bar->addWidget(refreshButton);
 
     auto *runBar = new QHBoxLayout;
@@ -64,6 +68,8 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
     layout->addWidget(m_tree);
     layout->addLayout(runBar);
 
+    m_tools->setToolTip(tr("Use tools (studiomdl, hlmv, …) from another folder, e.g. the bin folder of the game's Windows build."));
+    connect(m_tools, &QPushButton::clicked, this, &GamesTab::showToolsMenu);
     connect(m_tree, &QTreeWidget::itemSelectionChanged, this, &GamesTab::updateButtons);
     connect(m_options, &QLineEdit::editingFinished, this, &GamesTab::saveOptions);
     connect(m_runGame, &QPushButton::clicked, this, [this] {
@@ -106,8 +112,13 @@ void GamesTab::reload()
         item->setText(Build, windows ? tr("Windows") : tr("Linux"));
         if (windows)
             item->setText(CompatTool, app.protonPath.isEmpty() ? tr("not found") : app.compatToolName);
-        item->setText(Tools, app.toolsPath.isEmpty() ? tr("missing") : tr("found"));
-        item->setToolTip(Tools, app.toolsPath);
+        item->setText(Tools, app.toolsPath.isEmpty() ? tr("missing") : app.toolsOverridden ? tr("custom") : tr("found"));
+        item->setToolTip(Tools, app.toolsPath.isEmpty()
+                                    ? tr("No modding tools in this game's bin folder. Use \"Tools Folder…\" to point at "
+                                         "the bin folder of the Windows build or of another game.")
+                                    : app.toolsPath);
+        if (!windows && !app.compatToolName.isEmpty())
+            item->setText(CompatTool, tr("%1 (tools)").arg(app.compatToolName));
         item->setToolTip(CompatTool, app.protonPath);
         item->setText(Location, app.installPath);
 
@@ -116,6 +127,16 @@ void GamesTab::reload()
             child->setData(Name, AppIndexRole, appIndex);
             child->setText(Name, QFileInfo(gameDir).fileName());
             child->setText(Location, gameDir);
+        }
+        if (app.toolsPath.isEmpty()) {
+            const QBrush grey = palette().brush(QPalette::Disabled, QPalette::Text);
+            QList<QTreeWidgetItem *> rows{item};
+            for (int i = 0; i < item->childCount(); ++i)
+                rows << item->child(i);
+            for (QTreeWidgetItem *row : rows) {
+                for (int column = 0; column < ColumnCount; ++column)
+                    row->setForeground(column, grey);
+            }
         }
     }
 
@@ -152,6 +173,7 @@ void GamesTab::updateButtons()
     QString gameDir;
     const bool ready = selection(app, gameDir);
     m_runGame->setEnabled(ready);
+    m_tools->setEnabled(app.id != 0);
     m_runHammer->setEnabled(ready && !launcher::findTool(app, "hammer").isEmpty());
     m_runGame->setToolTip(ready || !app.id ? QString() : tr("Select one of the game's folders."));
     saveOptions();
@@ -187,4 +209,42 @@ void GamesTab::launch(const launcher::Command &command, const QString &what, boo
     connect(process, &ToolProcess::finished, process, &QObject::deleteLater);
     m_status->setText(tr("Starting %1…").arg(what));
     process->start(command);
+}
+
+void GamesTab::showToolsMenu()
+{
+    steam::App app;
+    QString gameDir;
+    selection(app, gameDir);
+    if (!app.id)
+        return;
+
+    QMenu menu(this);
+    QAction *choose = menu.addAction(tr("Choose Folder…"));
+    QMenu *from = menu.addMenu(tr("Use Tools From"));
+    for (const steam::App &other : m_games->apps()) {
+        if (other.id == app.id || other.toolsPath.isEmpty() || other.toolsOverridden)
+            continue;
+        const QString path = other.toolsPath;
+        from->addAction(other.name, this, [this, id = app.id, path] {
+            GameList::setToolsOverride(id, path);
+            m_games->refresh();
+        });
+    }
+    from->setEnabled(!from->isEmpty());
+    QAction *reset = menu.addAction(tr("Automatic (game's own bin folder)"));
+    reset->setEnabled(app.toolsOverridden);
+
+    const QAction *chosen = menu.exec(m_tools->mapToGlobal(QPoint(0, m_tools->height())));
+    if (chosen == choose) {
+        const QString start = app.toolsPath.isEmpty() ? app.installPath : app.toolsPath;
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("Select tools folder for %1").arg(app.name), start);
+        if (dir.isEmpty())
+            return;
+        GameList::setToolsOverride(app.id, dir);
+        m_games->refresh();
+    } else if (chosen == reset) {
+        GameList::setToolsOverride(app.id, {});
+        m_games->refresh();
+    }
 }

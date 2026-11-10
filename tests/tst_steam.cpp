@@ -95,6 +95,42 @@ private slots:
         QVERIFY(tf2->protonPath.isEmpty());
     }
 
+    void toolsOverride()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        const QString dir = QDir(temp.path()).canonicalPath();
+        writeFile(dir + "/win/bin/studiomdl.exe");
+        writeFile(dir + "/native/bin/tool");
+
+        const QList<steam::CompatTool> tools = {{"GE-Proton", "GE", dir + "/ge"},
+                                                {"proton_9", "Proton 9.0", dir + "/p9"},
+                                                {"proton_experimental", "Experimental", dir + "/exp"}};
+        steam::App app;
+        steam::overrideTools(app, dir + "/missing", tools, dir + "/prefix");
+        QVERIFY(!app.toolsOverridden);
+
+        steam::overrideTools(app, dir + "/win/bin/", tools, dir + "/prefix");
+        QVERIFY(app.toolsOverridden);
+        QCOMPARE(app.toolsPath, dir + "/win/bin");
+        QCOMPARE(app.compatToolName, "proton_experimental");
+        QCOMPARE(app.compatDataPath, dir + "/prefix");
+        QVERIFY(QDir(dir + "/prefix").exists());
+
+        steam::App native;
+        steam::overrideTools(native, dir + "/native/bin", tools, dir + "/prefix2");
+        QVERIFY(native.protonPath.isEmpty());
+
+        steam::App own;
+        own.protonPath = dir + "/mine";
+        steam::overrideTools(own, dir + "/win/bin", tools, dir + "/prefix3");
+        QCOMPARE(own.protonPath, dir + "/mine");
+
+        steam::App custom;
+        steam::overrideTools(custom, dir + "/win/bin", {tools[0]}, dir + "/prefix4");
+        QCOMPARE(custom.compatToolName, "GE-Proton");
+    }
+
     void protonFallsBackToPrefixConfigInfo()
     {
         QTemporaryDir temp;

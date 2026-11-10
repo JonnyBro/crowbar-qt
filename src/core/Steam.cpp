@@ -228,6 +228,38 @@ QString officialToolName(const QString &directoryName)
     return "proton_" + match.captured(1) + match.captured(2);
 }
 
+void overrideTools(App &app, const QString &toolsPath, const QList<CompatTool> &tools, const QString &prefixDir)
+{
+    if (!QDir(toolsPath).exists())
+        return;
+    app.toolsPath = QDir::cleanPath(toolsPath);
+    app.toolsOverridden = true;
+    if (!app.protonPath.isEmpty() || QDir(toolsPath).entryList({"*.exe"}, QDir::Files).isEmpty())
+        return;
+
+    // Valve's own builds first; otherwise the last custom one found.
+    const CompatTool *chosen = nullptr;
+    for (const char *preferred : {"proton_experimental", "proton_hotfix"}) {
+        for (const CompatTool &tool : tools) {
+            if (!chosen && tool.name == QLatin1String(preferred))
+                chosen = &tool;
+        }
+    }
+    for (const CompatTool &tool : tools) {
+        if (!chosen && tool.name.startsWith("proton_"))
+            chosen = &tool;
+    }
+    if (!chosen && !tools.isEmpty())
+        chosen = &tools.last();
+    if (!chosen)
+        return;
+
+    app.protonPath = chosen->path;
+    app.compatToolName = chosen->name;
+    app.compatDataPath = QDir::cleanPath(prefixDir);
+    QDir().mkpath(app.compatDataPath);
+}
+
 QStringList findRoots()
 {
     const QString home = QDir::homePath();

@@ -1,6 +1,7 @@
 #include "ui/MainWindow.h"
 
 #include "ui/CompileTab.h"
+#include "ui/DownloadTab.h"
 #include "ui/GameList.h"
 #include "ui/GamesTab.h"
 #include "ui/PackTab.h"
@@ -27,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     tabs->addTab(new PackTab(games, tabs), tr("Pack"));
     tabs->addTab(new UnpackTab(tabs), tr("Unpack"));
     tabs->addTab(new PublishTab(games, tabs), tr("Publish"));
+    tabs->addTab(new DownloadTab(games, tabs), tr("Download"));
     setCentralWidget(tabs);
 
     resize(1000, 600);

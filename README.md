@@ -36,3 +36,6 @@ Running:
 
 - `build/crowbar-qt --run-game <appid> <game dir> [options]` starts the game through Steam with `-game`.
 - `build/crowbar-qt --hammer <appid> <game dir>` opens Hammer for that game folder.
+
+- `build/crowbar-qt --download <link|id> <output dir>` saves a workshop item, from Steam's cache if you are subscribed,
+  otherwise from its direct link (old items only). The Download tab can also use `steamcmd` when it is installed.

@@ -25,6 +25,8 @@ struct App {
     QString compatDataPath;
     QString compatToolName;
     QString protonPath;
+    // toolsPath was set by the user rather than found in the game folder.
+    bool toolsOverridden = false;
 
     bool isSourceGame() const { return !gameDirs.isEmpty(); }
 };
@@ -43,5 +45,10 @@ QList<Installation> scanAll();
 // Internal name Steam uses in CompatToolMapping for a Valve-shipped Proton
 // directory, e.g. "Proton 9.0 (Beta)" -> "proton_9". Empty if not recognised.
 QString officialToolName(const QString &directoryName);
+
+// Points the app at a tools folder chosen by the user, e.g. the bin folder of
+// the Windows build for a native game. If those tools are Windows programs and
+// the app has no Proton of its own, one of `tools` is used with `prefixDir`.
+void overrideTools(App &app, const QString &toolsPath, const QList<CompatTool> &tools, const QString &prefixDir);
 
 } // namespace steam

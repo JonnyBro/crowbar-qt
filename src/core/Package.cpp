@@ -336,6 +336,25 @@ std::optional<Package> Package::open(const QString &file, QString *error)
     return std::nullopt;
 }
 
+bool isLzmaFile(const QString &file)
+{
+    QFile in(file);
+    return in.open(QIODevice::ReadOnly) && looksLikeLzma(in.read(13));
+}
+
+bool decompressLzmaFile(const QString &file, const QString &outputFile, QString *error)
+{
+    const auto decompressed = decompressLzma(file, error);
+    if (!decompressed)
+        return false;
+    QFile::remove(outputFile);
+    if (!QFile::copy(decompressed->fileName(), outputFile)) {
+        setError(error, QStringLiteral("Could not write \"%1\".").arg(outputFile));
+        return false;
+    }
+    return true;
+}
+
 bool Package::extract(const Entry &entry, const QString &outputDir, QString *error) const
 {
     const QString relative = safeRelativePath(entry.path);

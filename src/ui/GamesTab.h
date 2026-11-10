@@ -23,6 +23,7 @@ private:
     void updateButtons();
     void launch(const launcher::Command &command, const QString &what, bool detached);
     void saveOptions() const;
+    void showToolsMenu();
 
     GameList *m_games;
     QTreeWidget *m_tree;
@@ -30,5 +31,6 @@ private:
     QLineEdit *m_options;
     QPushButton *m_runGame;
     QPushButton *m_runHammer;
+    QPushButton *m_tools;
     quint32 m_optionsAppId = 0;
 };

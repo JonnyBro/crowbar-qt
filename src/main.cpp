@@ -3,9 +3,11 @@
 #include "core/Packer.h"
 #include "core/Publisher.h"
 #include "core/Runner.h"
+#include "core/Workshop.h"
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
+#include "ui/GameList.h"
 #include "ui/MainWindow.h"
 
 #include <QApplication>
@@ -70,11 +72,12 @@ int run(QCoreApplication &app, const launcher::Command &command)
 
 std::optional<steam::App> findApp(quint32 appId)
 {
-    for (const steam::Installation &installation : steam::scanAll()) {
-        for (const steam::App &game : installation.apps) {
-            if (game.id == appId)
-                return game;
-        }
+    // Same list as the window, so tools folders chosen there apply here too.
+    GameList games;
+    games.refresh();
+    for (const steam::App &game : games.apps()) {
+        if (game.id == appId)
+            return game;
     }
     QTextStream(stderr) << "App " << appId << " is not installed." << Qt::endl;
     return std::nullopt;
@@ -197,16 +200,74 @@ int publish(QCoreApplication &app, quint32 appId, const QStringList &args)
     return run(app, publisher::publishCommand(*game, request));
 }
 
-int view(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &mdlFile)
+int download(QCoreApplication &app, const QString &item, const QString &outputDir)
 {
-    for (const steam::Installation &installation : steam::scanAll()) {
-        for (const steam::App &game : installation.apps) {
-            if (game.id == appId)
-                return run(app, hlmv::viewCommand(game, gameDir, mdlFile));
+    QTextStream out(stdout);
+    QTextStream err(stderr);
+    const quint64 id = workshop::parseItemId(item);
+    if (!id) {
+        err << "Not a workshop link or ID: " << item << Qt::endl;
+        return 2;
+    }
+    GameList games;
+    games.refresh();
+    workshop::Client client;
+    QTemporaryDir temp;
+    workshop::ItemDetails details;
+    QStringList files;
+
+    QObject::connect(&client, &workshop::Client::detailsReady, [&](const workshop::ItemDetails &result) {
+        details = result;
+        if (!details.isValid()) {
+            err << details.error << Qt::endl;
+            app.exit(1);
+            return;
+        }
+        out << details.title << " (app " << details.appId << ")" << Qt::endl;
+        files = workshop::findCachedFiles(games.libraries(), details.appId, id);
+        if (!files.isEmpty()) {
+            out << "From Steam's workshop cache." << Qt::endl;
+            app.exit(0);
+        } else if (!details.fileUrl.isEmpty()) {
+            out << "Downloading " << details.fileUrl << Qt::endl;
+            client.download(details.fileUrl, temp.filePath("item.download"));
+        } else {
+            err << "No direct link and not in Steam's cache; subscribe in Steam or use the window with steamcmd."
+                << Qt::endl;
+            app.exit(1);
+        }
+    });
+    QObject::connect(&client, &workshop::Client::downloaded, [&](bool ok, const QString &error) {
+        if (!ok)
+            err << error << Qt::endl;
+        else
+            files = {temp.filePath("item.download")};
+        app.exit(ok ? 0 : 1);
+    });
+    client.fetchDetails(id);
+    if (app.exec() != 0)
+        return 1;
+
+    const QString baseName = workshop::fileBaseName(details, true);
+    int failed = 0;
+    for (int i = 0; i < files.size(); ++i) {
+        QString error;
+        const QString name = files.size() == 1 ? baseName : QStringLiteral("%1_%2").arg(baseName).arg(i + 1);
+        const QString saved = workshop::saveFile(files[i], outputDir, name, true, &error);
+        if (saved.isEmpty()) {
+            err << error << Qt::endl;
+            ++failed;
+        } else {
+            out << "Saved " << saved << Qt::endl;
         }
     }
-    QTextStream(stderr) << "App " << appId << " is not installed." << Qt::endl;
-    return 1;
+    return failed ? 1 : 0;
+}
+
+int view(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &mdlFile)
+{
+    const auto game = findApp(appId);
+    return game ? run(app, hlmv::viewCommand(*game, gameDir, mdlFile)) : 1;
 }
 
 int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const QString &qcFile,
@@ -214,10 +275,9 @@ int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const 
 {
     QTextStream out(stdout);
     QTextStream err(stderr);
-    for (const steam::Installation &installation : steam::scanAll()) {
-        for (const steam::App &game : installation.apps) {
-            if (game.id != appId)
-                continue;
+    if (const auto found = findApp(appId)) {
+        const steam::App &game = *found;
+        {
             ToolProcess process;
             QObject::connect(&process, &ToolProcess::outputLine, [&](const QString &line) { out << line << Qt::endl; });
             QObject::connect(&process, &ToolProcess::failedToStart, [&](const QString &error) {
@@ -242,7 +302,6 @@ int compile(QCoreApplication &app, quint32 appId, const QString &gameDir, const 
             return app.exec();
         }
     }
-    err << "App " << appId << " is not installed." << Qt::endl;
     return 1;
 }
 
@@ -305,6 +364,10 @@ int main(int argc, char *argv[])
             }
             QTextStream(stdout) << command.displayString() << Qt::endl;
             return QProcess::startDetached(command.program, command.arguments) ? 0 : 1;
+        }
+        if (std::strcmp(argv[i], "--download") == 0 && i + 2 < argc) {
+            QCoreApplication app(argc, argv);
+            return download(app, QString::fromLocal8Bit(argv[i + 1]), QString::fromLocal8Bit(argv[i + 2]));
         }
         if (std::strcmp(argv[i], "--view") == 0) {
             if (i + 2 >= argc) {
