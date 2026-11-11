@@ -63,7 +63,8 @@ sudo cmake --install build
 
 This installs the program, a menu entry and, if `packaging/crowbar-qt.svg` or `packaging/crowbar-qt.png` exists, an icon.
 
-- Arch Linux: `packaging/aur/PKGBUILD` builds `crowbar-qt-git` from this repository (`makepkg -si` in that folder).
+- Arch Linux: `packaging/aur/crowbar-qt-bin` installs the build from the latest release, and
+  `packaging/aur/crowbar-qt-git` builds the newest commit (`makepkg -si` in either folder).
 - AppImage: `packaging/appimage/build-appimage.sh` downloads linuxdeploy and its Qt plugin, then builds
   `build-appimage/Crowbar_Qt-<version>-x86_64.AppImage`.
 

@@ -2,7 +2,10 @@
 /.cache/
 /compile_commands.json
 CMakeUserPresets.json
+# makepkg output
+/packaging/aur/**/src/
+/packaging/aur/**/pkg/
 /packaging/aur/crowbar-qt/
-/packaging/aur/src/
-/packaging/aur/pkg/
-/packaging/aur/*.pkg.tar.*
+/packaging/aur/*/crowbar-qt/
+/packaging/aur/**/*.pkg.tar.*
+/packaging/aur/*/crowbar-qt-*.tar.*

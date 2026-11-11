@@ -10,8 +10,10 @@ permissions:
 
 jobs:
   appimage:
+    # The oldest supported Ubuntu, so the AppImage runs on as many distributions as possible.
     runs-on: ubuntu-22.04
     env:
+      # GitHub runners have no FUSE; linuxdeploy extracts itself instead.
       APPIMAGE_EXTRACT_AND_RUN: 1
     steps:
       - uses: actions/checkout@v4
@@ -51,20 +53,58 @@ jobs:
       - name: Build AppImage
         run: |
           QMAKE="$QT_ROOT_DIR/bin/qmake" WORK="$PWD/build-appimage" packaging/appimage/build-appimage.sh
-          cd build-appimage
-          sha256sum Crowbar_Qt-*.AppImage > SHA256SUMS
 
       - uses: actions/upload-artifact@v4
         with:
           name: appimage
-          path: |
-            build-appimage/Crowbar_Qt-*.AppImage
-            build-appimage/SHA256SUMS
+          path: build-appimage/Crowbar_Qt-*.AppImage
+
+  arch:
+    # Built against Arch's own Qt; this is what the crowbar-qt-bin AUR package installs.
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: pacman -Syu --noconfirm --needed base-devel cmake git qt6-base qt6-svg qt6-tools xz zstd procps-ng
+
+      - uses: actions/checkout@v4
+
+      - name: Build and test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build -j"$(nproc)"
+          ctest --test-dir build --output-on-failure
+
+      - name: Pack the installed files
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          DESTDIR="$PWD/dist/root" cmake --install build
+          tar --zstd -C dist/root -cf "dist/crowbar-qt-$version-x86_64.tar.zst" usr
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: dist/crowbar-qt-*-x86_64.tar.zst
+
+  release:
+    needs: [appimage, arch]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: |
-            build-appimage/Crowbar_Qt-*.AppImage
-            build-appimage/SHA256SUMS
+          files: dist/*

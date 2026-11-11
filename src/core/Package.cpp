@@ -43,7 +43,16 @@ namespace package
 					m_ok = false;
 					return {};
 				}
+// The size check above rules it out, but in release builds GCC still sees the
+// empty QByteArray's one-byte shared buffer here and warns.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 				const T value = qFromLittleEndian<T>(m_data.constData() + m_pos);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 				m_pos += sizeof(T);
 				return value;
 			}
@@ -154,6 +163,11 @@ namespace package
 		}
 
 		const QByteArray head = dirFile.read(28);
+		if (head.size() < 12)
+		{
+			setError(error, QCoreApplication::translate("Crowbar", "Not a VPK directory file. Open the *_dir.vpk file of a multi-part package."));
+			return std::nullopt;
+		}
 		Reader header(head);
 		if (header.read<quint32>() != VpkSignature)
 		{

@@ -1,0 +1,21 @@
+# Maintainer: Jonny_Bro
+pkgname=crowbar-qt-bin
+pkgver=1.1.2
+pkgrel=1
+pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)"
+arch=('x86_64')
+url="https://github.com/JonnyBro/crowbar-qt"
+license=('GPL-3.0-or-later')
+depends=('qt6-base' 'qt6-svg' 'xz' 'hicolor-icon-theme' 'shared-mime-info')
+optdepends=('steam: running the games and Valve tools through Proton'
+			'steamcmd: downloading workshop items you are not subscribed to')
+provides=('crowbar-qt')
+conflicts=('crowbar-qt' 'crowbar-qt-git')
+# Built by the release workflow against Arch's Qt. After publishing a release,
+# run updpkgsums to fill in the checksum from the release's SHA256SUMS.
+source=("crowbar-qt-$pkgver-x86_64.tar.zst::$url/releases/download/v$pkgver/crowbar-qt-$pkgver-x86_64.tar.zst")
+sha256sums=('SKIP')
+
+package() {
+	cp -a usr "$pkgdir/"
+}
