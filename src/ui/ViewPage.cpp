@@ -91,7 +91,7 @@ void ViewPage::updateButtons()
 {
 	const auto target = m_games->current();
 	const bool hasTool = target && !target->tool("hlmv").isEmpty();
-	setNotice(!target		 ? tr("No Source game found. Check the Games page.")
+	setNotice(!target	 ? tr("No Source game found. Check the Games page.")
 			  : !hasTool ? tr("%1 has no hlmv. Set a tools folder on the Games page.").arg(target->app.name)
 						 : QString());
 	m_view->setEnabled(hasTool);

@@ -424,7 +424,7 @@ void CompilePage::updateButtons()
 {
 	const auto target = m_games->current();
 	const bool hasTool = target && !target->tool("studiomdl").isEmpty();
-	setNotice(!target		 ? tr("No Source game found. Check the Games page.")
+	setNotice(!target	 ? tr("No Source game found. Check the Games page.")
 			  : !hasTool ? tr("%1 has no studiomdl. Set a tools folder on the Games page.").arg(target->app.name)
 						 : QString());
 

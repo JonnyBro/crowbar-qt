@@ -160,7 +160,7 @@ PackagesPage::PackagesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 	: Page(tr("Packages"), games, tasks, parent), m_file(new QLineEdit(this)), m_info(new QLabel(this)), m_filter(new QLineEdit(this)),
 	  m_filterTimer(new QTimer(this)), m_scope(new QComboBox(this)), m_search(new QPushButton(QIcon::fromTheme("edit-find"), tr("Search"), this)),
 	  m_left(new QStackedWidget(this)), m_results(new QTreeWidget(this)), m_tree(new PackageTree([this](const QList<int> &indexes)
-															  { return extractToTemp(indexes); }, this)),
+																								 { return extractToTemp(indexes); }, this)),
 	  m_preview(new QStackedWidget(this)), m_previewMessage(new QLabel(this)), m_previewText(new QPlainTextEdit(this)),
 	  m_previewImageArea(new QScrollArea(this)), m_previewImage(new QLabel(this)), m_outputMode(new QComboBox(this)),
 	  m_outputPath(new QLineEdit(this)), m_outputBrowse(new QPushButton(tr("Browse…"), this)),

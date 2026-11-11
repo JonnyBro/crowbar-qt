@@ -182,10 +182,10 @@ void DownloadPage::showDetails(const workshop::ItemDetails &details, int collect
 		return;
 	}
 	const bool cached = !workshop::findCachedFiles(m_games->libraries(), details.appId, details.id).isEmpty();
-	const QString source = cached						  ? tr("in Steam's workshop cache")
-						   : !details.fileUrl.isEmpty()		  ? tr("direct download")
+	const QString source = cached								 ? tr("in Steam's workshop cache")
+						   : !details.fileUrl.isEmpty()			 ? tr("direct download")
 						   : !workshop::findSteamCmd().isEmpty() ? tr("via steamcmd")
-															   : tr("not available: subscribe in Steam or install steamcmd");
+																 : tr("not available: subscribe in Steam or install steamcmd");
 	m_info->setText(tr("<b>%1</b><br>%2 · %3 · updated %4 · %5")
 						.arg(details.title.toHtmlEscaped(), game.toHtmlEscaped(), locale.formattedDataSize(details.fileSize),
 							 locale.toString(details.updated, QLocale::ShortFormat), source));

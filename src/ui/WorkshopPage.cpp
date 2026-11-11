@@ -348,7 +348,7 @@ void WorkshopPage::updateWidgets()
 {
 	const auto target = m_games->current();
 	const bool hasTool = target && !target->tool("gmpublish").isEmpty();
-	setNotice(!target		 ? tr("No Source game found. Check the Games page.")
+	setNotice(!target	 ? tr("No Source game found. Check the Games page.")
 			  : !hasTool ? tr("%1 has no gmpublish; workshop publishing works for Garry's Mod.").arg(target->app.name)
 						 : QString());
 	const bool isNew = m_itemId->text().isEmpty();

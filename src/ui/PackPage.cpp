@@ -238,7 +238,7 @@ void PackPage::updateWidgets()
 	const auto target = m_games->current();
 	const QString tool = packer::toolName(format);
 	const bool hasTool = target && !target->tool(tool).isEmpty();
-	setNotice(!target		 ? tr("No Source game found. Check the Games page.")
+	setNotice(!target	 ? tr("No Source game found. Check the Games page.")
 			  : !hasTool ? tr("%1 has no %2. Set a tools folder on the Games page.").arg(target->app.name, tool)
 						 : QString());
 	m_pack->setEnabled(hasTool && !m_current);

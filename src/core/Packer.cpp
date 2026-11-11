@@ -35,7 +35,6 @@ namespace packer
 			return true;
 		}
 
-
 		// Minimal scan of a JSON object's top level: where each member's key and
 		// value sit in the text, so single values can be replaced in place.
 		struct Member

@@ -6,56 +6,63 @@
 
 #include <optional>
 
-namespace packer {
+namespace packer
+{
 
-enum class Format { Vpk, Gma };
+	enum class Format
+	{
+		Vpk,
+		Gma
+	};
 
-struct Options {
-    // VPK only: split into <name>_dir.vpk plus numbered chunks (vpk -M).
-    bool multiChunk = false;
-    // GMA only: skip files gmad does not allow instead of failing (-warninvalid).
-    bool warnInvalid = false;
-    // Passed to the packer as is.
-    QStringList extra;
-};
+	struct Options
+	{
+		// VPK only: split into <name>_dir.vpk plus numbered chunks (vpk -M).
+		bool multiChunk = false;
+		// GMA only: skip files gmad does not allow instead of failing (-warninvalid).
+		bool warnInvalid = false;
+		// Passed to the packer as is.
+		QStringList extra;
+	};
 
-QString toolName(Format format);
-QString extension(Format format);
+	QString toolName(Format format);
+	QString extension(Format format);
 
-// GMA: gmad writes straight to outputFile.
-// VPK: vpk has no output argument and always writes next to the input folder;
-// finishPack() moves the result to where outputFile says.
-launcher::Command packCommand(const steam::App &app, Format format, const QString &folder,
-                              const QString &outputFile, const Options &options = {});
+	// GMA: gmad writes straight to outputFile.
+	// VPK: vpk has no output argument and always writes next to the input folder;
+	// finishPack() moves the result to where outputFile says.
+	launcher::Command packCommand(const steam::App &app, Format format, const QString &folder,
+								  const QString &outputFile, const Options &options = {});
 
-// Call after the packer exits successfully. Returns the final package files,
-// or an empty list if the packer produced nothing. `started` keeps chunks left
-// over from an earlier, larger multi-chunk build from being picked up.
-QStringList finishPack(Format format, const QString &folder, const QString &outputFile,
-                       const Options &options, const QDateTime &started, QStringList &log);
+	// Call after the packer exits successfully. Returns the final package files,
+	// or an empty list if the packer produced nothing. `started` keeps chunks left
+	// over from an earlier, larger multi-chunk build from being picked up.
+	QStringList finishPack(Format format, const QString &folder, const QString &outputFile,
+						   const Options &options, const QDateTime &started, QStringList &log);
 
-// Values gmad accepts in addon.json.
-QStringList addonTypes();
-QStringList addonTags();
+	// Values gmad accepts in addon.json.
+	QStringList addonTypes();
+	QStringList addonTags();
 
-bool hasAddonJson(const QString &folder);
+	bool hasAddonJson(const QString &folder);
 
-struct AddonInfo {
-    QString title;
-    QString type;
-    QStringList tags;
+	struct AddonInfo
+	{
+		QString title;
+		QString type;
+		QStringList tags;
 
-    bool operator==(const AddonInfo &) const = default;
-};
+		bool operator==(const AddonInfo &) const = default;
+	};
 
-// The fields gmad cares about from <folder>/addon.json; nullopt if it is
-// missing or not valid JSON (error says which).
-std::optional<AddonInfo> readAddonJson(const QString &folder, QString *error = nullptr);
+	// The fields gmad cares about from <folder>/addon.json; nullopt if it is
+	// missing or not valid JSON (error says which).
+	std::optional<AddonInfo> readAddonJson(const QString &folder, QString *error = nullptr);
 
-// Creates addon.json, or updates title, type and tags in an existing one while
-// keeping every other key. Refuses to touch a file it cannot parse.
-bool saveAddonJson(const QString &folder, const AddonInfo &info, QString *error = nullptr);
-bool writeAddonJson(const QString &folder, const QString &title, const QString &type,
-                    const QStringList &tags, QString *error = nullptr);
+	// Creates addon.json, or updates title, type and tags in an existing one while
+	// keeping every other key. Refuses to touch a file it cannot parse.
+	bool saveAddonJson(const QString &folder, const AddonInfo &info, QString *error = nullptr);
+	bool writeAddonJson(const QString &folder, const QString &title, const QString &type,
+						const QStringList &tags, QString *error = nullptr);
 
 } // namespace packer
