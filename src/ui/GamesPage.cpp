@@ -1,8 +1,8 @@
-#include "ui/GamesTab.h"
+#include "ui/GamesPage.h"
 
 #include "core/Runner.h"
-#include "core/ToolProcess.h"
 #include "ui/GameList.h"
+#include "ui/Tasks.h"
 
 #include <QDesktopServices>
 #include <QFileDialog>
@@ -46,8 +46,8 @@ namespace
 
 }
 
-GamesTab::GamesTab(GameList *games, QWidget *parent)
-	: QWidget(parent), m_games(games), m_tree(new QTreeWidget(this)), m_status(new QLabel(this)), m_options(new QLineEdit(this)), m_runGame(new QPushButton(tr("Run Game"), this)), m_runHammer(new QPushButton(tr("Run Hammer"), this)), m_tools(new QPushButton(tr("Tools Folder…"), this))
+GamesPage::GamesPage(GameList *games, TaskManager *tasks, QWidget *parent)
+	: Page(tr("Games"), games, tasks, parent), m_tree(new QTreeWidget(this)), m_status(new QLabel(this)), m_options(new QLineEdit(this)), m_runGame(new QPushButton(tr("Run Game"), this)), m_runHammer(new QPushButton(tr("Run Hammer"), this)), m_tools(new QPushButton(tr("Tools Folder…"), this)), m_useGame(new QPushButton(tr("Work With This Game"), this))
 {
 	m_options->setPlaceholderText(tr("Game launch options, e.g. -dev -console +map gm_construct"));
 	m_tree->setColumnCount(ColumnCount);
@@ -61,6 +61,7 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
 
 	auto *bar = new QHBoxLayout;
 	bar->addWidget(m_status, 1);
+	bar->addWidget(m_useGame);
 	bar->addWidget(m_tools);
 	bar->addWidget(refreshButton);
 
@@ -70,15 +71,14 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
 	runBar->addWidget(m_runGame);
 	runBar->addWidget(m_runHammer);
 
-	auto *layout = new QVBoxLayout(this);
-	layout->addLayout(bar);
-	layout->addWidget(m_tree);
-	layout->addLayout(runBar);
+	content()->addLayout(bar);
+	content()->addWidget(m_tree, 1);
+	content()->addLayout(runBar);
 
 	m_tools->setToolTip(tr("Use tools (studiomdl, hlmv, …) from another folder, e.g. the bin folder of the game's Windows build."));
-	connect(m_tools, &QPushButton::clicked, this, &GamesTab::showToolsMenu);
-	connect(m_tree, &QTreeWidget::itemSelectionChanged, this, &GamesTab::updateButtons);
-	connect(m_options, &QLineEdit::editingFinished, this, &GamesTab::saveOptions);
+	connect(m_tools, &QPushButton::clicked, this, &GamesPage::showToolsMenu);
+	connect(m_tree, &QTreeWidget::itemSelectionChanged, this, &GamesPage::updateButtons);
+	connect(m_options, &QLineEdit::editingFinished, this, &GamesPage::saveOptions);
 	connect(m_runGame, &QPushButton::clicked, this, [this]
 			{
         steam::App app;
@@ -97,14 +97,35 @@ GamesTab::GamesTab(GameList *games, QWidget *parent)
             launch(runner::hammerCommand(app, gameDir), tr("Hammer"), false); });
 
 	connect(refreshButton, &QPushButton::clicked, m_games, &GameList::refresh);
-	connect(m_games, &GameList::changed, this, &GamesTab::reload);
-	connect(m_tree, &QTreeWidget::itemActivated, this, [](QTreeWidgetItem *item)
-			{ QDesktopServices::openUrl(QUrl::fromLocalFile(item->text(Location))); });
+	connect(m_games, &GameList::changed, this, &GamesPage::reload);
+	connect(m_tree, &QTreeWidget::itemActivated, this, [this]
+			{
+		steam::App app;
+		QString gameDir;
+		if (selection(app, gameDir))
+			m_games->setCurrent(app.id, gameDir); });
+	connect(m_useGame, &QPushButton::clicked, this, [this]
+			{
+		steam::App app;
+		QString gameDir;
+		if (selection(app, gameDir))
+			m_games->setCurrent(app.id, gameDir); });
+	connect(m_games, &GameList::currentChanged, this, &GamesPage::markCurrent);
+	m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(m_tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint &pos)
+			{
+		QTreeWidgetItem *item = m_tree->itemAt(pos);
+		if (!item)
+			return;
+		QMenu menu(this);
+		menu.addAction(QIcon::fromTheme("folder-open"), tr("Open Folder"), this, [item]
+					   { QDesktopServices::openUrl(QUrl::fromLocalFile(item->text(Location))); });
+		menu.exec(m_tree->viewport()->mapToGlobal(pos)); });
 
 	reload();
 }
 
-void GamesTab::reload()
+void GamesPage::reload()
 {
 	m_tree->clear();
 
@@ -158,10 +179,12 @@ void GamesTab::reload()
 		m_status->setText(tr("Steam installation not found."));
 	else
 		m_status->setText(tr("%n Source game(s) found.", nullptr, int(m_games->apps().size())));
+	m_tree->expandAll();
+	markCurrent();
 	updateButtons();
 }
 
-bool GamesTab::selection(steam::App &app, QString &gameDir) const
+bool GamesPage::selection(steam::App &app, QString &gameDir) const
 {
 	const QList<QTreeWidgetItem *> selected = m_tree->selectedItems();
 	if (selected.isEmpty())
@@ -178,12 +201,13 @@ bool GamesTab::selection(steam::App &app, QString &gameDir) const
 	return !gameDir.isEmpty();
 }
 
-void GamesTab::updateButtons()
+void GamesPage::updateButtons()
 {
 	steam::App app;
 	QString gameDir;
 	const bool ready = selection(app, gameDir);
 	m_runGame->setEnabled(ready);
+	m_useGame->setEnabled(ready);
 	m_tools->setEnabled(app.id != 0);
 	m_runHammer->setEnabled(ready && !launcher::findTool(app, "hammer").isEmpty());
 	m_runGame->setToolTip(ready || !app.id ? QString() : tr("Select one of the game's folders."));
@@ -193,38 +217,56 @@ void GamesTab::updateButtons()
 	m_options->setText(app.id ? QSettings().value(optionsKey(app.id)).toString() : QString());
 }
 
-void GamesTab::saveOptions() const
+void GamesPage::saveOptions() const
 {
 	if (m_optionsAppId)
 		QSettings().setValue(optionsKey(m_optionsAppId), m_options->text());
 }
 
-void GamesTab::launch(const launcher::Command &command, const QString &what, bool detached)
+void GamesPage::launch(const launcher::Command &command, const QString &what, bool detached)
 {
+	Task *task = m_tasks->start(tr("Run %1").arg(what));
 	if (!command.isValid())
 	{
-		QMessageBox::warning(this, tr("Run"), command.error);
+		task->fail(command.error);
 		return;
 	}
 	if (detached)
 	{
+		task->appendLine(command.displayString());
 		if (!QProcess::startDetached(command.program, command.arguments, command.workingDirectory))
-			QMessageBox::warning(this, tr("Run"), tr("Could not start \"%1\".").arg(command.program));
-		else
-			m_status->setText(tr("Asked Steam to start %1.").arg(what));
+		{
+			task->fail(tr("Could not start \"%1\".").arg(command.program));
+			return;
+		}
+		task->appendLine(tr("Asked Steam to start %1.").arg(what));
+		task->finish(Task::State::Succeeded);
 		return;
 	}
-	auto *process = new ToolProcess(this);
-	connect(process, &ToolProcess::failedToStart, this, [this, process](const QString &error)
-			{
-        QMessageBox::warning(this, tr("Run"), error);
-        process->deleteLater(); });
-	connect(process, &ToolProcess::finished, process, &QObject::deleteLater);
-	m_status->setText(tr("Starting %1…").arg(what));
-	process->start(command);
+	// Closing the program is the normal way for this task to end.
+	task->run(command, [](int, bool)
+			  { return true; });
 }
 
-void GamesTab::showToolsMenu()
+void GamesPage::markCurrent()
+{
+	const auto current = m_games->current();
+	for (int i = 0; i < m_tree->topLevelItemCount(); ++i)
+	{
+		QTreeWidgetItem *item = m_tree->topLevelItem(i);
+		for (int j = 0; j < item->childCount(); ++j)
+		{
+			QTreeWidgetItem *child = item->child(j);
+			const bool isCurrent = current && child->text(Location) == current->gameDir;
+			QFont font = child->font(Name);
+			font.setBold(isCurrent);
+			child->setFont(Name, font);
+			child->setIcon(Name, isCurrent ? QIcon::fromTheme("checkmark") : QIcon());
+		}
+	}
+}
+
+void GamesPage::showToolsMenu()
 {
 	steam::App app;
 	QString gameDir;

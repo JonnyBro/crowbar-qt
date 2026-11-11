@@ -4,6 +4,8 @@
 
 #include <QDateTime>
 
+#include <optional>
+
 namespace packer {
 
 enum class Format { Vpk, Gma };
@@ -37,6 +39,22 @@ QStringList addonTypes();
 QStringList addonTags();
 
 bool hasAddonJson(const QString &folder);
+
+struct AddonInfo {
+    QString title;
+    QString type;
+    QStringList tags;
+
+    bool operator==(const AddonInfo &) const = default;
+};
+
+// The fields gmad cares about from <folder>/addon.json; nullopt if it is
+// missing or not valid JSON (error says which).
+std::optional<AddonInfo> readAddonJson(const QString &folder, QString *error = nullptr);
+
+// Creates addon.json, or updates title, type and tags in an existing one while
+// keeping every other key. Refuses to touch a file it cannot parse.
+bool saveAddonJson(const QString &folder, const AddonInfo &info, QString *error = nullptr);
 bool writeAddonJson(const QString &folder, const QString &title, const QString &type,
                     const QStringList &tags, QString *error = nullptr);
 

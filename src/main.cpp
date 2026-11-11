@@ -453,7 +453,12 @@ int main(int argc, char *argv[])
 		app.installTranslator(&appTranslator);
 
 	MainWindow window;
-
+	// Files given on the command line, e.g. from a file manager's "Open with".
+	for (const QString &argument : QCoreApplication::arguments().mid(1))
+	{
+		if (!argument.startsWith(u'-'))
+			window.openPath(QFileInfo(argument).absoluteFilePath());
+	}
 	window.show();
 
 	return app.exec();

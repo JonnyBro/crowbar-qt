@@ -2,19 +2,18 @@
 
 #include "core/Launcher.h"
 
-#include <QWidget>
+#include "ui/Page.h"
 
-class GameList;
 class QLabel;
 class QLineEdit;
 class QPushButton;
 class QTreeWidget;
 
-class GamesTab : public QWidget {
+class GamesPage : public Page {
     Q_OBJECT
 
 public:
-    explicit GamesTab(GameList *games, QWidget *parent = nullptr);
+    GamesPage(GameList *games, TaskManager *tasks, QWidget *parent = nullptr);
 
 private:
     void reload();
@@ -22,15 +21,16 @@ private:
     bool selection(steam::App &app, QString &gameDir) const;
     void updateButtons();
     void launch(const launcher::Command &command, const QString &what, bool detached);
+    void markCurrent();
     void saveOptions() const;
     void showToolsMenu();
 
-    GameList *m_games;
     QTreeWidget *m_tree;
     QLabel *m_status;
     QLineEdit *m_options;
     QPushButton *m_runGame;
     QPushButton *m_runHammer;
     QPushButton *m_tools;
+    QPushButton *m_useGame;
     quint32 m_optionsAppId = 0;
 };

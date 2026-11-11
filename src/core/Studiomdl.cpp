@@ -71,40 +71,12 @@ namespace studiomdl
 		return name;
 	}
 
-	namespace
-	{
-
-		// The tools run under Wine, which matches existing folders ignoring case, so
-		// the path on disk may differ in case from what the QC says.
-		QString resolveIgnoringCase(const QString &base, const QString &relative)
-		{
-			QString current = base;
-			for (const QString &part : relative.split(u'/', Qt::SkipEmptyParts))
-			{
-				const QDir dir(current);
-				if (dir.exists(part))
-				{
-					current = dir.filePath(part);
-					continue;
-				}
-				const QStringList entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-				const auto found = std::find_if(entries.begin(), entries.end(), [&](const QString &entry)
-												{ return entry.compare(part, Qt::CaseInsensitive) == 0; });
-				if (found == entries.end())
-					return {};
-				current = dir.filePath(*found);
-			}
-			return current;
-		}
-
-	} // namespace
-
 	bool moveCompiledModel(const QString &gameDir, const QString &modelName,
 						   const QString &outputDir, QStringList &log)
 	{
 		const QFileInfo model(modelName);
 		const QString subpath = model.path() == "." ? QString() : model.path();
-		const QString sourceDir = resolveIgnoringCase(gameDir, "models/" + subpath);
+		const QString sourceDir = launcher::findPathIgnoringCase(gameDir, "models/" + subpath);
 		if (sourceDir.isEmpty())
 		{
 			log << QCoreApplication::translate("Crowbar", "WARNING: Compiled model folder \"%1/models/%2\" was not found.").arg(gameDir, subpath);

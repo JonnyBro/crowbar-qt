@@ -6,7 +6,7 @@ pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpac
 arch=('x86_64' 'aarch64')
 url="https://github.com/JonnyBro/crowbar-qt"
 license=('GPL-3.0-or-later')
-depends=('qt6-base' 'qt6-svg' 'xz' 'hicolor-icon-theme')
+depends=('qt6-base' 'qt6-svg' 'xz' 'hicolor-icon-theme' 'shared-mime-info')
 makedepends=('cmake' 'git' 'qt6-tools')
 optdepends=('steam: running the games and Valve tools through Proton'
 			'steamcmd: downloading workshop items you are not subscribed to')

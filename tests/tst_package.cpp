@@ -132,6 +132,8 @@ private slots:
 		QCOMPARE(readFile(out + "/models/props/crate.mdl"), "CRATE");
 		QCOMPARE(readFile(out + "/models/props/barrel.mdl"), "PREBARR");
 		QCOMPARE(readFile(out + "/readme.txt"), "ok");
+		QCOMPARE(package->read(package->entries()[1], 100).value_or("<none>"), "PREBARR");
+		QVERIFY(!package->read(package->entries()[1], 3, &error));
 	}
 
 	void gma()
@@ -263,6 +265,83 @@ private slots:
 		QVERIFY(packer::finishPack(packer::Format::Vpk, dir + "/addon", dir + "/multi2/a.vpk", multiChunk(),
 								   started.addSecs(60), log)
 					.isEmpty());
+	}
+
+	void addonJsonReadAndSave()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		const QString dir = temp.path();
+		QString error;
+		QVERIFY(!packer::readAddonJson(dir, &error));
+
+		writeFile(dir + "/addon.json", "{\"title\": \"Old\", \"type\": \"Weapon\", \"tags\": [\"Fun\"], \"ignore\": [\"*.txt\"], \"description\": \"keep me\"}");
+		const auto info = packer::readAddonJson(dir, &error);
+		QVERIFY2(info, qPrintable(error));
+		QCOMPARE(info->title, "Old");
+		QCOMPARE(info->type, "weapon");
+		QCOMPARE(info->tags, QStringList({"fun"}));
+
+		QVERIFY(packer::saveAddonJson(dir, {"New", "tool", {"build", "fun"}}, &error));
+		const QJsonObject saved = QJsonDocument::fromJson(readFile(dir + "/addon.json")).object();
+		QCOMPARE(saved["title"].toString(), "New");
+		QCOMPARE(saved["type"].toString(), "tool");
+		QCOMPARE(saved["tags"].toArray().size(), 2);
+		QCOMPARE(saved["description"].toString(), "keep me");
+		QCOMPARE(saved["ignore"].toArray().first().toString(), "*.txt");
+		QVERIFY((*packer::readAddonJson(dir) == packer::AddonInfo{"New", "tool", {"build", "fun"}}));
+
+		writeFile(dir + "/addon.json", "{ broken, }");
+		QVERIFY(!packer::readAddonJson(dir, &error));
+		QVERIFY(!packer::saveAddonJson(dir, {"X", "tool", {}}, &error));
+		QCOMPARE(readFile(dir + "/addon.json"), "{ broken, }");
+
+		const QString fresh = dir + "/fresh";
+		QVERIFY(QDir().mkpath(fresh));
+		QVERIFY(packer::saveAddonJson(fresh, {"Fresh", "model", {}}, &error));
+		QVERIFY(QJsonDocument::fromJson(readFile(fresh + "/addon.json")).object()["ignore"].isArray());
+	}
+
+	void addonJsonKeepsFormatting_data()
+	{
+		QTest::addColumn<QByteArray>("before");
+		QTest::addColumn<QByteArray>("after");
+		QTest::newRow("tabs, inline tags, other keys")
+			<< QByteArray("{\n\t\"title\": \"Old\",\n\t\"type\": \"weapon\",\n\t\"tags\": [\"fun\", \"realism\"],\n\t\"ignore\": [\"*.psd\"],\n\t\"description\": \"keep\"\n}\n")
+			<< QByteArray("{\n\t\"title\": \"New \\\"one\\\"\",\n\t\"type\": \"tool\",\n\t\"tags\": [\"build\"],\n\t\"ignore\": [\"*.psd\"],\n\t\"description\": \"keep\"\n}\n");
+		QTest::newRow("multiline tags, spaces, CRLF")
+			<< QByteArray("{\r\n  \"ignore\": [],\r\n  \"tags\": [\r\n    \"fun\"\r\n  ],\r\n  \"type\": \"weapon\",\r\n  \"title\": \"Old\"\r\n}")
+			<< QByteArray("{\r\n  \"ignore\": [],\r\n  \"tags\": [\r\n    \"build\"\r\n  ],\r\n  \"type\": \"tool\",\r\n  \"title\": \"New \\\"one\\\"\"\r\n}");
+		QTest::newRow("missing keys are appended")
+			<< QByteArray("{\n\t\"title\": \"Old\",\n\t\"ignore\": [\"*.psd\"]\n}\n")
+			<< QByteArray("{\n\t\"title\": \"New \\\"one\\\"\",\n\t\"ignore\": [\"*.psd\"],\n\t\"type\": \"tool\",\n\t\"tags\": [\"build\"]\n}\n");
+		QTest::newRow("empty object")
+			<< QByteArray("{}")
+			<< QByteArray("{\n\t\"title\": \"New \\\"one\\\"\",\n\t\"type\": \"tool\",\n\t\"tags\": [\"build\"]\n}");
+		QTest::newRow("compact, unicode and nested values")
+			<< QByteArray("{\"title\":\"Тест\",\"x\":{\"title\":\"inner\"},\"tags\":[\"fun\",\"water\"],\"type\":\"map\"}")
+			<< QByteArray("{\"title\":\"New \\\"one\\\"\",\"x\":{\"title\":\"inner\"},\"tags\":[\"build\"],\"type\":\"tool\"}");
+	}
+
+	void addonJsonKeepsFormatting()
+	{
+		QFETCH(QByteArray, before);
+		QFETCH(QByteArray, after);
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		writeFile(temp.path() + "/addon.json", before);
+		QString error;
+		QVERIFY2(packer::saveAddonJson(temp.path(), {"New \"one\"", "tool", {"build"}}, &error), qPrintable(error));
+		QCOMPARE(readFile(temp.path() + "/addon.json"), after);
+	}
+
+	void newAddonJsonUsesTabs()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		QVERIFY(packer::saveAddonJson(temp.path(), {"A", "model", {"fun", "build"}}));
+		QCOMPARE(readFile(temp.path() + "/addon.json"),
+				 "{\n\t\"title\": \"A\",\n\t\"type\": \"model\",\n\t\"tags\": [\"fun\", \"build\"],\n\t\"ignore\": [\"*.psd\", \"*.vcproj\", \"*.svn*\"]\n}\n");
 	}
 
 	void addonJson()

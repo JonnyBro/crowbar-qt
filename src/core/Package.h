@@ -37,6 +37,8 @@ public:
     const QList<Entry> &entries() const { return m_entries; }
 
     bool extract(const Entry &entry, const QString &outputDir, QString *error = nullptr) const;
+    // The entry's data in memory, for previews; fails for entries over `maxSize` bytes.
+    std::optional<QByteArray> read(const Entry &entry, quint64 maxSize, QString *error = nullptr) const;
 
 private:
     QString m_file;

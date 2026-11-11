@@ -40,6 +40,15 @@ Running:
 - `build/crowbar-qt --download <link|id> <output dir>` saves a workshop item, from Steam's cache if you are subscribed,
   otherwise from its direct link (old items only). The Download tab can also use `steamcmd` when it is installed.
 
+## Using
+
+Pick the game in the sidebar; every page works with it. Each run (a compile, a pack, an upload, a download)
+appears in the Tasks panel at the bottom with its own log; paths in the log are clickable.
+
+Drop a `.qc`, `.mdl`, `.vpk`, `.gma` or a folder onto the window, or open one with `crowbar-qt <file>`,
+and it opens on the page that handles it. Installing the package also registers these file types,
+so a file manager's "Open with" works.
+
 ## Installing
 
 ```bash

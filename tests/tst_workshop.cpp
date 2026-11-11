@@ -50,6 +50,15 @@ private slots:
 		QCOMPARE(ok.fileSize, 42347);
 		QVERIFY(ok.fileUrl.isEmpty());
 
+		// Plain string on purpose: moc reads "//" inside a raw string as a comment.
+		const auto list = workshop::parseDetailsList("{\"response\":{\"publishedfiledetails\":["
+													 "{\"publishedfileid\":\"1\",\"result\":1,\"title\":\"A\",\"preview_url\":\"https:\/\/x\/a.jpg\"},"
+													 "{\"publishedfileid\":\"2\",\"result\":9}]}}");
+		QCOMPARE(list.size(), 2);
+		QCOMPARE(list[0].previewUrl, "https://x/a.jpg");
+		QVERIFY(list[0].isValid());
+		QVERIFY(!list[1].isValid());
+
 		const auto missing = workshop::parseDetails(R"({"response":{"publishedfiledetails":[{"publishedfileid":"5","result":9}]}})");
 		QVERIFY(!missing.isValid());
 		QVERIFY(!workshop::parseDetails("garbage").isValid());

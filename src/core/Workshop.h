@@ -16,6 +16,7 @@ struct ItemDetails {
     QString title;
     QString fileName;
     QString fileUrl; // only old items have a direct link
+    QString previewUrl;
     qint64 fileSize = 0;
     QDateTime updated;
     QString error;
@@ -30,6 +31,8 @@ QString itemUrl(quint64 id);
 
 // Parses the response of ISteamRemoteStorage/GetPublishedFileDetails.
 ItemDetails parseDetails(const QByteArray &json);
+// Every item in the response, in order; failed ones carry an error.
+QList<ItemDetails> parseDetailsList(const QByteArray &json);
 
 // Files Steam already downloaded for a subscribed item, from every library.
 QStringList findCachedFiles(const QStringList &libraries, quint32 appId, quint64 id);
@@ -54,11 +57,16 @@ public:
     explicit Client(QObject *parent = nullptr);
 
     void fetchDetails(quint64 id);
+    void fetchDetailsList(const QList<quint64> &ids);
+    // Small downloads kept in memory, e.g. preview images.
+    void fetchData(const QString &url, quint64 id);
     void download(const QString &url, const QString &file);
     void abort();
 
 signals:
     void detailsReady(const workshop::ItemDetails &details);
+    void detailsListReady(const QList<workshop::ItemDetails> &details);
+    void dataReady(quint64 id, const QByteArray &data);
     void progress(qint64 received, qint64 total);
     void downloaded(bool ok, const QString &error);
 

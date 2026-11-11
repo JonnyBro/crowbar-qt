@@ -36,29 +36,62 @@ namespace workshop
 		return QStringLiteral("https://steamcommunity.com/sharedfiles/filedetails/?id=%1").arg(id);
 	}
 
+	namespace
+	{
+
+		ItemDetails detailsFrom(const QJsonObject &item)
+		{
+			ItemDetails details;
+			details.id = item["publishedfileid"].toString().toULongLong();
+			if (item["result"].toInt() != 1)
+			{
+				details.error = QCoreApplication::translate("Crowbar", "Item %1 was not found, or it is private or removed.").arg(details.id);
+				return details;
+			}
+			details.appId = quint32(item["consumer_app_id"].toInteger());
+			details.title = item["title"].toString();
+			details.fileName = item["filename"].toString();
+			details.fileUrl = item["file_url"].toString();
+			details.previewUrl = item["preview_url"].toString();
+			details.fileSize = item["file_size"].toVariant().toLongLong();
+			details.updated = QDateTime::fromSecsSinceEpoch(item["time_updated"].toInteger());
+			return details;
+		}
+
+		QNetworkRequest detailsRequest()
+		{
+			QNetworkRequest request(QUrl("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"));
+			request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+			return request;
+		}
+
+		QByteArray detailsForm(const QList<quint64> &ids)
+		{
+			QUrlQuery form;
+			form.addQueryItem("itemcount", QString::number(ids.size()));
+			for (int i = 0; i < ids.size(); ++i)
+				form.addQueryItem(QStringLiteral("publishedfileids[%1]").arg(i), QString::number(ids[i]));
+			return form.toString(QUrl::FullyEncoded).toUtf8();
+		}
+
+	} // namespace
+
+	QList<ItemDetails> parseDetailsList(const QByteArray &json)
+	{
+		QList<ItemDetails> result;
+		const QJsonArray items = QJsonDocument::fromJson(json).object()["response"].toObject()["publishedfiledetails"].toArray();
+		for (const QJsonValue &item : items)
+			result << detailsFrom(item.toObject());
+		return result;
+	}
+
 	ItemDetails parseDetails(const QByteArray &json)
 	{
+		const QList<ItemDetails> items = parseDetailsList(json);
+		if (!items.isEmpty())
+			return items.first();
 		ItemDetails details;
-		const QJsonArray items = QJsonDocument::fromJson(json).object()["response"].toObject()["publishedfiledetails"].toArray();
-		if (items.isEmpty())
-		{
-			details.error = QCoreApplication::translate("Crowbar", "Steam returned no item details.");
-			return details;
-		}
-		const QJsonObject item = items.first().toObject();
-		details.id = item["publishedfileid"].toString().toULongLong();
-		if (item["result"].toInt() != 1)
-		{
-			details.error = QCoreApplication::translate("Crowbar", "Item %1 was not found, or it is private or removed.").arg(details.id);
-			return details;
-		}
-		details.appId = quint32(item["consumer_app_id"].toInteger());
-		details.title = item["title"].toString();
-		details.fileName = item["filename"].toString();
-		details.fileUrl = item["file_url"].toString();
-		details.fileSize = item["file_size"].toVariant().toLongLong();
-		details.updated = QDateTime::fromSecsSinceEpoch(item["time_updated"].toInteger());
-
+		details.error = QCoreApplication::translate("Crowbar", "Steam returned no item details.");
 		return details;
 	}
 
@@ -177,23 +210,40 @@ namespace workshop
 
 	void Client::fetchDetails(quint64 id)
 	{
-		QNetworkRequest request(QUrl("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"));
-		request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
-		QUrlQuery form;
-		form.addQueryItem("itemcount", "1");
-		form.addQueryItem("publishedfileids[0]", QString::number(id));
-		QNetworkReply *reply = m_network->post(request, form.toString(QUrl::FullyEncoded).toUtf8());
+		QNetworkReply *reply = m_network->post(detailsRequest(), detailsForm({id}));
 		connect(reply, &QNetworkReply::finished, this, [this, reply, id]
 				{
-		reply->deleteLater();
-		ItemDetails details;
-		if (reply->error() != QNetworkReply::NoError) {
-			details.id = id;
-			details.error = QCoreApplication::translate("Crowbar", "Could not reach Steam: %1").arg(reply->errorString());
-		} else {
-			details = parseDetails(reply->readAll());
-		}
-		emit detailsReady(details); });
+			reply->deleteLater();
+			ItemDetails details;
+			if (reply->error() != QNetworkReply::NoError)
+			{
+				details.id = id;
+				details.error = QCoreApplication::translate("Crowbar", "Could not reach Steam: %1").arg(reply->errorString());
+			}
+			else
+			{
+				details = parseDetails(reply->readAll());
+			}
+			emit detailsReady(details); });
+	}
+
+	void Client::fetchDetailsList(const QList<quint64> &ids)
+	{
+		QNetworkReply *reply = m_network->post(detailsRequest(), detailsForm(ids));
+		connect(reply, &QNetworkReply::finished, this, [this, reply]
+				{
+			reply->deleteLater();
+			emit detailsListReady(reply->error() == QNetworkReply::NoError ? parseDetailsList(reply->readAll()) : QList<ItemDetails>()); });
+	}
+
+	void Client::fetchData(const QString &url, quint64 id)
+	{
+		QNetworkReply *reply = m_network->get(QNetworkRequest(QUrl(url)));
+		connect(reply, &QNetworkReply::finished, this, [this, reply, id]
+				{
+			reply->deleteLater();
+			if (reply->error() == QNetworkReply::NoError)
+				emit dataReady(id, reply->readAll()); });
 	}
 
 	void Client::download(const QString &url, const QString &file)

@@ -7,6 +7,8 @@
 #include <QProcess>
 #include <QRegularExpression>
 
+#include <algorithm>
+
 namespace launcher
 {
 
@@ -44,6 +46,27 @@ namespace launcher
 			}
 		}
 		return {};
+	}
+
+	QString findPathIgnoringCase(const QString &base, const QString &relative)
+	{
+		QString current = base.isEmpty() ? QStringLiteral("/") : base;
+		for (const QString &part : relative.split(u'/', Qt::SkipEmptyParts))
+		{
+			const QDir dir(current);
+			if (dir.exists(part))
+			{
+				current = dir.filePath(part);
+				continue;
+			}
+			const QStringList entries = dir.entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden);
+			const auto found = std::find_if(entries.begin(), entries.end(), [&](const QString &entry)
+											{ return entry.compare(part, Qt::CaseInsensitive) == 0; });
+			if (found == entries.end())
+				return {};
+			current = dir.filePath(*found);
+		}
+		return QFileInfo::exists(current) ? QDir::cleanPath(current) : QString();
 	}
 
 	QString toWindowsPath(const QString &hostPath)

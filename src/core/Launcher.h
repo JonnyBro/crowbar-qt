@@ -32,6 +32,12 @@ QString findTool(const steam::App &app, const QString &name);
 
 QString toWindowsPath(const QString &hostPath);
 
+// Windows tools print and accept paths in any case; this finds the real one on
+// disk, e.g. a lowercased "/home/user/my addon/a.qc" from studiomdl's output.
+// `relative` is resolved under `base`; an empty `base` means `relative` is absolute.
+// Returns an empty string if no such file or folder exists.
+QString findPathIgnoringCase(const QString &base, const QString &relative);
+
 // Rewrites every Z:\... path in tool output back to a host path.
 QString toHostPaths(QString text);
 

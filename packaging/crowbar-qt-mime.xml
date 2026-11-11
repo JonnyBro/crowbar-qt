@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-source-vpk">
+    <comment>Source engine VPK package</comment>
+    <comment xml:lang="ru">Пакет VPK движка Source</comment>
+    <magic priority="60">
+      <match type="little32" value="0x55aa1234" offset="0" />
+    </magic>
+    <glob pattern="*.vpk" />
+  </mime-type>
+  <mime-type type="application/x-gmod-addon">
+    <comment>Garry's Mod addon</comment>
+    <comment xml:lang="ru">Аддон Garry's Mod</comment>
+    <magic priority="60">
+      <match type="string" value="GMAD" offset="0" />
+    </magic>
+    <glob pattern="*.gma" />
+  </mime-type>
+  <mime-type type="model/x-source-mdl">
+    <comment>Source engine model</comment>
+    <comment xml:lang="ru">Модель движка Source</comment>
+    <magic priority="60">
+      <match type="string" value="IDST" offset="0" />
+    </magic>
+    <glob pattern="*.mdl" />
+  </mime-type>
+  <mime-type type="text/x-source-qc">
+    <comment>Source engine model compile script</comment>
+    <comment xml:lang="ru">Скрипт компиляции модели Source</comment>
+    <sub-class-of type="text/plain" />
+    <glob pattern="*.qc" />
+  </mime-type>
+</mime-info>

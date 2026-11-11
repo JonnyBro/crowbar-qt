@@ -394,6 +394,33 @@ namespace package
 		return true;
 	}
 
+	std::optional<QByteArray> Package::read(const Entry &entry, quint64 maxSize, QString *error) const
+	{
+		if (entry.size > maxSize)
+		{
+			setError(error, QCoreApplication::translate("Crowbar", "\"%1\" is too large to preview.").arg(entry.path));
+			return std::nullopt;
+		}
+		QByteArray data = entry.preload;
+		if (entry.length > 0)
+		{
+			QFile in(entry.archive);
+			if (!in.open(QIODevice::ReadOnly) || !in.seek(qint64(entry.offset)))
+			{
+				setError(error, QCoreApplication::translate("Crowbar", "%1: cannot read \"%2\".").arg(entry.path, QFileInfo(entry.archive).fileName()));
+				return std::nullopt;
+			}
+			const QByteArray body = in.read(qint64(entry.length));
+			if (quint64(body.size()) != entry.length)
+			{
+				setError(error, QCoreApplication::translate("Crowbar", "%1: data is truncated or the disk is full.").arg(entry.path));
+				return std::nullopt;
+			}
+			data += body;
+		}
+		return data;
+	}
+
 	bool Package::extract(const Entry &entry, const QString &outputDir, QString *error) const
 	{
 		const QString relative = safeRelativePath(entry.path);

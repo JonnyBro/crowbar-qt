@@ -40,26 +40,34 @@ target_link_libraries(crowbar_core PUBLIC Qt6::Core Qt6::Gui Qt6::Network PRIVAT
 
 qt_add_executable(crowbar-qt
     src/main.cpp
-    src/ui/MainWindow.cpp
-    src/ui/MainWindow.h
-    src/ui/CompileTab.cpp
-    src/ui/CompileTab.h
-    src/ui/GameCombo.cpp
-    src/ui/GameCombo.h
+    src/ui/CompilePage.cpp
+    src/ui/CompilePage.h
+    src/ui/DownloadPage.cpp
+    src/ui/DownloadPage.h
     src/ui/GameList.cpp
     src/ui/GameList.h
-    src/ui/GamesTab.cpp
-    src/ui/GamesTab.h
-    src/ui/PackTab.cpp
-    src/ui/PackTab.h
-    src/ui/PublishTab.cpp
-    src/ui/PublishTab.h
-    src/ui/UnpackTab.cpp
-    src/ui/UnpackTab.h
-    src/ui/DownloadTab.cpp
-    src/ui/DownloadTab.h
-    src/ui/ViewTab.cpp
-    src/ui/ViewTab.h
+    src/ui/GamesPage.cpp
+    src/ui/GamesPage.h
+    src/ui/LogView.cpp
+    src/ui/LogView.h
+    src/ui/MainWindow.cpp
+    src/ui/MainWindow.h
+    src/ui/PackPage.cpp
+    src/ui/PackPage.h
+    src/ui/PackagesPage.cpp
+    src/ui/PackagesPage.h
+    src/ui/Page.cpp
+    src/ui/Page.h
+    src/ui/PathField.cpp
+    src/ui/PathField.h
+    src/ui/Tasks.cpp
+    src/ui/Tasks.h
+    src/ui/TasksPanel.cpp
+    src/ui/TasksPanel.h
+    src/ui/ViewPage.cpp
+    src/ui/ViewPage.h
+    src/ui/WorkshopPage.cpp
+    src/ui/WorkshopPage.h
 )
 target_link_libraries(crowbar-qt PRIVATE crowbar_core Qt6::Widgets Qt6::Svg)
 target_compile_definitions(crowbar-qt PRIVATE CROWBAR_VERSION="${PROJECT_VERSION}")
@@ -75,6 +83,7 @@ qt_add_translations(crowbar-qt
 include(GNUInstallDirs)
 install(TARGETS crowbar-qt)
 install(FILES packaging/crowbar-qt.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/crowbar-qt-mime.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages RENAME crowbar-qt.xml)
 
 # The icon is optional: packaging/crowbar-qt.svg or packaging/crowbar-qt.png, whichever exists.
 # Without one the app and its menu entry use the desktop's generic icon.
