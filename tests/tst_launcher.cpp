@@ -189,6 +189,26 @@ private slots:
 		QTRY_COMPARE(QProcess::execute("pgrep", {"-f", "^sleep 31\\.7$"}), 1);
 	}
 
+	void prefers64BitTools()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		const QString bin = temp.path() + "/bin";
+		writeFile(bin + "/gmad.exe", "MZ");
+		writeFile(bin + "/vpk.exe", "MZ");
+		writeFile(bin + "/win64/gmad.exe", "MZ");
+		QVERIFY(QDir().mkpath(bin + "/win64/vpk.exe")); // a folder, not a tool
+
+		steam::App app;
+		app.toolsPath = bin;
+		QCOMPARE(launcher::findTool(app, "gmad"), bin + "/win64/gmad.exe");
+		QCOMPARE(launcher::findTool(app, "vpk"), bin + "/vpk.exe");
+		QVERIFY(launcher::findTool(app, "hlmv").isEmpty());
+
+		app.toolsPath = bin + "/win64";
+		QCOMPARE(launcher::findTool(app, "gmad"), bin + "/win64/gmad.exe");
+	}
+
 	void hlmvCommand()
 	{
 		QTemporaryDir temp;

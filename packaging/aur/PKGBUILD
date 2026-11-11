@@ -1,6 +1,6 @@
-# Maintainer: JonnyBro
+# Maintainer: Jonny_Bro
 pkgname=crowbar-qt-git
-pkgver=1.0.0
+pkgver=1.0.0.r15.g09c9e07
 pkgrel=1
 pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)"
 arch=('x86_64' 'aarch64')
@@ -17,6 +17,7 @@ sha256sums=('SKIP')
 
 pkgver() {
 	cd crowbar-qt
+
 	# Version from CMakeLists.txt plus the commit, e.g. 1.0.0.r12.g4b1b272.
 	local version
 	version=$(sed -n 's/^project(crowbar-qt VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)

@@ -1,6 +1,6 @@
 # crowbar-qt
 
-Native Linux tool for Source engine modding, inspired by [Crowbar](https://github.com/ZeqMacaw/Crowbar).
+Native Linux tool for Source engine modding, inspired by [Crowbar](https://github.com/ZeqMacaw/Crowbar).\
 Works with games installed natively and through Proton.
 
 ## Building
@@ -15,7 +15,7 @@ ctest --test-dir build
 
 Run `build/crowbar-qt`, or `build/crowbar-qt --list-games` to print the detected Source games without opening a window.
 
-`build/crowbar-qt --compile <appid> <game dir> <qc file> [output dir]` compiles a model from the command line.
+`build/crowbar-qt --compile <appid> <game dir> <qc file> [output dir]` compiles a model from the command line.\
 With an output dir, the compiled files are moved there from the game's `models` folder.
 
 `build/crowbar-qt --view <appid> <game dir> [mdl file]` opens HLMV, optionally with a model.
@@ -56,7 +56,7 @@ This installs the program, a menu entry and, if `packaging/crowbar-qt.svg` or `p
 
 ## Translations
 
-The window follows the system language; Russian is included. The command-line modes always print English.
+The window follows the system language; Russian is included. The command-line modes always print English.\
 After changing user-visible strings, refresh the translation file and fill in the new entries:
 
 ```bash
@@ -69,5 +69,4 @@ Then edit `translations/crowbar-qt_ru.ts` with Qt Linguist (`linguist6`) or any 
 
 crowbar-qt is free software under the GNU General Public License v3 or later; see [LICENSE](LICENSE).
 
-It is a separate program written from scratch and shares no code with
-[Crowbar](https://github.com/ZeqMacaw/Crowbar) by ZeqMacaw, whose features and behaviour it follows.
+It is a separate program written from scratch and shares no code with [Crowbar](https://github.com/ZeqMacaw/Crowbar).

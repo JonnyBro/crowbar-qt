@@ -32,11 +32,16 @@ namespace launcher
 	{
 		if (app.toolsPath.isEmpty())
 			return {};
-		for (const QString &fileName : {name + ".exe", name})
+		// 64-bit builds first: the 32-bit tools run out of address space on big
+		// jobs, e.g. gmad on addons over 2 GB.
+		for (const QString &dir : {QStringLiteral("/win64/"), QStringLiteral("/x64/"), QStringLiteral("/linux64/"), QStringLiteral("/")})
 		{
-			const QString path = app.toolsPath + '/' + fileName;
-			if (QFile::exists(path))
-				return path;
+			for (const QString &fileName : {name + ".exe", name})
+			{
+				const QString path = app.toolsPath + dir + fileName;
+				if (QFileInfo(path).isFile())
+					return path;
+			}
 		}
 		return {};
 	}
