@@ -42,6 +42,13 @@ private slots:
 		QCOMPARE(launcher::toHostPaths("no paths here"), "no paths here");
 	}
 
+	void terminalCodes()
+	{
+		QCOMPARE(launcher::stripTerminalCodes("\x1b[0mSuccess. Downloaded\x1b[0m"), "Success. Downloaded");
+		QCOMPARE(launcher::stripTerminalCodes("\x1b[1;31mred\x1b[K text"), "red text");
+		QCOMPARE(launcher::stripTerminalCodes("plain [0m stays"), "plain [0m stays");
+	}
+
 	void protonNoise()
 	{
 		QVERIFY(launcher::isProtonNoise(u"ProtonFixes[1] WARN: Skipping fix execution."));

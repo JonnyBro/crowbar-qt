@@ -22,6 +22,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -31,6 +32,12 @@ namespace
 {
 
 	constexpr int PreviewSize = 128;
+
+	// Kept between runs, so steamcmd does not download and update itself every time.
+	QString steamCmdHome()
+	{
+		return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/steamcmd-home";
+	}
 
 } // namespace
 
@@ -320,17 +327,20 @@ void DownloadPage::download(const workshop::ItemDetails &details)
 		task->fail(tr("This item has no direct download link. Subscribe to it in Steam (it will then be copied from Steam's cache), or install steamcmd."));
 		return;
 	}
-	auto folder = std::make_shared<QString>();
-	connect(task, &Task::lineAdded, this, [folder](const QString &line)
+	auto downloaded = std::make_shared<QString>();
+	connect(task, &Task::lineAdded, this, [downloaded](const QString &line)
 			{
-		const QString found = workshop::parseSteamCmdFolder(line);
+		const QString found = workshop::parseSteamCmdPath(line);
 		if (!found.isEmpty())
-			*folder = found; });
-	task->run(workshop::steamCmdCommand(steamCmd, tempPath("steamcmd"), details.appId, details.id),
-			  [this, task, details, folder](int, bool)
+			*downloaded = found; });
+	task->run(workshop::steamCmdCommand(steamCmd, steamCmdHome(), tempPath("steamcmd"), details.appId, details.id),
+			  [this, task, details, downloaded](int, bool)
 			  {
+		// steamcmd names the file for single-file items and the folder otherwise.
 		QStringList files;
-		for (const QFileInfo &file : QDir(*folder).entryInfoList(QDir::Files, QDir::Name))
+		if (QFileInfo(*downloaded).isFile())
+			files << *downloaded;
+		for (const QFileInfo &file : QDir(*downloaded).entryInfoList(QDir::Files, QDir::Name))
 			files << file.absoluteFilePath();
 		if (files.isEmpty())
 		{

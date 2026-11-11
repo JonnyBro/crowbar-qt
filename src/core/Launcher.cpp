@@ -91,6 +91,12 @@ namespace launcher
 		return text;
 	}
 
+	QString stripTerminalCodes(QString text)
+	{
+		static const QRegularExpression codes("\\x1b\\[[0-9;?]*[A-Za-z]|\\x1b[()][A-Za-z0-9]|\\x1b[=>]");
+		return text.remove(codes);
+	}
+
 	bool isProtonNoise(QStringView line)
 	{
 		return line.startsWith(u"ProtonFixes[") || line.startsWith(u"ntsync:") || line.startsWith(u"fsync:") || line.startsWith(u"esync:");

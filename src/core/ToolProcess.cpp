@@ -114,7 +114,7 @@ void ToolProcess::readOutput(bool flush)
 				return;
 			end = m_buffer.size();
 		}
-		QString line = QString::fromUtf8(m_buffer.left(end));
+		QString line = launcher::stripTerminalCodes(QString::fromUtf8(m_buffer.left(end)));
 		m_buffer.remove(0, end + 1);
 		if (line.endsWith(u'\r'))
 			line.chop(1);

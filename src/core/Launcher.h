@@ -43,6 +43,9 @@ QString toHostPaths(QString text);
 
 bool isProtonNoise(QStringView line);
 
+// Drops terminal colour and cursor codes that some tools (steamcmd) print.
+QString stripTerminalCodes(QString text);
+
 Command build(const steam::App &app, const QString &executable, const QStringList &arguments, Mode mode);
 
 // Extra environment for every tool started through build(), e.g. from the

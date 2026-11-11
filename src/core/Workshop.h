@@ -44,9 +44,14 @@ QList<ItemDetails> parseDetailsList(const QByteArray &json);
 QStringList findCachedFiles(const QStringList &libraries, quint32 appId, quint64 id);
 
 QString findSteamCmd();
-launcher::Command steamCmdCommand(const QString &steamCmd, const QString &installDir, quint32 appId, quint64 id);
-// Folder from steamcmd's "Success. Downloaded item ... to "<path>"" line, or empty.
-QString parseSteamCmdFolder(const QString &line);
+// steamcmd is a cut-down Steam client: given the real HOME it treats ~/.steam
+// as its own install and rewrites the Steam client's files there, e.g. the list
+// of libraries. homeDir is a folder of its own it runs in instead.
+launcher::Command steamCmdCommand(const QString &steamCmd, const QString &homeDir, const QString &installDir,
+								  quint32 appId, quint64 id);
+// Path from steamcmd's "Success. Downloaded item ... to "<path>"" line, or
+// empty. Depending on the item it names the downloaded file or its folder.
+QString parseSteamCmdPath(const QString &line);
 
 // Copies a downloaded file into outputDir as <baseName>.<ext>. LZMA-compressed
 // files are unpacked, and become .gma when they hold an addon.

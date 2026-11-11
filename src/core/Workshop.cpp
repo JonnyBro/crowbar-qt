@@ -156,7 +156,8 @@ namespace workshop
 		return path;
 	}
 
-	launcher::Command steamCmdCommand(const QString &steamCmd, const QString &installDir, quint32 appId, quint64 id)
+	launcher::Command steamCmdCommand(const QString &steamCmd, const QString &homeDir, const QString &installDir,
+									  quint32 appId, quint64 id)
 	{
 		launcher::Command command;
 		command.environment = QProcessEnvironment::systemEnvironment();
@@ -165,13 +166,32 @@ namespace workshop
 			command.error = QCoreApplication::translate("Crowbar", "steamcmd is not installed.");
 			return command;
 		}
+		if (homeDir.isEmpty() || !QDir().mkpath(homeDir))
+		{
+			command.error = QCoreApplication::translate("Crowbar", "Could not create \"%1\".").arg(homeDir);
+			return command;
+		}
+
+		const QString home = QDir::cleanPath(homeDir);
+		command.environment.insert("HOME", home);
+		command.environment.insert("XDG_DATA_HOME", home + "/.local/share");
+		command.environment.insert("XDG_CONFIG_HOME", home + "/.config");
+		command.environment.insert("XDG_CACHE_HOME", home + "/.cache");
+		command.environment.insert("XDG_STATE_HOME", home + "/.local/state");
+		// Variables from a running Steam session would point it back at the real client.
+		for (const QString &name : command.environment.keys())
+		{
+			if (name.startsWith("STEAM_") || name.startsWith("Steam") || name == "SteamAppId" || name == "SteamGameId")
+				command.environment.remove(name);
+		}
+		command.workingDirectory = home;
 		command.program = steamCmd;
 		command.arguments = {"+force_install_dir", installDir, "+login", "anonymous",
 							 "+workshop_download_item", QString::number(appId), QString::number(id), "+quit"};
 		return command;
 	}
 
-	QString parseSteamCmdFolder(const QString &line)
+	QString parseSteamCmdPath(const QString &line)
 	{
 		static const QRegularExpression pattern("Success\\. Downloaded item \\d+ to \"([^\"]+)\"");
 		const auto match = pattern.match(line);

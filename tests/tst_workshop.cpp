@@ -91,8 +91,26 @@ private slots:
 		details.title = "  MW 2019: Rigs | <Compressed>\n512x512 ";
 		QCOMPARE(workshop::fileBaseName(details, true), "MW 2019_ Rigs _ _Compressed_ 512x512 (7)");
 		QCOMPARE(workshop::fileBaseName(details, false), "7");
-		QCOMPARE(workshop::parseSteamCmdFolder("Success. Downloaded item 42 to \"/x/content/4000/42\" (10 bytes)"),
+		QCOMPARE(workshop::parseSteamCmdPath("Success. Downloaded item 42 to \"/x/content/4000/42\" (10 bytes)"),
 				 "/x/content/4000/42");
+	}
+
+	void steamCmdRunsInItsOwnHome()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		qputenv("STEAM_COMPAT_CLIENT_INSTALL_PATH", "/home/user/.local/share/Steam");
+		qputenv("SteamAppId", "4000");
+		const QString home = temp.path() + "/home";
+		const launcher::Command command = workshop::steamCmdCommand("/usr/bin/steamcmd", home, temp.path() + "/out", 4000, 42);
+		QVERIFY(command.isValid());
+		QCOMPARE(command.environment.value("HOME"), home);
+		QCOMPARE(command.environment.value("XDG_DATA_HOME"), home + "/.local/share");
+		QVERIFY(!command.environment.contains("STEAM_COMPAT_CLIENT_INSTALL_PATH"));
+		QVERIFY(!command.environment.contains("SteamAppId"));
+		QVERIFY(QDir(home).exists());
+		QCOMPARE(command.arguments.mid(0, 2), QStringList({"+force_install_dir", temp.path() + "/out"}));
+		QVERIFY(!workshop::steamCmdCommand({}, home, temp.path(), 4000, 42).isValid());
 	}
 
 	void cacheAndSave()
