@@ -14,7 +14,7 @@ conflicts=('crowbar-qt' 'crowbar-qt-git')
 # Built by the release workflow against Arch's Qt. After publishing a release,
 # run updpkgsums to fill in the checksum from the release's SHA256SUMS.
 source=("crowbar-qt-$pkgver-x86_64.tar.zst::$url/releases/download/v$pkgver/crowbar-qt-$pkgver-x86_64.tar.zst")
-sha256sums=('SKIP')
+sha256sums=('c61e94e44c78945b2bd05a63157b9d41b745e476c8c626d216c8c0c1b9ec39b1')
 
 package() {
 	cp -a usr "$pkgdir/"
