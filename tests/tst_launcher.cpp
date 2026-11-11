@@ -257,6 +257,13 @@ private slots:
 		if (command.isValid())
 			QCOMPARE(command.arguments, QStringList({"-applaunch", "4000", "-game", "garrysmod", "-dev", "+map", "gm_construct"}));
 
+		steam::App mod = app;
+		mod.isMod = true;
+		mod.platform = steam::Platform::Windows;
+		command = runner::gameCommand(mod, "/home/u/Steam/steamapps/sourcemods/mymod", {});
+		if (command.isValid())
+			QCOMPARE(command.arguments, QStringList({"-applaunch", "4000", "-game", "Z:\\home\\u\\Steam\\steamapps\\sourcemods\\mymod"}));
+
 		app.steamRoot = QDir::homePath() + "/.var/app/com.valvesoftware.Steam/.local/share/Steam";
 		command = runner::gameCommand(app, dir + "/game/garrysmod", {});
 		if (command.isValid())

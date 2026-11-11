@@ -299,6 +299,10 @@
       <translation>addon.json — некорректный JSON, поэтому оставлен как есть: %1</translation>
     </message>
     <message>
+      <source>addon.json could not be updated safely, so it was left as is.</source>
+      <translation>addon.json не удалось безопасно обновить, поэтому он оставлен как есть.</translation>
+    </message>
+    <message>
       <source>%1 has no gmpublish in its bin folder.</source>
       <translation>У %1 нет gmpublish в папке bin.</translation>
     </message>
@@ -430,8 +434,20 @@
       <translation>Выбор папки для сохранения</translation>
     </message>
     <message>
-      <source>Enter a workshop link or a numeric item ID.</source>
-      <translation>Введите ссылку на мастерскую или числовой ID предмета.</translation>
+      <source>Workshop links or IDs; collections are expanded</source>
+      <translation>Ссылки или ID из мастерской; коллекции раскрываются</translation>
+    </message>
+    <message>
+      <source>Enter one or more workshop links or item IDs, or a collection.</source>
+      <translation>Введите одну или несколько ссылок или ID предметов мастерской либо коллекцию.</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n items or collections; Download fetches them one after another.</source>
+      <translation>
+        <numerusform>%n предмет или коллекция; «Загрузка» скачает их по очереди.</numerusform>
+        <numerusform>%n предмета или коллекции; «Загрузка» скачает их по очереди.</numerusform>
+        <numerusform>%n предметов или коллекций; «Загрузка» скачает их по очереди.</numerusform>
+      </translation>
     </message>
     <message>
       <source>Getting item details…</source>
@@ -440,6 +456,14 @@
     <message>
       <source>ERROR: %1</source>
       <translation>ОШИБКА: %1</translation>
+    </message>
+    <message numerus="yes">
+      <source>&lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Collection for %2 · %n item(s) · updated %3</source>
+      <translation>
+        <numerusform>&lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Коллекция для %2 · %n предмет · обновлена %3</numerusform>
+        <numerusform>&lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Коллекция для %2 · %n предмета · обновлена %3</numerusform>
+        <numerusform>&lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Коллекция для %2 · %n предметов · обновлена %3</numerusform>
+      </translation>
     </message>
     <message>
       <source>in Steam's workshop cache</source>
@@ -464,6 +488,10 @@
     <message>
       <source>Download %1</source>
       <translation>Загрузка %1</translation>
+    </message>
+    <message>
+      <source>Item %1 was not found, or it is private or removed.</source>
+      <translation>Предмет %1 не найден, скрыт или удалён.</translation>
     </message>
     <message>
       <source>Select an output folder.</source>
@@ -517,6 +545,10 @@
       <translation>Работать с этой игрой</translation>
     </message>
     <message>
+      <source>Add Game Folder…</source>
+      <translation>Добавить папку игры…</translation>
+    </message>
+    <message>
       <source>Game launch options, e.g. -dev -console +map gm_construct</source>
       <translation>например: -dev -console +map gm_construct</translation>
     </message>
@@ -561,8 +593,28 @@
       <translation>Hammer</translation>
     </message>
     <message>
+      <source>Add a game or mod folder with a gameinfo.txt that Steam does not list, e.g. a mod kept elsewhere.</source>
+      <translation>Добавить папку игры или мода с gameinfo.txt, которой нет в списках Steam, например мод, лежащий в другом месте.</translation>
+    </message>
+    <message>
       <source>Open Folder</source>
       <translation>Открыть папку</translation>
+    </message>
+    <message>
+      <source>Remove From List</source>
+      <translation>Убрать из списка</translation>
+    </message>
+    <message>
+      <source>%1 (mod)</source>
+      <translation>%1 (мод)</translation>
+    </message>
+    <message>
+      <source>Runs on app %1, which is not installed.</source>
+      <translation>Работает поверх приложения %1, которое не установлено.</translation>
+    </message>
+    <message>
+      <source>Runs on %1.</source>
+      <translation>Работает поверх %1.</translation>
     </message>
     <message>
       <source>Windows</source>
@@ -623,6 +675,18 @@
     <message>
       <source>Asked Steam to start %1.</source>
       <translation>Steam получил команду запустить %1.</translation>
+    </message>
+    <message>
+      <source>Select a game folder (with gameinfo.txt)</source>
+      <translation>Выбор папки игры (с gameinfo.txt)</translation>
+    </message>
+    <message>
+      <source>Add Game Folder</source>
+      <translation>Добавление папки игры</translation>
+    </message>
+    <message>
+      <source>"%1" has no gameinfo.txt. Pick the game folder itself, e.g. "hl2" or a mod folder.</source>
+      <translation>В «%1» нет gameinfo.txt. Выберите саму папку игры, например «hl2», или папку мода.</translation>
     </message>
     <message>
       <source>Choose Folder…</source>
@@ -886,6 +950,10 @@ Packed:
       <translation>Пакеты</translation>
     </message>
     <message>
+      <source>Search</source>
+      <translation>Найти</translation>
+    </message>
+    <message>
       <source>Browse…</source>
       <translation>Обзор…</translation>
     </message>
@@ -930,6 +998,22 @@ Packed:
       <translation>Папка для распакованных файлов</translation>
     </message>
     <message>
+      <source>In this package</source>
+      <translation>В этом пакете</translation>
+    </message>
+    <message>
+      <source>In all of the game's packages</source>
+      <translation>Во всех пакетах игры</translation>
+    </message>
+    <message>
+      <source>File</source>
+      <translation>Файл</translation>
+    </message>
+    <message>
+      <source>Double-click a file to open its package on it.</source>
+      <translation>Двойной щелчок по файлу открывает его пакет на этом файле.</translation>
+    </message>
+    <message>
       <source>Package:</source>
       <translation>Пакет:</translation>
     </message>
@@ -944,6 +1028,34 @@ Packed:
     <message>
       <source>Select output folder</source>
       <translation>Выбор папки для сохранения</translation>
+    </message>
+    <message>
+      <source>File name or path, then Enter</source>
+      <translation>Имя или путь файла, затем Enter</translation>
+    </message>
+    <message>
+      <source>Double-click a result to open its package on it.</source>
+      <translation>Двойной щелчок по результату открывает его пакет на этом файле.</translation>
+    </message>
+    <message>
+      <source>Search "%1" in %2</source>
+      <translation>Поиск «%1» в %2</translation>
+    </message>
+    <message>
+      <source>%1 match(es) in %2 package(s).</source>
+      <translation>Совпадений: %1, просмотрено пакетов: %2.</translation>
+    </message>
+    <message>
+      <source>Stopped at %1 matches; narrow the search.</source>
+      <translation>Поиск остановлен на %1 совпадениях; уточните запрос.</translation>
+    </message>
+    <message>
+      <source>Looking in the game's VPKs, its addons folder and its workshop downloads…</source>
+      <translation>Поиск в VPK игры, в папке addons и в загрузках из мастерской…</translation>
+    </message>
+    <message>
+      <source>%1 (%2)</source>
+      <translation>%1 (%2)</translation>
     </message>
     <message>
       <source>ERROR: %1</source>

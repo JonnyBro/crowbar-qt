@@ -16,7 +16,9 @@ namespace runner
 		// A relative -game works for both builds; an absolute one would need
 		// Z:\ form under Proton and a host path natively.
 		QStringList arguments{"-applaunch", QString::number(app.id)};
-		if (!gameDir.isEmpty())
+		if (!gameDir.isEmpty() && app.isMod)
+			arguments << "-game" << (app.platform == steam::Platform::Windows ? launcher::toWindowsPath(gameDir) : QDir::cleanPath(gameDir));
+		else if (!gameDir.isEmpty())
 			arguments << "-game" << QDir(app.installPath).relativeFilePath(gameDir);
 		arguments += options;
 

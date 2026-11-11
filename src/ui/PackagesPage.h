@@ -3,11 +3,11 @@
 #include "core/Package.h"
 #include "ui/Page.h"
 
-#include <QTemporaryDir>
 
 #include <optional>
 
 class QComboBox;
+class Task;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
@@ -27,6 +27,8 @@ public:
     ~PackagesPage() override;
 
     void openPackage(const QString &file);
+    // Opens the package and selects one of its files.
+    void openEntry(const QString &file, const QString &entryPath);
 
 private:
     void loadPackage();
@@ -39,16 +41,24 @@ private:
     // Extracts entries into the temporary folder; returns their paths there.
     QStringList extractToTemp(const QList<int> &indexes);
     void updateButtons();
+    void updateScope();
+    void searchAllPackages();
+    void addResults(const QString &package, const QList<QPair<QString, quint64>> &matches);
     void saveSettings() const;
 
     std::optional<package::Package> m_package;
     bool m_unpacking = false;
-    QTemporaryDir m_tempDir;
 
     QLineEdit *m_file;
     QLabel *m_info;
     QLineEdit *m_filter;
     QTimer *m_filterTimer;
+    QComboBox *m_scope;
+    QPushButton *m_search;
+    QStackedWidget *m_left;
+    QTreeWidget *m_results;
+    Task *m_searchTask = nullptr;
+    int m_resultCount = 0;
     QTreeWidget *m_tree;
     QStackedWidget *m_preview;
     QLabel *m_previewMessage;

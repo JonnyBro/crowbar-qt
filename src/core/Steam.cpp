@@ -283,6 +283,43 @@ namespace steam
 		QDir().mkpath(app.compatDataPath);
 	}
 
+	std::optional<App> appForGameDir(const QString &gameDir, const QList<App> &installed)
+	{
+		const QDir dir(gameDir);
+		const QStringList files = dir.entryList({"gameinfo.txt"}, QDir::Files);
+		if (files.isEmpty())
+			return std::nullopt;
+
+		// gameinfo.txt paths use backslashes that are not escapes.
+		const auto document = vdf::parseFile(dir.filePath(files.first()), nullptr, {.escapes = false});
+		const vdf::Node *info = document ? document->find(u"GameInfo") : nullptr;
+		const vdf::Node *fileSystem = info ? info->find(u"FileSystem") : nullptr;
+
+		App app;
+		app.isMod = true;
+		app.name = info ? info->get(u"game") : QString();
+		if (app.name.isEmpty())
+			app.name = QFileInfo(gameDir).fileName();
+		app.installPath = QDir::cleanPath(dir.absolutePath());
+		app.gameDirs = {app.installPath};
+		app.id = fileSystem ? fileSystem->get(u"SteamAppId").toUInt() : 0;
+
+		for (const App &base : installed)
+		{
+			if (base.id != app.id || base.isMod)
+				continue;
+			app.baseName = base.name;
+			app.steamRoot = base.steamRoot;
+			app.platform = base.platform;
+			app.toolsPath = base.toolsPath;
+			app.compatDataPath = base.compatDataPath;
+			app.compatToolName = base.compatToolName;
+			app.protonPath = base.protonPath;
+			break;
+		}
+		return app;
+	}
+
 	QStringList findRoots()
 	{
 		const QString home = QDir::homePath();
@@ -342,6 +379,17 @@ namespace steam
 				app.platform = detectPlatform(*state, app.installPath, !app.compatDataPath.isEmpty());
 				resolveProton(app, mapping, installation.compatTools);
 				installation.apps << app;
+			}
+		}
+
+		// Source mods live in the main library only, each in a folder of its own.
+		const QList<App> installed = installation.apps;
+		for (const QString &modDir : subdirectories(root + "/steamapps/sourcemods"))
+		{
+			if (auto mod = appForGameDir(modDir, installed))
+			{
+				mod->steamRoot = root;
+				installation.apps << *mod;
 			}
 		}
 

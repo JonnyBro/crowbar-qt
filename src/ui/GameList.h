@@ -26,11 +26,16 @@ public:
     // Every game folder of every game, in display order.
     QList<Target> targets() const;
     std::optional<Target> current() const;
-    void setCurrent(quint32 appId, const QString &gameDir);
+    void setCurrent(const QString &gameDir);
 
     // Empty toolsPath goes back to the tools found in the game folder.
     static void setToolsOverride(quint32 appId, const QString &toolsPath);
     static QString toolsOverride(quint32 appId);
+
+    // Game folders added by hand (a gameinfo.txt folder outside Steam's lists).
+    static QStringList customFolders();
+    static void addCustomFolder(const QString &gameDir);
+    static void removeCustomFolder(const QString &gameDir);
 
     bool steamFound() const { return m_steamFound; }
     const QList<steam::App> &apps() const { return m_apps; }
@@ -44,6 +49,5 @@ private:
     QList<steam::App> m_apps;
     QStringList m_libraries;
     bool m_steamFound = false;
-    quint32 m_currentApp = 0;
     QString m_currentDir;
 };

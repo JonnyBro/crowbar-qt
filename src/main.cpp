@@ -9,8 +9,10 @@
 #include "core/ToolProcess.h"
 #include "ui/GameList.h"
 #include "ui/MainWindow.h"
+#include "ui/TempDir.h"
 
 #include <QApplication>
+#include <QSocketNotifier>
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QProcess>
@@ -22,6 +24,10 @@
 #include <QTextStream>
 
 #include <cstring>
+
+#include <signal.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace
 {
@@ -334,6 +340,33 @@ namespace
 		return 1;
 	}
 
+	// Ctrl+C, a session logout or kill should close the window the normal way, so
+	// destructors run: tools started from it are stopped and the temp folder goes.
+	int signalPipe[2] = {-1, -1};
+
+	void quitOnSignals()
+	{
+		if (::socketpair(AF_UNIX, SOCK_STREAM, 0, signalPipe) != 0)
+			return;
+		auto *notifier = new QSocketNotifier(signalPipe[1], QSocketNotifier::Read, qApp);
+		QObject::connect(notifier, &QSocketNotifier::activated, qApp, []
+						 {
+			char byte = 0;
+			if (::read(signalPipe[1], &byte, 1) >= 0)
+				QCoreApplication::quit(); });
+		struct sigaction action = {};
+		action.sa_handler = [](int)
+		{
+			const char byte = 1;
+			// Only async-signal-safe calls here; the notifier does the rest.
+			[[maybe_unused]] const auto written = ::write(signalPipe[0], &byte, 1);
+		};
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = SA_RESTART;
+		for (int signal : {SIGINT, SIGTERM, SIGHUP})
+			::sigaction(signal, &action, nullptr);
+	}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -436,6 +469,8 @@ int main(int argc, char *argv[])
 	}
 
 	QApplication app(argc, argv);
+	quitOnSignals();
+	removeStaleTempDirs();
 	// Lets Wayland compositors match the window to crowbar-qt.desktop and its icon.
 	QGuiApplication::setDesktopFileName("crowbar-qt");
 #ifdef CROWBAR_ICON

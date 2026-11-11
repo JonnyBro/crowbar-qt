@@ -3,7 +3,6 @@
 #include "core/Workshop.h"
 #include "ui/Page.h"
 
-#include <QTemporaryDir>
 
 class QCheckBox;
 class QLabel;
@@ -19,16 +18,20 @@ public:
     ~DownloadPage() override;
 
 private:
-    void fetch(bool thenDownload);
-    void showDetails(const workshop::ItemDetails &details);
-    void download();
-    void save(Task *task, const QStringList &files);
+    void showInfo();
+    void showDetails(const workshop::ItemDetails &details, int collectionSize);
+    // Expands collections, then downloads every item one after another.
+    void startDownloads();
+    void startNext();
+    void download(const workshop::ItemDetails &details);
+    void save(Task *task, const workshop::ItemDetails &details, const QStringList &files);
     void saveSettings() const;
 
     workshop::Client *m_client;
-    workshop::ItemDetails m_details;
-    bool m_downloadAfterFetch = false;
-    QTemporaryDir m_tempDir;
+    quint64 m_shownId = 0;
+    QList<workshop::ItemDetails> m_queue;
+    Task *m_current = nullptr;
+    bool m_resolving = false;
 
     QLineEdit *m_item;
     QLabel *m_preview;

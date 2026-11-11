@@ -135,6 +135,50 @@ private slots:
 		QCOMPARE(custom.compatToolName, "GE-Proton");
 	}
 
+	void sourceMods()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		const QString root = QDir(temp.path()).canonicalPath() + "/Steam";
+		writeFile(root + "/steamapps/appmanifest_243730.acf",
+				  "\"AppState\"\n{\n\"appid\" \"243730\"\n\"name\" \"Source SDK Base 2013 Singleplayer\"\n\"installdir\" \"Source SDK Base 2013 Singleplayer\"\n}\n");
+		writeFile(root + "/steamapps/common/Source SDK Base 2013 Singleplayer/hl2.exe");
+		writeFile(root + "/steamapps/common/Source SDK Base 2013 Singleplayer/bin/studiomdl.exe");
+		writeFile(root + "/steamapps/common/Source SDK Base 2013 Singleplayer/hl2/gameinfo.txt");
+		QVERIFY(QDir().mkpath(root + "/steamapps/compatdata/243730/pfx"));
+
+		writeFile(root + "/steamapps/sourcemods/mymod/GameInfo.txt",
+				  "\"GameInfo\"\n{\n\tgame \"My Mod\"\n\tFileSystem\n\t{\n\t\tSteamAppId 243730\n\t\tSearchPaths\n\t\t{\n\t\t\tgame+mod |gameinfo_path|.\n\t\t\tgame \"|appid_243730|hl2\\hl2_misc.vpk\"\n\t\t}\n\t}\n}\n");
+		writeFile(root + "/steamapps/sourcemods/orphan/gameinfo.txt", "\"GameInfo\" { FileSystem { SteamAppId 999 } }");
+		QVERIFY(QDir().mkpath(root + "/steamapps/sourcemods/not a mod"));
+
+		const steam::Installation installation = steam::scan(root);
+		const steam::App *mod = nullptr;
+		const steam::App *orphan = nullptr;
+		for (const steam::App &app : installation.apps)
+		{
+			if (app.name == "My Mod")
+				mod = &app;
+			if (app.name == "orphan")
+				orphan = &app;
+		}
+		QVERIFY(mod);
+		QVERIFY(mod->isMod);
+		QCOMPARE(mod->id, quint32(243730));
+		QCOMPARE(mod->baseName, "Source SDK Base 2013 Singleplayer");
+		QCOMPARE(mod->gameDirs, QStringList({root + "/steamapps/sourcemods/mymod"}));
+		QCOMPARE(mod->toolsPath, root + "/steamapps/common/Source SDK Base 2013 Singleplayer/bin");
+		QCOMPARE(mod->compatDataPath, root + "/steamapps/compatdata/243730");
+		QCOMPARE(mod->platform, steam::Platform::Windows);
+
+		QVERIFY(orphan);
+		QCOMPARE(orphan->id, quint32(999));
+		QVERIFY(orphan->toolsPath.isEmpty());
+		QVERIFY(orphan->baseName.isEmpty());
+		QCOMPARE(installation.apps.size(), 3);
+		QVERIFY(!steam::appForGameDir(root + "/steamapps/sourcemods/not a mod", installation.apps));
+	}
+
 	void protonFallsBackToPrefixConfigInfo()
 	{
 		QTemporaryDir temp;

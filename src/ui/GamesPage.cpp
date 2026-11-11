@@ -5,6 +5,7 @@
 #include "ui/Tasks.h"
 
 #include <QDesktopServices>
+#include <QDir>
 #include <QFileDialog>
 #include <QMenu>
 #include <QFileInfo>
@@ -47,7 +48,7 @@ namespace
 }
 
 GamesPage::GamesPage(GameList *games, TaskManager *tasks, QWidget *parent)
-	: Page(tr("Games"), games, tasks, parent), m_tree(new QTreeWidget(this)), m_status(new QLabel(this)), m_options(new QLineEdit(this)), m_runGame(new QPushButton(tr("Run Game"), this)), m_runHammer(new QPushButton(tr("Run Hammer"), this)), m_tools(new QPushButton(tr("Tools Folder…"), this)), m_useGame(new QPushButton(tr("Work With This Game"), this))
+	: Page(tr("Games"), games, tasks, parent), m_tree(new QTreeWidget(this)), m_status(new QLabel(this)), m_options(new QLineEdit(this)), m_runGame(new QPushButton(tr("Run Game"), this)), m_runHammer(new QPushButton(tr("Run Hammer"), this)), m_tools(new QPushButton(tr("Tools Folder…"), this)), m_useGame(new QPushButton(tr("Work With This Game"), this)), m_addFolder(new QPushButton(QIcon::fromTheme("list-add"), tr("Add Game Folder…"), this))
 {
 	m_options->setPlaceholderText(tr("Game launch options, e.g. -dev -console +map gm_construct"));
 	m_tree->setColumnCount(ColumnCount);
@@ -61,6 +62,7 @@ GamesPage::GamesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 
 	auto *bar = new QHBoxLayout;
 	bar->addWidget(m_status, 1);
+	bar->addWidget(m_addFolder);
 	bar->addWidget(m_useGame);
 	bar->addWidget(m_tools);
 	bar->addWidget(refreshButton);
@@ -103,14 +105,16 @@ GamesPage::GamesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 		steam::App app;
 		QString gameDir;
 		if (selection(app, gameDir))
-			m_games->setCurrent(app.id, gameDir); });
+			m_games->setCurrent(gameDir); });
 	connect(m_useGame, &QPushButton::clicked, this, [this]
 			{
 		steam::App app;
 		QString gameDir;
 		if (selection(app, gameDir))
-			m_games->setCurrent(app.id, gameDir); });
+			m_games->setCurrent(gameDir); });
 	connect(m_games, &GameList::currentChanged, this, &GamesPage::markCurrent);
+	m_addFolder->setToolTip(tr("Add a game or mod folder with a gameinfo.txt that Steam does not list, e.g. a mod kept elsewhere."));
+	connect(m_addFolder, &QPushButton::clicked, this, &GamesPage::addFolder);
 	m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(m_tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint &pos)
 			{
@@ -120,6 +124,12 @@ GamesPage::GamesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 		QMenu menu(this);
 		menu.addAction(QIcon::fromTheme("folder-open"), tr("Open Folder"), this, [item]
 					   { QDesktopServices::openUrl(QUrl::fromLocalFile(item->text(Location))); });
+		const QString location = QDir::cleanPath(item->text(Location));
+		if (GameList::customFolders().contains(location))
+			menu.addAction(QIcon::fromTheme("list-remove"), tr("Remove From List"), this, [this, location]
+						   {
+				GameList::removeCustomFolder(location);
+				m_games->refresh(); });
 		menu.exec(m_tree->viewport()->mapToGlobal(pos)); });
 
 	reload();
@@ -135,7 +145,10 @@ void GamesPage::reload()
 		auto *item = new QTreeWidgetItem(m_tree);
 		const int appIndex = int(&app - m_games->apps().data());
 		item->setData(Name, AppIndexRole, appIndex);
-		item->setText(Name, app.name);
+		item->setText(Name, app.isMod ? tr("%1 (mod)").arg(app.name) : app.name);
+		if (app.isMod)
+			item->setToolTip(Name, app.baseName.isEmpty() ? tr("Runs on app %1, which is not installed.").arg(app.id)
+														  : tr("Runs on %1.").arg(app.baseName));
 		item->setText(AppId, QString::number(app.id));
 		item->setText(Build, windows ? tr("Windows") : tr("Linux"));
 		if (windows)
@@ -206,7 +219,7 @@ void GamesPage::updateButtons()
 	steam::App app;
 	QString gameDir;
 	const bool ready = selection(app, gameDir);
-	m_runGame->setEnabled(ready);
+	m_runGame->setEnabled(ready && app.id != 0);
 	m_useGame->setEnabled(ready);
 	m_tools->setEnabled(app.id != 0);
 	m_runHammer->setEnabled(ready && !launcher::findTool(app, "hammer").isEmpty());
@@ -246,6 +259,25 @@ void GamesPage::launch(const launcher::Command &command, const QString &what, bo
 	// Closing the program is the normal way for this task to end.
 	task->run(command, [](int, bool)
 			  { return true; });
+}
+
+void GamesPage::addFolder()
+{
+	const QString dir = QFileDialog::getExistingDirectory(this, tr("Select a game folder (with gameinfo.txt)"));
+	if (dir.isEmpty())
+		return;
+	if (!steam::appForGameDir(dir, m_games->apps()))
+	{
+		QMessageBox::warning(this, tr("Add Game Folder"), tr("\"%1\" has no gameinfo.txt. Pick the game folder itself, e.g. \"hl2\" or a mod folder.").arg(dir));
+		return;
+	}
+	GameList::addCustomFolder(dir);
+	m_games->refresh();
+	for (const GameList::Target &target : m_games->targets())
+	{
+		if (target.gameDir == QDir::cleanPath(dir))
+			m_games->setCurrent(target.gameDir);
+	}
 }
 
 void GamesPage::markCurrent()

@@ -31,6 +31,36 @@ namespace workshop
 		return match.hasMatch() ? match.captured(1).toULongLong() : 0;
 	}
 
+	QList<quint64> parseItemIds(const QString &text)
+	{
+		QList<quint64> ids;
+		static const QRegularExpression separators("[\\s,;]+");
+		for (const QString &part : text.split(separators, Qt::SkipEmptyParts))
+		{
+			const quint64 id = parseItemId(part);
+			if (id && !ids.contains(id))
+				ids << id;
+		}
+		return ids;
+	}
+
+	QList<quint64> parseCollection(const QByteArray &json, bool *isCollection)
+	{
+		QList<quint64> children;
+		const QJsonArray details = QJsonDocument::fromJson(json).object()["response"].toObject()["collectiondetails"].toArray();
+		const QJsonObject collection = details.isEmpty() ? QJsonObject() : details.first().toObject();
+		const bool found = collection["result"].toInt() == 1;
+		// filetype 0 is a workshop item; nested collections (2) are not followed.
+		for (const QJsonValue &child : collection["children"].toArray())
+		{
+			if (child.toObject()["filetype"].toInt() == 0)
+				children << child.toObject()["publishedfileid"].toString().toULongLong();
+		}
+		if (isCollection)
+			*isCollection = found;
+		return children;
+	}
+
 	QString itemUrl(quint64 id)
 	{
 		return QStringLiteral("https://steamcommunity.com/sharedfiles/filedetails/?id=%1").arg(id);
@@ -234,6 +264,22 @@ namespace workshop
 				{
 			reply->deleteLater();
 			emit detailsListReady(reply->error() == QNetworkReply::NoError ? parseDetailsList(reply->readAll()) : QList<ItemDetails>()); });
+	}
+
+	void Client::fetchCollection(quint64 id)
+	{
+		QNetworkRequest request(QUrl("https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/"));
+		request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+		QUrlQuery form;
+		form.addQueryItem("collectioncount", "1");
+		form.addQueryItem("publishedfileids[0]", QString::number(id));
+		QNetworkReply *reply = m_network->post(request, form.toString(QUrl::FullyEncoded).toUtf8());
+		connect(reply, &QNetworkReply::finished, this, [this, reply, id]
+				{
+			reply->deleteLater();
+			bool isCollection = false;
+			const QList<quint64> children = reply->error() == QNetworkReply::NoError ? parseCollection(reply->readAll(), &isCollection) : QList<quint64>();
+			emit collectionReady(id, children, isCollection); });
 	}
 
 	void Client::fetchData(const QString &url, quint64 id)

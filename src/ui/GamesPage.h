@@ -24,6 +24,7 @@ private:
     void markCurrent();
     void saveOptions() const;
     void showToolsMenu();
+    void addFolder();
 
     QTreeWidget *m_tree;
     QLabel *m_status;
@@ -32,5 +33,6 @@ private:
     QPushButton *m_runHammer;
     QPushButton *m_tools;
     QPushButton *m_useGame;
+    QPushButton *m_addFolder;
     quint32 m_optionsAppId = 0;
 };

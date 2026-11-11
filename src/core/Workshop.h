@@ -26,6 +26,12 @@ struct ItemDetails {
 
 // Accepts a bare ID or any workshop/community URL with ?id=. Returns 0 if none.
 quint64 parseItemId(const QString &text);
+// Every item ID in text: links and bare IDs separated by spaces, commas or lines.
+QList<quint64> parseItemIds(const QString &text);
+
+// Items of a collection from ISteamRemoteStorage/GetCollectionDetails; sets
+// isCollection to false when the ID is an ordinary item.
+QList<quint64> parseCollection(const QByteArray &json, bool *isCollection);
 
 QString itemUrl(quint64 id);
 
@@ -58,6 +64,7 @@ public:
 
     void fetchDetails(quint64 id);
     void fetchDetailsList(const QList<quint64> &ids);
+    void fetchCollection(quint64 id);
     // Small downloads kept in memory, e.g. preview images.
     void fetchData(const QString &url, quint64 id);
     void download(const QString &url, const QString &file);
@@ -66,6 +73,8 @@ public:
 signals:
     void detailsReady(const workshop::ItemDetails &details);
     void detailsListReady(const QList<workshop::ItemDetails> &details);
+    // A failed lookup reports the ID as an ordinary item.
+    void collectionReady(quint64 id, const QList<quint64> &children, bool isCollection);
     void dataReady(quint64 id, const QByteArray &data);
     void progress(qint64 received, qint64 total);
     void downloaded(bool ok, const QString &error);

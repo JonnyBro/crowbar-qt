@@ -64,6 +64,8 @@ qt_add_executable(crowbar-qt
     src/ui/Tasks.h
     src/ui/TasksPanel.cpp
     src/ui/TasksPanel.h
+    src/ui/TempDir.cpp
+    src/ui/TempDir.h
     src/ui/ViewPage.cpp
     src/ui/ViewPage.h
     src/ui/WorkshopPage.cpp

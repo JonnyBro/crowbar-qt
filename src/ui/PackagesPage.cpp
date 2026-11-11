@@ -1,10 +1,13 @@
 #include "ui/PackagesPage.h"
 
+#include "ui/GameList.h"
 #include "ui/PathField.h"
 #include "ui/Tasks.h"
+#include "ui/TempDir.h"
 
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDirIterator>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
@@ -20,17 +23,24 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QApplication>
+#include <QCoreApplication>
+#include <QPointer>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QSet>
 #include <QSettings>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QThread>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <atomic>
+#include <memory>
 #include <functional>
 
 namespace
@@ -49,6 +59,46 @@ namespace
 	};
 
 	constexpr quint64 MaxPreviewSize = 4 * 1024 * 1024;
+	constexpr int MaxSearchResults = 5000;
+
+	enum Scope
+	{
+		ThisPackage,
+		AllPackages
+	};
+
+	enum
+	{
+		ResultFileRole = Qt::UserRole + 10,
+		ResultEntryRole
+	};
+
+	// Packages a game loads: its VPKs (one per multi-part set) and its addons.
+	QStringList gamePackages(const GameList::Target &target, const QStringList &libraries)
+	{
+		static const QRegularExpression chunk("_\\d{3}\\.vpk$", QRegularExpression::CaseInsensitiveOption);
+		QStringList packages;
+		QDirIterator vpks(target.app.installPath, {"*.vpk"}, QDir::Files, QDirIterator::Subdirectories);
+		while (vpks.hasNext())
+		{
+			const QString file = vpks.next();
+			if (!chunk.match(file).hasMatch())
+				packages << file;
+		}
+		QDirIterator addons(target.gameDir + "/addons", {"*.gma"}, QDir::Files);
+		while (addons.hasNext())
+			packages << addons.next();
+		for (const QString &library : libraries)
+		{
+			QDirIterator workshop(QStringLiteral("%1/steamapps/workshop/content/%2").arg(library).arg(target.app.id), {"*.gma"},
+								  QDir::Files, QDirIterator::Subdirectories);
+			while (workshop.hasNext())
+				packages << workshop.next();
+		}
+		packages.removeDuplicates();
+		packages.sort();
+		return packages;
+	}
 
 	void collectEntries(const QTreeWidgetItem *item, QSet<int> &indexes)
 	{
@@ -108,7 +158,8 @@ namespace
 
 PackagesPage::PackagesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 	: Page(tr("Packages"), games, tasks, parent), m_file(new QLineEdit(this)), m_info(new QLabel(this)), m_filter(new QLineEdit(this)),
-	  m_filterTimer(new QTimer(this)), m_tree(new PackageTree([this](const QList<int> &indexes)
+	  m_filterTimer(new QTimer(this)), m_scope(new QComboBox(this)), m_search(new QPushButton(QIcon::fromTheme("edit-find"), tr("Search"), this)),
+	  m_left(new QStackedWidget(this)), m_results(new QTreeWidget(this)), m_tree(new PackageTree([this](const QList<int> &indexes)
 															  { return extractToTemp(indexes); }, this)),
 	  m_preview(new QStackedWidget(this)), m_previewMessage(new QLabel(this)), m_previewText(new QPlainTextEdit(this)),
 	  m_previewImageArea(new QScrollArea(this)), m_previewImage(new QLabel(this)), m_outputMode(new QComboBox(this)),
@@ -160,12 +211,26 @@ PackagesPage::PackagesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 	fileRow->addWidget(m_file, 1);
 	fileRow->addWidget(browse);
 
+	m_scope->addItem(tr("In this package"), ThisPackage);
+	m_scope->addItem(tr("In all of the game's packages"), AllPackages);
+	m_results->setHeaderLabels({tr("File"), tr("Size")});
+	m_results->setUniformRowHeights(true);
+	m_results->header()->setStretchLastSection(false);
+	m_results->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+	m_results->header()->setSectionResizeMode(1, QHeaderView::Fixed);
+	m_results->header()->resizeSection(1, m_tree->header()->sectionSize(1));
+	m_results->setToolTip(tr("Double-click a file to open its package on it."));
+	m_left->addWidget(m_tree);
+	m_left->addWidget(m_results);
+
 	auto *filterRow = new QHBoxLayout;
+	filterRow->addWidget(m_scope);
 	filterRow->addWidget(m_filter, 1);
+	filterRow->addWidget(m_search);
 	filterRow->addWidget(m_info);
 
 	auto *split = new QSplitter(Qt::Horizontal, this);
-	split->addWidget(m_tree);
+	split->addWidget(m_left);
 	split->addWidget(m_preview);
 	split->setStretchFactor(0, 3);
 	split->setStretchFactor(1, 2);
@@ -193,7 +258,21 @@ PackagesPage::PackagesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 		if (!file.isEmpty())
 			openPackage(file); });
 	connect(m_file, &QLineEdit::editingFinished, this, &PackagesPage::loadPackage);
-	connect(m_filter, &QLineEdit::textChanged, m_filterTimer, qOverload<>(&QTimer::start));
+	connect(m_filter, &QLineEdit::textChanged, this, [this]
+			{
+		if (m_scope->currentData().toInt() == ThisPackage)
+			m_filterTimer->start(); });
+	connect(m_filter, &QLineEdit::returnPressed, this, [this]
+			{
+		if (m_scope->currentData().toInt() == AllPackages)
+			searchAllPackages(); });
+	connect(m_search, &QPushButton::clicked, this, &PackagesPage::searchAllPackages);
+	connect(m_scope, &QComboBox::currentIndexChanged, this, &PackagesPage::updateScope);
+	connect(m_results, &QTreeWidget::itemActivated, this, [this](QTreeWidgetItem *item)
+			{
+		const QString file = item->data(0, ResultFileRole).toString();
+		if (!file.isEmpty())
+			openEntry(file, item->data(0, ResultEntryRole).toString()); });
 	connect(m_filterTimer, &QTimer::timeout, this, &PackagesPage::applyFilter);
 	connect(m_tree, &QTreeWidget::currentItemChanged, this, &PackagesPage::showPreview);
 	connect(m_tree, &QTreeWidget::itemSelectionChanged, this, &PackagesPage::updateButtons);
@@ -214,6 +293,7 @@ PackagesPage::PackagesPage(GameList *games, TaskManager *tasks, QWidget *parent)
 	connect(m_unpackSelected, &QPushButton::clicked, this, [this]
 			{ unpack(true); });
 
+	updateScope();
 	loadPackage();
 	showPreview();
 }
@@ -234,6 +314,146 @@ void PackagesPage::openPackage(const QString &file)
 {
 	m_file->setText(file);
 	loadPackage();
+}
+
+void PackagesPage::openEntry(const QString &file, const QString &entryPath)
+{
+	m_scope->setCurrentIndex(m_scope->findData(ThisPackage));
+	m_filter->clear();
+	openPackage(file);
+	// Run the cleared filter now: the delayed run would collapse the path opened below.
+	m_filterTimer->stop();
+	applyFilter();
+	const QString wanted = entryPath.toLower();
+	std::function<QTreeWidgetItem *(QTreeWidgetItem *)> find = [&](QTreeWidgetItem *parent) -> QTreeWidgetItem *
+	{
+		for (int i = 0; i < parent->childCount(); ++i)
+		{
+			QTreeWidgetItem *child = parent->child(i);
+			const QString path = child->data(0, PathRole).toString();
+			if (path == wanted)
+				return child;
+			if (wanted.startsWith(path + u'/'))
+				return find(child);
+		}
+		return nullptr;
+	};
+	if (QTreeWidgetItem *item = find(m_tree->invisibleRootItem()))
+	{
+		for (QTreeWidgetItem *parent = item->parent(); parent; parent = parent->parent())
+			parent->setExpanded(true);
+		m_tree->setCurrentItem(item);
+		m_tree->scrollToItem(item, QAbstractItemView::PositionAtCenter);
+	}
+}
+
+void PackagesPage::updateScope()
+{
+	const bool all = m_scope->currentData().toInt() == AllPackages;
+	m_left->setCurrentWidget(all ? m_results : m_tree);
+	m_search->setVisible(all);
+	m_filter->setPlaceholderText(all ? tr("File name or path, then Enter") : tr("Search files"));
+	if (all)
+	{
+		m_previewMessage->setText(tr("Double-click a result to open its package on it."));
+		m_preview->setCurrentWidget(m_previewMessage);
+	}
+	else
+	{
+		applyFilter();
+		showPreview();
+	}
+}
+
+void PackagesPage::searchAllPackages()
+{
+	const QString needle = m_filter->text().trimmed().toLower().replace(u'\\', u'/');
+	const auto target = m_games->current();
+	if (needle.size() < 2 || !target)
+		return;
+	if (m_searchTask && m_searchTask->isRunning())
+		m_searchTask->cancel();
+
+	m_results->clear();
+	m_resultCount = 0;
+	Task *task = m_tasks->start(tr("Search \"%1\" in %2").arg(needle, target->app.name));
+	m_searchTask = task;
+	task->setProgress(0);
+
+	auto cancelled = std::make_shared<std::atomic_bool>(false);
+	task->setCanceller([cancelled]
+					   { *cancelled = true; });
+	const GameList::Target game = *target;
+	const QStringList libraries = m_games->libraries();
+	QPointer<PackagesPage> page(this);
+	QPointer<Task> taskRef(task);
+
+	// Reading every package table takes a while for big games, so it runs off the UI thread.
+	QThread *thread = QThread::create([page, taskRef, cancelled, game, libraries, needle]
+									  {
+		const QStringList packages = gamePackages(game, libraries);
+		int found = 0;
+		for (int i = 0; i < packages.size() && !*cancelled && found < MaxSearchResults; ++i)
+		{
+			const auto package = package::Package::open(packages[i]);
+			QList<QPair<QString, quint64>> matches;
+			if (package)
+			{
+				for (const package::Entry &entry : package->entries())
+				{
+					if (entry.path.toLower().contains(needle) && found < MaxSearchResults)
+					{
+						matches.append({entry.path, entry.size});
+						++found;
+					}
+				}
+			}
+			const QString file = packages[i];
+			const int percent = (i + 1) * 100 / int(packages.size());
+			QMetaObject::invokeMethod(qApp, [page, taskRef, file, matches, percent]
+									  {
+				if (taskRef)
+					taskRef->setProgress(percent);
+				if (page && !matches.isEmpty())
+					page->addResults(file, matches); });
+		}
+		const bool stopped = *cancelled;
+		const int total = int(packages.size());
+		QMetaObject::invokeMethod(qApp, [taskRef, found, total, stopped]
+								  {
+			if (!taskRef)
+				return;
+			taskRef->appendLine(QCoreApplication::translate("PackagesPage", "%1 match(es) in %2 package(s).").arg(found).arg(total));
+			if (found >= MaxSearchResults)
+				taskRef->appendLine(QCoreApplication::translate("PackagesPage", "Stopped at %1 matches; narrow the search.").arg(MaxSearchResults));
+			taskRef->finish(stopped ? Task::State::Cancelled : Task::State::Succeeded); }); });
+	connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+	task->appendLine(tr("Looking in the game's VPKs, its addons folder and its workshop downloads…"));
+	thread->start();
+}
+
+void PackagesPage::addResults(const QString &package, const QList<QPair<QString, quint64>> &matches)
+{
+	const auto target = m_games->current();
+	const QLocale locale;
+	auto *group = new QTreeWidgetItem(m_results);
+	QString label = package;
+	if (target && package.startsWith(target->app.installPath + u'/'))
+		label = package.mid(target->app.installPath.size() + 1);
+	group->setText(0, tr("%1 (%2)").arg(label).arg(matches.size()));
+	group->setToolTip(0, package);
+	group->setIcon(0, QIcon::fromTheme("package-x-generic"));
+	for (const auto &[path, size] : matches)
+	{
+		auto *item = new QTreeWidgetItem(group);
+		item->setText(0, path);
+		item->setText(1, locale.formattedDataSize(qint64(size)));
+		item->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+		item->setData(0, ResultFileRole, package);
+		item->setData(0, ResultEntryRole, path);
+	}
+	group->setExpanded(m_results->topLevelItemCount() <= 20);
+	m_resultCount += int(matches.size());
 }
 
 void PackagesPage::loadPackage()
@@ -379,9 +599,10 @@ void PackagesPage::showPreview()
 QStringList PackagesPage::extractToTemp(const QList<int> &indexes)
 {
 	QStringList files;
-	if (!m_package || !m_tempDir.isValid())
+	const QString temp = tempPath("packages");
+	if (!m_package || temp.isEmpty())
 		return files;
-	const QString dir = m_tempDir.path() + u'/' + QFileInfo(m_package->file()).completeBaseName();
+	const QString dir = temp + u'/' + QFileInfo(m_package->file()).completeBaseName();
 	for (int index : indexes)
 	{
 		const package::Entry &entry = m_package->entries().at(index);

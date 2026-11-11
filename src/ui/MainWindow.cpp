@@ -100,7 +100,7 @@ MainWindow::MainWindow(QWidget *parent)
 			{
 		const QList<GameList::Target> targets = m_games->targets();
 		if (index >= 0 && index < targets.size())
-			m_games->setCurrent(targets[index].app.id, targets[index].gameDir); });
+			m_games->setCurrent(targets[index].gameDir); });
 	connect(m_games, &GameList::changed, this, &MainWindow::reloadGames);
 	connect(m_games, &GameList::currentChanged, this, &MainWindow::updateGameInfo);
 	// A collapsed panel keeps only its header row; give the space back to the pages.

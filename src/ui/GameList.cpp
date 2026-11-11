@@ -2,6 +2,7 @@
 
 #include "core/Launcher.h"
 
+#include <QDir>
 #include <QFileInfo>
 
 #include <QSettings>
@@ -36,30 +37,80 @@ void GameList::refresh()
 		}
 	}
 
-	// Keep the chosen game across refreshes and restarts; fall back to the first one.
-	if (m_currentApp == 0)
+	// Added by hand after the scan, so they borrow tools that were overridden above.
+	const QList<steam::App> installed = m_apps;
+	for (const QString &folder : customFolders())
 	{
-		const QStringList saved = QSettings().value("game/current").toString().split(u':');
-		if (saved.size() == 2)
+		const QString cleaned = QDir::cleanPath(folder);
+		const bool listed = std::any_of(installed.begin(), installed.end(), [&](const steam::App &app)
+										{ return app.gameDirs.contains(cleaned); });
+		if (listed)
+			continue;
+		if (auto app = steam::appForGameDir(cleaned, installed))
 		{
-			m_currentApp = saved[0].toUInt();
-			m_currentDir = saved[1];
+			if (app->steamRoot.isEmpty() && !installations.isEmpty())
+				app->steamRoot = installations.first().root;
+			m_apps << *app;
 		}
 	}
+	std::sort(m_apps.begin(), m_apps.end(), [](const steam::App &a, const steam::App &b)
+			  { return a.name.localeAwareCompare(b.name) < 0; });
+
+	// Keep the chosen game across refreshes and restarts; fall back to the first one.
 	const QList<Target> all = targets();
+	if (m_currentDir.isEmpty())
+	{
+		const QString saved = QSettings().value("game/current").toString();
+		// Older versions saved "appid:folder name" instead of the full path.
+		const qsizetype colon = saved.indexOf(u':');
+		if (!saved.startsWith(u'/') && colon > 0)
+		{
+			const quint32 id = saved.left(colon).toUInt();
+			const QString name = saved.mid(colon + 1);
+			for (const Target &target : all)
+			{
+				if (m_currentDir.isEmpty() && target.app.id == id && QFileInfo(target.gameDir).fileName() == name)
+					m_currentDir = target.gameDir;
+			}
+		}
+		else
+		{
+			m_currentDir = saved;
+		}
+	}
 	const bool known = std::any_of(all.begin(), all.end(), [this](const Target &target)
-								   { return target.app.id == m_currentApp && QFileInfo(target.gameDir).fileName() == m_currentDir; });
+								   { return target.gameDir == m_currentDir; });
 	if (!known)
 	{
 		// Prefer a game that can actually run the tools.
 		const auto withTools = std::find_if(all.begin(), all.end(), [](const Target &target)
 											{ return !target.app.toolsPath.isEmpty(); });
 		const auto chosen = withTools != all.end() ? withTools : all.begin();
-		m_currentApp = chosen != all.end() ? chosen->app.id : 0;
-		m_currentDir = chosen != all.end() ? QFileInfo(chosen->gameDir).fileName() : QString();
+		m_currentDir = chosen != all.end() ? chosen->gameDir : QString();
 	}
 	emit changed();
 	emit currentChanged();
+}
+
+QStringList GameList::customFolders()
+{
+	return QSettings().value("games/custom").toStringList();
+}
+
+void GameList::addCustomFolder(const QString &gameDir)
+{
+	QStringList folders = customFolders();
+	const QString cleaned = QDir::cleanPath(gameDir);
+	if (!folders.contains(cleaned))
+		folders << cleaned;
+	QSettings().setValue("games/custom", folders);
+}
+
+void GameList::removeCustomFolder(const QString &gameDir)
+{
+	QStringList folders = customFolders();
+	folders.removeAll(QDir::cleanPath(gameDir));
+	QSettings().setValue("games/custom", folders);
 }
 
 QString GameList::Target::tool(const QString &name) const
@@ -82,20 +133,19 @@ std::optional<GameList::Target> GameList::current() const
 {
 	for (const Target &target : targets())
 	{
-		if (target.app.id == m_currentApp && QFileInfo(target.gameDir).fileName() == m_currentDir)
+		if (target.gameDir == m_currentDir)
 			return target;
 	}
 	return std::nullopt;
 }
 
-void GameList::setCurrent(quint32 appId, const QString &gameDir)
+void GameList::setCurrent(const QString &gameDir)
 {
-	const QString dir = QFileInfo(gameDir).fileName();
-	if (appId == m_currentApp && dir == m_currentDir)
+	const QString dir = QDir::cleanPath(gameDir);
+	if (dir == m_currentDir)
 		return;
-	m_currentApp = appId;
 	m_currentDir = dir;
-	QSettings().setValue("game/current", QStringLiteral("%1:%2").arg(appId).arg(dir));
+	QSettings().setValue("game/current", dir);
 	emit currentChanged();
 }
 

@@ -3,7 +3,6 @@
 #include "core/Publisher.h"
 #include "ui/Page.h"
 
-#include <QTemporaryDir>
 
 class QLabel;
 class QLineEdit;
@@ -35,7 +34,6 @@ private:
     void saveSettings() const;
 
     workshop::Client *m_client;
-    QTemporaryDir m_tempDir;
     bool m_busy = false;
 
     QTreeWidget *m_items;

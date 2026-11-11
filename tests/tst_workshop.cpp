@@ -39,6 +39,26 @@ private slots:
 		QCOMPARE(workshop::parseItemId("not an id"), quint64(0));
 	}
 
+	void itemIdLists()
+	{
+		QCOMPARE(workshop::parseItemIds("104603291 https://steamcommunity.com/sharedfiles/filedetails/?id=42, 7;\n104603291"),
+				 QList<quint64>({104603291, 42, 7}));
+		QVERIFY(workshop::parseItemIds("  nothing here ").isEmpty());
+	}
+
+	void collections()
+	{
+		bool isCollection = false;
+		const QList<quint64> children = workshop::parseCollection(
+			"{\"response\":{\"collectiondetails\":[{\"publishedfileid\":\"9\",\"result\":1,\"children\":["
+			"{\"publishedfileid\":\"1\",\"filetype\":0},{\"publishedfileid\":\"2\",\"filetype\":2},{\"publishedfileid\":\"3\",\"filetype\":0}]}]}}",
+			&isCollection);
+		QVERIFY(isCollection);
+		QCOMPARE(children, QList<quint64>({1, 3}));
+		QVERIFY(workshop::parseCollection("{\"response\":{\"collectiondetails\":[{\"publishedfileid\":\"5\",\"result\":9}]}}", &isCollection).isEmpty());
+		QVERIFY(!isCollection);
+	}
+
 	void details()
 	{
 		const auto ok = workshop::parseDetails(R"({"response":{"result":1,"resultcount":1,"publishedfiledetails":[
@@ -52,7 +72,7 @@ private slots:
 
 		// Plain string on purpose: moc reads "//" inside a raw string as a comment.
 		const auto list = workshop::parseDetailsList("{\"response\":{\"publishedfiledetails\":["
-													 "{\"publishedfileid\":\"1\",\"result\":1,\"title\":\"A\",\"preview_url\":\"https:\/\/x\/a.jpg\"},"
+													 "{\"publishedfileid\":\"1\",\"result\":1,\"title\":\"A\",\"preview_url\":\"https://x/a.jpg\"},"
 													 "{\"publishedfileid\":\"2\",\"result\":9}]}}");
 		QCOMPARE(list.size(), 2);
 		QCOMPARE(list[0].previewUrl, "https://x/a.jpg");

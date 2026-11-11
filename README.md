@@ -45,6 +45,10 @@ Running:
 Pick the game in the sidebar; every page works with it. Each run (a compile, a pack, an upload, a download)
 appears in the Tasks panel at the bottom with its own log; paths in the log are clickable.
 
+Source mods in `steamapps/sourcemods` are listed with the game they run on, and the Games page can add any
+other folder with a `gameinfo.txt`. Browse Packages can search one package or every package of the game,
+and Download accepts several links or IDs at once, including whole collections.
+
 Drop a `.qc`, `.mdl`, `.vpk`, `.gma` or a folder onto the window, or open one with `crowbar-qt <file>`,
 and it opens on the page that handles it. Installing the package also registers these file types,
 so a file manager's "Open with" works.

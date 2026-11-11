@@ -5,6 +5,7 @@
 #include "ui/GameList.h"
 #include "ui/PathField.h"
 #include "ui/Tasks.h"
+#include "ui/TempDir.h"
 
 #include <QClipboard>
 #include <QDesktopServices>
@@ -270,7 +271,7 @@ void WorkshopPage::publish()
 	if (!icon.isEmpty())
 	{
 		QString error;
-		request.iconFile = publisher::prepareIcon(icon, m_tempDir.filePath("icon.jpg"), &error);
+		request.iconFile = publisher::prepareIcon(icon, tempPath("publish") + "/icon.jpg", &error);
 		if (request.iconFile.isEmpty())
 		{
 			m_tasks->start(tr("Publish"))->fail(error);
@@ -286,7 +287,7 @@ void WorkshopPage::publish()
 	}
 
 	// A folder is packed with gmad first, into a temporary GMA.
-	const QString packed = m_tempDir.filePath(QFileInfo(content).fileName() + ".gma");
+	const QString packed = tempPath("publish") + u'/' + QFileInfo(content).fileName() + ".gma";
 	QFile::remove(packed);
 	packer::Options options;
 	options.warnInvalid = true;

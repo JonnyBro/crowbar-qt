@@ -3,14 +3,18 @@
 #include "ui/GameList.h"
 #include "ui/PathField.h"
 #include "ui/Tasks.h"
+#include "ui/TempDir.h"
 
 #include <QCheckBox>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QHash>
+#include <QMap>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
@@ -86,33 +90,27 @@ DownloadPage::DownloadPage(GameList *games, TaskManager *tasks, QWidget *parent)
 	content()->addLayout(buttons);
 	content()->addStretch(1);
 
-	connect(getInfo, &QPushButton::clicked, this, [this]
-			{ fetch(false); });
-	connect(m_item, &QLineEdit::returnPressed, this, [this]
-			{ fetch(false); });
-	connect(m_download, &QPushButton::clicked, this, [this]
-			{
-		if (m_details.isValid() && m_details.id == workshop::parseItemId(m_item->text()))
-			download();
-		else
-			fetch(true); });
+	connect(getInfo, &QPushButton::clicked, this, &DownloadPage::showInfo);
+	connect(m_item, &QLineEdit::returnPressed, this, &DownloadPage::showInfo);
+	connect(m_download, &QPushButton::clicked, this, &DownloadPage::startDownloads);
 	connect(openPage, &QPushButton::clicked, this, [this]
 			{
-		if (const quint64 id = workshop::parseItemId(m_item->text()))
-			QDesktopServices::openUrl(QUrl(workshop::itemUrl(id))); });
+		const QList<quint64> ids = workshop::parseItemIds(m_item->text());
+		if (!ids.isEmpty())
+			QDesktopServices::openUrl(QUrl(workshop::itemUrl(ids.first()))); });
 	connect(browse, &QPushButton::clicked, this, [this]
 			{
 		const QString dir = QFileDialog::getExistingDirectory(this, tr("Select output folder"), m_outputPath->text());
 		if (!dir.isEmpty())
 			m_outputPath->setText(dir); });
-	connect(m_client, &workshop::Client::detailsReady, this, &DownloadPage::showDetails);
 	connect(m_client, &workshop::Client::dataReady, this, [this](quint64 id, const QByteArray &data)
 			{
 		const QImage image = QImage::fromData(data);
-		if (id == m_details.id && !image.isNull())
+		if (id == m_shownId && !image.isNull())
 			m_preview->setPixmap(QPixmap::fromImage(image.scaled(PreviewSize, PreviewSize, Qt::KeepAspectRatio, Qt::SmoothTransformation))); });
 
-	m_info->setText(tr("Enter a workshop link or a numeric item ID."));
+	m_item->setPlaceholderText(tr("Workshop links or IDs; collections are expanded"));
+	m_info->setText(tr("Enter one or more workshop links or item IDs, or a collection."));
 }
 
 DownloadPage::~DownloadPage()
@@ -120,36 +118,62 @@ DownloadPage::~DownloadPage()
 	saveSettings();
 }
 
-void DownloadPage::fetch(bool thenDownload)
+void DownloadPage::showInfo()
 {
-	const quint64 id = workshop::parseItemId(m_item->text());
-	if (id == 0)
+	const QList<quint64> ids = workshop::parseItemIds(m_item->text());
+	m_preview->clear();
+	m_shownId = 0;
+	if (ids.isEmpty())
 	{
-		m_info->setText(tr("Enter a workshop link or a numeric item ID."));
+		m_info->setText(tr("Enter one or more workshop links or item IDs, or a collection."));
 		return;
 	}
-	m_downloadAfterFetch = thenDownload;
-	m_preview->clear();
+	if (ids.size() > 1)
+	{
+		m_info->setText(tr("%n items or collections; Download fetches them one after another.", nullptr, int(ids.size())));
+		return;
+	}
 	m_info->setText(tr("Getting item details…"));
-	m_client->fetchDetails(id);
+	// One lookup per request, so a slow answer cannot overwrite a newer one.
+	auto *client = new workshop::Client(this);
+	auto collectionSize = std::make_shared<int>(-1);
+	connect(client, &workshop::Client::collectionReady, this, [client, collectionSize](quint64 id, const QList<quint64> &children, bool isCollection)
+			{
+		if (isCollection)
+			*collectionSize = int(children.size());
+		client->fetchDetails(id); });
+	connect(client, &workshop::Client::detailsReady, this, [this, client, collectionSize](const workshop::ItemDetails &details)
+			{
+		client->deleteLater();
+		if (workshop::parseItemIds(m_item->text()) == QList<quint64>{details.id})
+			showDetails(details, *collectionSize); });
+	client->fetchCollection(ids.first());
 }
 
-void DownloadPage::showDetails(const workshop::ItemDetails &details)
+void DownloadPage::showDetails(const workshop::ItemDetails &details, int collectionSize)
 {
-	m_details = details;
 	if (!details.isValid())
 	{
 		m_info->setText(tr("ERROR: %1").arg(details.error));
 		return;
 	}
+	m_shownId = details.id;
+	if (!details.previewUrl.isEmpty())
+		m_client->fetchData(details.previewUrl, details.id);
 
 	QString game = QString::number(details.appId);
 	for (const steam::App &app : m_games->apps())
 	{
-		if (app.id == details.appId)
+		if (app.id == details.appId && !app.isMod)
 			game = app.name;
 	}
 	const QLocale locale;
+	if (collectionSize >= 0)
+	{
+		m_info->setText(tr("<b>%1</b><br>Collection for %2 · %n item(s) · updated %3", nullptr, collectionSize)
+							.arg(details.title.toHtmlEscaped(), game.toHtmlEscaped(), locale.toString(details.updated, QLocale::ShortFormat)));
+		return;
+	}
 	const bool cached = !workshop::findCachedFiles(m_games->libraries(), details.appId, details.id).isEmpty();
 	const QString source = cached						  ? tr("in Steam's workshop cache")
 						   : !details.fileUrl.isEmpty()		  ? tr("direct download")
@@ -158,17 +182,99 @@ void DownloadPage::showDetails(const workshop::ItemDetails &details)
 	m_info->setText(tr("<b>%1</b><br>%2 · %3 · updated %4 · %5")
 						.arg(details.title.toHtmlEscaped(), game.toHtmlEscaped(), locale.formattedDataSize(details.fileSize),
 							 locale.toString(details.updated, QLocale::ShortFormat), source));
-	if (!details.previewUrl.isEmpty())
-		m_client->fetchData(details.previewUrl, details.id);
-	if (m_downloadAfterFetch)
-		download();
 }
 
-void DownloadPage::download()
+void DownloadPage::startDownloads()
 {
+	const QList<quint64> ids = workshop::parseItemIds(m_item->text());
+	if (ids.isEmpty() || m_resolving)
+	{
+		if (ids.isEmpty())
+			m_info->setText(tr("Enter one or more workshop links or item IDs, or a collection."));
+		return;
+	}
 	saveSettings();
-	const workshop::ItemDetails details = m_details;
+	m_resolving = true;
+	m_download->setEnabled(false);
+
+	// Collections answer in any order; keep the items in the order they were entered.
+	auto *client = new workshop::Client(this);
+	auto expanded = std::make_shared<QMap<int, QList<quint64>>>();
+	auto pending = std::make_shared<int>(int(ids.size()));
+	auto batches = std::make_shared<int>(0);
+	auto found = std::make_shared<QHash<quint64, workshop::ItemDetails>>();
+	auto order = std::make_shared<QList<quint64>>();
+
+	const auto finish = [this, client, found, order]
+	{
+		for (quint64 id : std::as_const(*order))
+		{
+			const workshop::ItemDetails details = found->value(id);
+			if (details.isValid())
+			{
+				m_queue << details;
+			}
+			else
+			{
+				Task *task = m_tasks->start(tr("Download %1").arg(id));
+				task->fail(details.error.isEmpty() ? tr("Item %1 was not found, or it is private or removed.").arg(id) : details.error);
+			}
+		}
+		client->deleteLater();
+		m_resolving = false;
+		m_download->setEnabled(true);
+		startNext();
+	};
+
+	connect(client, &workshop::Client::detailsListReady, this, [found, batches, finish](const QList<workshop::ItemDetails> &list)
+			{
+		for (const workshop::ItemDetails &details : list)
+			found->insert(details.id, details);
+		if (--*batches == 0)
+			finish(); });
+	connect(client, &workshop::Client::collectionReady, this, [this, client, ids, expanded, pending, batches, order, finish](quint64 id, const QList<quint64> &children, bool isCollection)
+			{
+		expanded->insert(int(ids.indexOf(id)), isCollection ? children : QList<quint64>{id});
+		if (--*pending > 0)
+			return;
+		for (const QList<quint64> &items : std::as_const(*expanded))
+		{
+			for (quint64 item : items)
+			{
+				if (!order->contains(item))
+					*order << item;
+			}
+		}
+		if (order->isEmpty())
+		{
+			finish();
+			return;
+		}
+		// The details API is asked in batches to keep each request small.
+		constexpr int BatchSize = 100;
+		*batches = int((order->size() + BatchSize - 1) / BatchSize);
+		for (int i = 0; i < order->size(); i += BatchSize)
+			client->fetchDetailsList(order->mid(i, BatchSize)); });
+	for (quint64 id : ids)
+		client->fetchCollection(id);
+}
+
+void DownloadPage::startNext()
+{
+	if (m_current || m_queue.isEmpty())
+		return;
+	download(m_queue.takeFirst());
+}
+
+void DownloadPage::download(const workshop::ItemDetails &details)
+{
 	Task *task = m_tasks->start(tr("Download %1").arg(details.title.isEmpty() ? QString::number(details.id) : details.title));
+	m_current = task;
+	// steamcmd allows one run at a time, and Steam's servers prefer it too.
+	connect(task, &Task::stateChanged, this, [this]
+			{
+		m_current = nullptr;
+		startNext(); });
 	if (m_outputPath->text().trimmed().isEmpty())
 	{
 		task->fail(tr("Select an output folder."));
@@ -180,29 +286,28 @@ void DownloadPage::download()
 	if (!cached.isEmpty())
 	{
 		task->appendLine(tr("Copying from Steam's workshop cache: %1").arg(QFileInfo(cached.first()).absolutePath()));
-		save(task, cached);
+		save(task, details, cached);
 		return;
 	}
 
 	if (!details.fileUrl.isEmpty())
 	{
-		// One client per download, so several can run side by side.
 		auto *client = new workshop::Client(task);
-		const QString file = m_tempDir.filePath(QStringLiteral("%1.download").arg(details.id));
+		const QString file = tempPath("downloads") + QStringLiteral("/%1.download").arg(details.id);
 		task->appendLine(tr("Downloading %1").arg(details.fileUrl));
 		task->setProgress(0);
 		connect(client, &workshop::Client::progress, task, [task](qint64 received, qint64 total)
 				{
 			if (total > 0)
 				task->setProgress(int(received * 100 / total)); });
-		connect(client, &workshop::Client::downloaded, this, [this, task, file](bool ok, const QString &error)
+		connect(client, &workshop::Client::downloaded, this, [this, task, details, file](bool ok, const QString &error)
 				{
 			if (!ok)
 			{
 				task->fail(tr("Download failed: %1").arg(error));
 				return;
 			}
-			save(task, {file}); });
+			save(task, details, {file}); });
 		task->setCanceller([client]
 						   { client->abort(); });
 		client->download(details.fileUrl, file);
@@ -221,8 +326,8 @@ void DownloadPage::download()
 		const QString found = workshop::parseSteamCmdFolder(line);
 		if (!found.isEmpty())
 			*folder = found; });
-	task->run(workshop::steamCmdCommand(steamCmd, m_tempDir.filePath("steamcmd"), details.appId, details.id),
-			  [this, task, folder](int, bool)
+	task->run(workshop::steamCmdCommand(steamCmd, tempPath("steamcmd"), details.appId, details.id),
+			  [this, task, details, folder](int, bool)
 			  {
 		QStringList files;
 		for (const QFileInfo &file : QDir(*folder).entryInfoList(QDir::Files, QDir::Name))
@@ -232,14 +337,14 @@ void DownloadPage::download()
 			task->appendLine(tr("ERROR: steamcmd did not download the item. Anonymous downloads only work for games that allow them; subscribe in Steam instead."));
 			return false;
 		}
-		save(task, files);
+		save(task, details, files);
 		return task->state() == Task::State::Succeeded; });
 }
 
-void DownloadPage::save(Task *task, const QStringList &files)
+void DownloadPage::save(Task *task, const workshop::ItemDetails &details, const QStringList &files)
 {
 	const QString output = m_outputPath->text().trimmed();
-	const QString baseName = workshop::fileBaseName(m_details, m_withTitle->isChecked());
+	const QString baseName = workshop::fileBaseName(details, m_withTitle->isChecked());
 	bool ok = true;
 	for (int i = 0; i < files.size(); ++i)
 	{
@@ -248,6 +353,9 @@ void DownloadPage::save(Task *task, const QStringList &files)
 		const QString saved = workshop::saveFile(files[i], output, name, m_convert->isChecked(), &error);
 		task->appendLine(saved.isEmpty() ? tr("ERROR: %1").arg(error) : tr("Saved \"%1\".").arg(saved));
 		ok = ok && !saved.isEmpty();
+		// Downloads can be gigabytes; drop our own copy now rather than at exit.
+		if (!saved.isEmpty() && files[i].startsWith(tempPath() + u'/'))
+			QFile::remove(files[i]);
 	}
 	task->finish(ok ? Task::State::Succeeded : Task::State::Failed);
 }
