@@ -40,6 +40,8 @@ target_link_libraries(crowbar_core PUBLIC Qt6::Core Qt6::Gui Qt6::Network PRIVAT
 
 qt_add_executable(crowbar-qt
     src/main.cpp
+    src/ui/About.cpp
+    src/ui/About.h
     src/ui/CompilePage.cpp
     src/ui/CompilePage.h
     src/ui/DownloadPage.cpp
@@ -74,7 +76,21 @@ qt_add_executable(crowbar-qt
     src/ui/WorkshopPage.h
 )
 target_link_libraries(crowbar-qt PRIVATE crowbar_core Qt6::Widgets Qt6::Svg)
-target_compile_definitions(crowbar-qt PRIVATE CROWBAR_VERSION="${PROJECT_VERSION}")
+# Builds from a git checkout that is not exactly the release tag name their commit,
+# so a crowbar-qt-git install can be told apart from the release with the same number.
+set(CROWBAR_COMMIT "")
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    execute_process(COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match --match "v${PROJECT_VERSION}"
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" RESULT_VARIABLE CROWBAR_ON_TAG
+                    OUTPUT_QUIET ERROR_QUIET)
+    if(NOT CROWBAR_ON_TAG EQUAL 0)
+        execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --short=7 HEAD
+                        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" OUTPUT_VARIABLE CROWBAR_COMMIT
+                        OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    endif()
+endif()
+target_compile_definitions(crowbar-qt PRIVATE CROWBAR_VERSION="${PROJECT_VERSION}" CROWBAR_COMMIT="${CROWBAR_COMMIT}")
 
 find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
 qt_add_translations(crowbar-qt

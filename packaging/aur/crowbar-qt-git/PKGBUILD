@@ -1,6 +1,6 @@
 # Maintainer: Jonny_Bro
 pkgname=crowbar-qt-git
-pkgver=1.2.0
+pkgver=1.2.0.r23.g5482bb5
 pkgrel=1
 pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)"
 arch=('x86_64' 'aarch64')

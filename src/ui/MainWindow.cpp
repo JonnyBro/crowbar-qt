@@ -1,5 +1,6 @@
 #include "ui/MainWindow.h"
 
+#include "ui/About.h"
 #include "ui/CompilePage.h"
 #include "ui/DownloadPage.h"
 #include "ui/GameList.h"
@@ -24,6 +25,7 @@
 #include <QSettings>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace
@@ -144,6 +146,16 @@ QWidget *MainWindow::buildSidebar()
 	layout->addWidget(m_gameInfo);
 	layout->addSpacing(6);
 	layout->addWidget(m_nav, 1);
+
+	auto *about = new QToolButton(sidebar);
+	about->setText(QStringLiteral("Crowbar Qt %1").arg(versionString()));
+	about->setToolTip(tr("About Crowbar Qt"));
+	about->setAutoRaise(true);
+	about->setFont(small);
+	about->setForegroundRole(QPalette::PlaceholderText);
+	connect(about, &QToolButton::clicked, this, [this]
+			{ showAboutDialog(this); });
+	layout->addWidget(about, 0, Qt::AlignLeft);
 	return sidebar;
 }
 

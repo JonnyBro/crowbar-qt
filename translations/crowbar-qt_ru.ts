@@ -2,6 +2,17 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU" sourcelanguage="en">
   <context>
+    <name>About</name>
+    <message>
+      <source>&lt;h3&gt;Crowbar Qt %1&lt;/h3&gt;&lt;p&gt;A native Linux tool for modding Source engine games: compile, view, pack, unpack and publish, for games installed natively or through Proton.&lt;/p&gt;&lt;p&gt;Built with Qt %2, running on Qt %3.&lt;/p&gt;&lt;p&gt;Free software under the GNU General Public License v3 or later.&lt;br&gt;&lt;a href="https://github.com/JonnyBro/crowbar-qt"&gt;github.com/JonnyBro/crowbar-qt&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Written from scratch after &lt;a href="https://steamcommunity.com/groups/CrowbarTool"&gt;Crowbar&lt;/a&gt; by ZeqMacaw.&lt;/p&gt;</source>
+      <translation>&lt;h3&gt;Crowbar Qt %1&lt;/h3&gt;&lt;p&gt;Нативная программа для Linux для моддинга игр на движке Source: компиляция, просмотр, упаковка, распаковка и публикация — для игр, установленных нативно или через Proton.&lt;/p&gt;&lt;p&gt;Собрана с Qt %2, работает на Qt %3.&lt;/p&gt;&lt;p&gt;Свободная программа под лицензией GNU General Public License версии 3 или новее.&lt;br&gt;&lt;a href="https://github.com/JonnyBro/crowbar-qt"&gt;github.com/JonnyBro/crowbar-qt&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Написана с нуля по образцу &lt;a href="https://steamcommunity.com/groups/CrowbarTool"&gt;Crowbar&lt;/a&gt; от ZeqMacaw.&lt;/p&gt;</translation>
+    </message>
+    <message>
+      <source>About Crowbar Qt</source>
+      <translation>О программе Crowbar Qt</translation>
+    </message>
+  </context>
+  <context>
     <name>CompilePage</name>
     <message>
       <source>Compile</source>
@@ -734,6 +745,10 @@
     <message>
       <source>Game</source>
       <translation>Игра</translation>
+    </message>
+    <message>
+      <source>About Crowbar Qt</source>
+      <translation>О программе Crowbar Qt</translation>
     </message>
     <message>
       <source>View</source>

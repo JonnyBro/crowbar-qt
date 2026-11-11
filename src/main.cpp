@@ -7,6 +7,7 @@
 #include "core/Steam.h"
 #include "core/Studiomdl.h"
 #include "core/ToolProcess.h"
+#include "ui/About.h"
 #include "ui/GameList.h"
 #include "ui/MainWindow.h"
 #include "ui/SettingsPage.h"
@@ -372,7 +373,7 @@ int main(int argc, char *argv[])
 {
 	QCoreApplication::setApplicationName("crowbar-qt");
 	QCoreApplication::setOrganizationName("crowbar-qt");
-	QCoreApplication::setApplicationVersion(CROWBAR_VERSION);
+	QCoreApplication::setApplicationVersion(versionString());
 
 	// Tool environment from the settings page also applies to the command-line modes.
 	SettingsPage::applySaved();
@@ -380,6 +381,11 @@ int main(int argc, char *argv[])
 	// Checked before QApplication exists so the listing works without a display.
 	for (int i = 1; i < argc; ++i)
 	{
+		if (std::strcmp(argv[i], "--version") == 0 || std::strcmp(argv[i], "-v") == 0)
+		{
+			QTextStream(stdout) << "crowbar-qt " << versionString() << Qt::endl;
+			return 0;
+		}
 		if (std::strcmp(argv[i], "--list-games") == 0)
 		{
 			QCoreApplication app(argc, argv);
