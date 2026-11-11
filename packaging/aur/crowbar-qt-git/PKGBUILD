@@ -1,6 +1,6 @@
 # Maintainer: Jonny_Bro
 pkgname=crowbar-qt-git
-pkgver=1.1.2
+pkgver=1.2.0
 pkgrel=1
 pkgdesc="Native Linux tool for Source engine modding: compile, view, pack, unpack and publish (Proton-aware)"
 arch=('x86_64' 'aarch64')
@@ -16,7 +16,7 @@ source=("crowbar-qt::git+$url.git")
 sha256sums=('SKIP')
 
 # AUR convention for -git packages: the release version plus the commit,
-# e.g. 1.1.2.r15.g09c9e07, so helpers notice new commits.
+# e.g. 1.0.0.r15.g09c9e07, so helpers notice new commits.
 pkgver() {
 	cd crowbar-qt
 	local version

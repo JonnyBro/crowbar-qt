@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(crowbar-qt VERSION 1.1.2 LANGUAGES CXX)
+project(crowbar-qt VERSION 1.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -60,6 +60,8 @@ qt_add_executable(crowbar-qt
     src/ui/Page.h
     src/ui/PathField.cpp
     src/ui/PathField.h
+    src/ui/SettingsPage.cpp
+    src/ui/SettingsPage.h
     src/ui/Tasks.cpp
     src/ui/Tasks.h
     src/ui/TasksPanel.cpp
