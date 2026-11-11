@@ -49,6 +49,10 @@ Source mods in `steamapps/sourcemods` are listed with the game they run on, and 
 other folder with a `gameinfo.txt`. Browse Packages can search one package or every package of the game,
 and Download accepts several links or IDs at once, including whole collections.
 
+The Settings page picks the interface language, a Proton version for the Windows tools, extra environment
+variables for them (for example `-MANGOHUD` to keep MangoHud out of HLMV), and the editor that opens files
+linked from the task log.
+
 Drop a `.qc`, `.mdl`, `.vpk`, `.gma` or a folder onto the window, or open one with `crowbar-qt <file>`,
 and it opens on the page that handles it. Installing the package also registers these file types,
 so a file manager's "Open with" works.
@@ -84,3 +88,10 @@ Then edit `translations/crowbar-qt_ru.ts` with Qt Linguist (`linguist6`) or any 
 crowbar-qt is free software under the GNU General Public License v3 or later; see [LICENSE](LICENSE).
 
 It is a separate program written from scratch and shares no code with [Crowbar](https://github.com/ZeqMacaw/Crowbar).
+
+## Releases
+
+Every push and pull request is built and tested by `.github/workflows/ci.yml`. Pushing a tag `vX.Y.Z` that matches
+the version in `CMakeLists.txt` runs `.github/workflows/release.yml`: it builds the AppImage and the Arch archive used
+by `crowbar-qt-bin`, and publishes a GitHub release whose notes git-cliff writes from the Conventional Commits since
+the previous tag (`cliff.toml`). The step-by-step routine is in [RELEASING.md](RELEASING.md).

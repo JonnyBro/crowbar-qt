@@ -9,9 +9,11 @@
 #include "core/ToolProcess.h"
 #include "ui/GameList.h"
 #include "ui/MainWindow.h"
+#include "ui/SettingsPage.h"
 #include "ui/TempDir.h"
 
 #include <QApplication>
+#include <QSettings>
 #include <QSocketNotifier>
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -33,32 +35,29 @@ namespace
 {
 	int listGames()
 	{
+		// Same list as the window: mods, added folders and chosen tools folders included.
+		GameList games;
+		games.refresh();
 		QTextStream out(stdout);
-		for (const steam::Installation &installation : steam::scanAll())
+		for (const QString &library : games.libraries())
+			out << "library: " << library << '\n';
+		for (const steam::CompatTool &tool : games.compatTools())
+			out << "compat tool: " << tool.name << " -> " << tool.path << '\n';
+		for (const steam::App &app : games.apps())
 		{
-			out << "Steam: " << installation.root << '\n';
-			for (const QString &library : installation.libraries)
-				out << "  library: " << library << '\n';
-			for (const steam::CompatTool &tool : installation.compatTools)
-				out << "  compat tool: " << tool.name << " -> " << tool.path << '\n';
-			for (const steam::App &app : installation.apps)
+			out << '\n'
+				<< app.name << " (" << app.id << ")" << (app.isMod ? QStringLiteral(" mod of ") + (app.baseName.isEmpty() ? QStringLiteral("?") : app.baseName) : QString()) << '\n';
+			out << "  build:   " << (app.platform == steam::Platform::Windows ? "windows" : "linux") << '\n';
+			out << "  install: " << app.installPath << '\n';
+			out << "  tools:   " << (app.toolsPath.isEmpty() ? QStringLiteral("-") : app.toolsPath) << (app.toolsOverridden ? " (custom)" : "") << '\n';
+			if (!app.protonPath.isEmpty() || app.platform == steam::Platform::Windows)
 			{
-				if (!app.isSourceGame())
-					continue;
-				out << '\n'
-					<< app.name << " (" << app.id << ")\n";
-				out << "  build:   " << (app.platform == steam::Platform::Windows ? "windows" : "linux") << '\n';
-				out << "  install: " << app.installPath << '\n';
-				out << "  tools:   " << (app.toolsPath.isEmpty() ? "-" : app.toolsPath) << '\n';
-				if (app.platform == steam::Platform::Windows)
-				{
-					out << "  proton:  " << (app.protonPath.isEmpty() ? "not found" : app.protonPath)
-						<< " [" << app.compatToolName << "]\n";
-					out << "  prefix:  " << (app.compatDataPath.isEmpty() ? "-" : app.compatDataPath) << '\n';
-				}
-				for (const QString &gameDir : app.gameDirs)
-					out << "  game:	" << gameDir << '\n';
+				out << "  proton:  " << (app.protonPath.isEmpty() ? QStringLiteral("not found") : app.protonPath)
+					<< " [" << app.compatToolName << "]\n";
+				out << "  prefix:  " << (app.compatDataPath.isEmpty() ? QStringLiteral("-") : app.compatDataPath) << '\n';
 			}
+			for (const QString &gameDir : app.gameDirs)
+				out << "  game:    " << gameDir << '\n';
 		}
 		return 0;
 	}
@@ -375,6 +374,9 @@ int main(int argc, char *argv[])
 	QCoreApplication::setOrganizationName("crowbar-qt");
 	QCoreApplication::setApplicationVersion(CROWBAR_VERSION);
 
+	// Tool environment from the settings page also applies to the command-line modes.
+	SettingsPage::applySaved();
+
 	// Checked before QApplication exists so the listing works without a display.
 	for (int i = 1; i < argc; ++i)
 	{
@@ -480,12 +482,20 @@ int main(int argc, char *argv[])
 #endif
 
 	// The command-line modes above stay in English for scripts; only the window is translated.
+	// The Settings page can pin a language; "en" means the untranslated strings.
+	const QString language = QSettings().value("ui/language").toString();
+	const QLocale locale = language.isEmpty() ? QLocale() : QLocale(language);
+	if (!language.isEmpty())
+		QLocale::setDefault(locale);
 	QTranslator qtTranslator;
-	if (qtTranslator.load(QLocale(), "qtbase", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
-		app.installTranslator(&qtTranslator);
 	QTranslator appTranslator;
-	if (appTranslator.load(QLocale(), "crowbar-qt", "_", ":/i18n"))
-		app.installTranslator(&appTranslator);
+	if (language != "en")
+	{
+		if (qtTranslator.load(locale, "qtbase", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+			app.installTranslator(&qtTranslator);
+		if (appTranslator.load(locale, "crowbar-qt", "_", ":/i18n"))
+			app.installTranslator(&appTranslator);
+	}
 
 	MainWindow window;
 	// Files given on the command line, e.g. from a file manager's "Open with".

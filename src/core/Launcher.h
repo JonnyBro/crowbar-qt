@@ -45,4 +45,11 @@ bool isProtonNoise(QStringView line);
 
 Command build(const steam::App &app, const QString &executable, const QStringList &arguments, Mode mode);
 
+// Extra environment for every tool started through build(), e.g. from the
+// settings page. Each line is "NAME=value" to set or "-NAME" to remove;
+// blank lines and lines starting with # are ignored.
+void setToolEnvironment(const QStringList &lines);
+// Applies the lines above to an environment; returns lines it could not read.
+QStringList applyEnvironmentLines(QProcessEnvironment &environment, const QStringList &lines);
+
 } // namespace launcher

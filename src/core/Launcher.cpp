@@ -96,10 +96,53 @@ namespace launcher
 		return line.startsWith(u"ProtonFixes[") || line.startsWith(u"ntsync:") || line.startsWith(u"fsync:") || line.startsWith(u"esync:");
 	}
 
+	namespace
+	{
+
+		QStringList &toolEnvironment()
+		{
+			static QStringList lines;
+			return lines;
+		}
+
+	} // namespace
+
+	void setToolEnvironment(const QStringList &lines)
+	{
+		toolEnvironment() = lines;
+	}
+
+	QStringList applyEnvironmentLines(QProcessEnvironment &environment, const QStringList &lines)
+	{
+		static const QRegularExpression name("^[A-Za-z_][A-Za-z0-9_]*$");
+		QStringList invalid;
+		for (const QString &raw : lines)
+		{
+			const QString line = raw.trimmed();
+			if (line.isEmpty() || line.startsWith(u'#'))
+				continue;
+			if (line.startsWith(u'-') && name.match(line.mid(1)).hasMatch())
+			{
+				environment.remove(line.mid(1));
+				continue;
+			}
+			const qsizetype equals = line.indexOf(u'=');
+			if (equals > 0 && name.match(line.left(equals)).hasMatch())
+			{
+				environment.insert(line.left(equals), line.mid(equals + 1));
+				continue;
+			}
+			invalid << raw;
+		}
+		return invalid;
+	}
+
 	Command build(const steam::App &app, const QString &executable, const QStringList &arguments, Mode mode)
 	{
 		Command command;
 		command.environment = QProcessEnvironment::systemEnvironment();
+		// The user's own settings first; the Proton variables below must win over them.
+		applyEnvironmentLines(command.environment, toolEnvironment());
 
 		if (!QFile::exists(executable))
 		{

@@ -40,6 +40,8 @@ public:
     bool steamFound() const { return m_steamFound; }
     const QList<steam::App> &apps() const { return m_apps; }
     const QStringList &libraries() const { return m_libraries; }
+    // Every Proton build found, for choosing one on the settings page.
+    const QList<steam::CompatTool> &compatTools() const { return m_compatTools; }
 
 signals:
     void changed();
@@ -48,6 +50,7 @@ signals:
 private:
     QList<steam::App> m_apps;
     QStringList m_libraries;
+    QList<steam::CompatTool> m_compatTools;
     bool m_steamFound = false;
     QString m_currentDir;
 };

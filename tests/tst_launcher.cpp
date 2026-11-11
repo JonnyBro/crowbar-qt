@@ -110,6 +110,16 @@ private slots:
 		QCOMPARE(studiomdl::readModelName(qc), "props/crate.mdl");
 		writeFile(qc, "$body b \"a.smd\"\n");
 		QCOMPARE(studiomdl::readModelName(qc), QString());
+
+		// $modelname in an included .qci, found case-insensitively and through two levels.
+		writeFile(qc, "$include \"Shared/Common.QCI\"\n$body b \"a.smd\"\n");
+		writeFile(temp.path() + "/shared/common.qci", "// $modelname \"no.mdl\"\n$include inner.qci\n");
+		writeFile(temp.path() + "/shared/inner.qci", "$modelname \"props\\\\barrel\"\n");
+		QCOMPARE(studiomdl::readModelName(qc), "props/barrel.mdl");
+
+		// A file including itself must not loop.
+		writeFile(qc, "$include \"a.qc\"\n");
+		QCOMPARE(studiomdl::readModelName(qc), QString());
 	}
 
 	void moveCompiled()
@@ -187,6 +197,38 @@ private slots:
 
 		// The setsid child left our process group, like Windows programs under Wine do.
 		QTRY_COMPARE(QProcess::execute("pgrep", {"-f", "^sleep 31\\.7$"}), 1);
+	}
+
+	void environmentLines()
+	{
+		QProcessEnvironment environment;
+		environment.insert("MANGOHUD", "1");
+		environment.insert("KEEP", "yes");
+		const QStringList invalid = launcher::applyEnvironmentLines(
+			environment, {"# comment", "", "-MANGOHUD", "DXVK_HUD=fps", " SPACED = x", "EMPTY=", "1BAD=x", "-", "noequals"});
+		QVERIFY(!environment.contains("MANGOHUD"));
+		QCOMPARE(environment.value("DXVK_HUD"), "fps");
+		QCOMPARE(environment.value("KEEP"), "yes");
+		QVERIFY(environment.contains("EMPTY"));
+		QCOMPARE(invalid, QStringList({" SPACED = x", "1BAD=x", "-", "noequals"}));
+	}
+
+	void toolEnvironmentReachesCommands()
+	{
+		QTemporaryDir temp;
+		QVERIFY(temp.isValid());
+		writeFile(temp.path() + "/bin/vpk.exe", "MZ");
+		steam::App app;
+		app.toolsPath = temp.path() + "/bin";
+		app.protonPath = temp.path() + "/proton";
+		app.compatDataPath = temp.path() + "/compatdata";
+		app.id = 4000;
+		launcher::setToolEnvironment({"MANGOHUD=0", "SteamAppId=1"});
+		const launcher::Command command = launcher::build(app, temp.path() + "/bin/vpk.exe", {}, launcher::Mode::Console);
+		launcher::setToolEnvironment({});
+		QCOMPARE(command.environment.value("MANGOHUD"), "0");
+		// Proton's own variables are not something a setting may break.
+		QCOMPARE(command.environment.value("SteamAppId"), "4000");
 	}
 
 	void prefers64BitTools()

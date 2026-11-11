@@ -752,6 +752,10 @@
       <translation>Мои предметы</translation>
     </message>
     <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+    <message>
       <source>No Source games found.</source>
       <translation>Игры на Source не найдены.</translation>
     </message>
@@ -1131,6 +1135,79 @@ Packed:
     <message>
       <source>No recent paths</source>
       <translation>Недавних путей нет</translation>
+    </message>
+  </context>
+  <context>
+    <name>SettingsPage</name>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+    <message>
+      <source>System language</source>
+      <translation>Язык системы</translation>
+    </message>
+    <message>
+      <source>Takes effect the next time the program starts.</source>
+      <translation>Вступит в силу при следующем запуске программы.</translation>
+    </message>
+    <message>
+      <source>Runs the Windows tools (studiomdl, hlmv, Hammer, …) with this Proton instead of the game's own. They still use the game's prefix, and a different Proton version may update it.</source>
+      <translation>Запускать Windows-утилиты (studiomdl, hlmv, Hammer, …) этой версией Proton вместо той, что у игры. Префикс игры остаётся прежним, и другая версия Proton может его обновить.</translation>
+    </message>
+    <message>
+      <source>One per line: NAME=value sets a variable, -NAME removes it.
+For example:
+-MANGOHUD
+DXVK_HUD=0</source>
+      <translation>По одной на строку: ИМЯ=значение задаёт переменную, -ИМЯ убирает её.
+Например:
+-MANGOHUD
+DXVK_HUD=0</translation>
+    </message>
+    <message>
+      <source>Desktop default (no line numbers)</source>
+      <translation>Программа по умолчанию (без номера строки)</translation>
+    </message>
+    <message>
+      <source>Command, with %f for the file and %l for the line</source>
+      <translation>Команда: %f — файл, %l — строка</translation>
+    </message>
+    <message>
+      <source>Opens files from the task log: %f is the file, %l the line. Pick a preset or type a command.</source>
+      <translation>Открывает файлы из журнала задач: %f — файл, %l — строка. Выберите готовый вариант или впишите свою команду.</translation>
+    </message>
+    <message>
+      <source>Language:</source>
+      <translation>Язык:</translation>
+    </message>
+    <message>
+      <source>Proton for tools:</source>
+      <translation>Proton для утилит:</translation>
+    </message>
+    <message>
+      <source>Tool environment:</source>
+      <translation>Окружение утилит:</translation>
+    </message>
+    <message>
+      <source>Text editor:</source>
+      <translation>Текстовый редактор:</translation>
+    </message>
+    <message>
+      <source>The game's own (recommended)</source>
+      <translation>Как у игры (рекомендуется)</translation>
+    </message>
+    <message>
+      <source>%1 (not installed)</source>
+      <translation>%1 (не установлен)</translation>
+    </message>
+    <message>
+      <source>Applies to every tool started from now on. Proton's own variables cannot be overridden.</source>
+      <translation>Применяется ко всем утилитам, запущенным с этого момента. Переменные самого Proton переопределить нельзя.</translation>
+    </message>
+    <message>
+      <source>Ignored, not NAME=value or -NAME: %1</source>
+      <translation>Пропущено, это не ИМЯ=значение и не -ИМЯ: %1</translation>
     </message>
   </context>
   <context>

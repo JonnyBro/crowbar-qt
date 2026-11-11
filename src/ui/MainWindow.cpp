@@ -6,6 +6,7 @@
 #include "ui/GamesPage.h"
 #include "ui/PackPage.h"
 #include "ui/PackagesPage.h"
+#include "ui/SettingsPage.h"
 #include "ui/Tasks.h"
 #include "ui/TasksPanel.h"
 #include "ui/ViewPage.h"
@@ -70,6 +71,7 @@ MainWindow::MainWindow(QWidget *parent)
 	addPage(Page::Download, new DownloadPage(m_games, m_tasks, m_pages));
 	addHeading(m_nav, QString())->setSizeHint(QSize(0, 8));
 	addPage(Page::Games, new GamesPage(m_games, m_tasks, m_pages));
+	addPage(Page::Settings, new SettingsPage(m_games, m_tasks, m_pages));
 
 	auto *horizontal = new QSplitter(Qt::Horizontal, this);
 	horizontal->addWidget(sidebar);
@@ -155,6 +157,7 @@ void MainWindow::addPage(Page page, QWidget *widget)
 		{int(Page::Workshop), {"cloud-upload", QT_TR_NOOP("Your Items")}},
 		{int(Page::Download), {"download", QT_TR_NOOP("Download")}},
 		{int(Page::Games), {"applications-games", QT_TR_NOOP("Games")}},
+		{int(Page::Settings), {"configure", QT_TR_NOOP("Settings")}},
 	};
 	const auto label = labels.value(int(page));
 	auto *item = new QListWidgetItem(QIcon::fromTheme(label.first), tr(label.second.toUtf8().constData()), m_nav);

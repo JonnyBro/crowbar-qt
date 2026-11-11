@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
 
@@ -50,20 +51,56 @@ namespace studiomdl
 		return command;
 	}
 
+	namespace
+	{
+
+		// Follows $include files too, since many QCs keep $modelname in a shared .qci.
+		QString findModelName(const QString &qcFile, QSet<QString> &visited)
+		{
+			const QString key = QFileInfo(qcFile).canonicalFilePath();
+			if (key.isEmpty() || visited.contains(key) || visited.size() > 32)
+				return {};
+			visited.insert(key);
+
+			QFile file(qcFile);
+			if (!file.open(QIODevice::ReadOnly))
+				return {};
+			const QString text = QString::fromUtf8(file.readAll());
+
+			static const QRegularExpression modelName(
+				R"(^\s*\$modelname\s+(?:"([^"]*)\"|(\S+)))",
+				QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+			const auto match = modelName.match(text);
+			if (match.hasMatch())
+				return match.captured(1).isEmpty() ? match.captured(2) : match.captured(1);
+
+			static const QRegularExpression include(
+				R"(^\s*\$include\s+(?:"([^"]*)\"|(\S+)))",
+				QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
+			auto it = include.globalMatch(text);
+			while (it.hasNext())
+			{
+				const auto found = it.next();
+				QString path = found.captured(1).isEmpty() ? found.captured(2) : found.captured(1);
+				path.replace(u'\\', u'/');
+				const QString resolved = launcher::findPathIgnoringCase(QFileInfo(qcFile).absolutePath(), path);
+				if (resolved.isEmpty())
+					continue;
+				const QString name = findModelName(resolved, visited);
+				if (!name.isEmpty())
+					return name;
+			}
+			return {};
+		}
+
+	} // namespace
+
 	QString readModelName(const QString &qcFile)
 	{
-		QFile file(qcFile);
-		if (!file.open(QIODevice::ReadOnly))
+		QSet<QString> visited;
+		QString name = findModelName(qcFile, visited);
+		if (name.isEmpty())
 			return {};
-
-		static const QRegularExpression pattern(
-			R"(^\s*\$modelname\s+(?:"([^"]*)\"|(\S+)))",
-			QRegularExpression::CaseInsensitiveOption | QRegularExpression::MultilineOption);
-		const auto match = pattern.match(QString::fromUtf8(file.readAll()));
-		if (!match.hasMatch())
-			return {};
-
-		QString name = match.captured(1).isEmpty() ? match.captured(2) : match.captured(1);
 		name.replace(u'\\', u'/');
 		name = QDir::cleanPath(name);
 		if (!name.endsWith(".mdl", Qt::CaseInsensitive))

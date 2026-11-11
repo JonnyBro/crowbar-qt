@@ -30,7 +30,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
 
 private:
-    enum class Page { Compile, View, Packages, Pack, Workshop, Download, Games };
+    enum class Page { Compile, View, Packages, Pack, Workshop, Download, Games, Settings };
 
     QWidget *buildSidebar();
     void addPage(Page page, QWidget *widget);

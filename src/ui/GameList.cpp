@@ -16,10 +16,12 @@ void GameList::refresh()
 	m_steamFound = !installations.isEmpty();
 	m_apps.clear();
 	m_libraries.clear();
+	m_compatTools.clear();
 
 	for (const steam::Installation &installation : installations)
 	{
 		m_libraries += installation.libraries;
+		m_compatTools += installation.compatTools;
 		for (steam::App app : installation.apps)
 		{
 			if (!app.isSourceGame())
@@ -55,6 +57,21 @@ void GameList::refresh()
 	}
 	std::sort(m_apps.begin(), m_apps.end(), [](const steam::App &a, const steam::App &b)
 			  { return a.name.localeAwareCompare(b.name) < 0; });
+
+	// A Proton chosen on the settings page runs the tools of every game that uses Proton.
+	const QString proton = QSettings().value("tools/proton").toString();
+	const auto chosen = std::find_if(m_compatTools.begin(), m_compatTools.end(), [&](const steam::CompatTool &tool)
+									 { return tool.name == proton; });
+	if (chosen != m_compatTools.end())
+	{
+		for (steam::App &app : m_apps)
+		{
+			if (app.protonPath.isEmpty())
+				continue;
+			app.protonPath = chosen->path;
+			app.compatToolName = chosen->name;
+		}
+	}
 
 	// Keep the chosen game across refreshes and restarts; fall back to the first one.
 	const QList<Target> all = targets();
