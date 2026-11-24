@@ -152,3 +152,117 @@ pub.icon_read:
 pub.icon_write:
   en: "Could not write \"%{path}\": %{error}"
   ru: "Не удалось записать «%{path}»: %{error}"
+task.error:
+  en: "ERROR: %{error}"
+  ru: "ОШИБКА: %{error}"
+task.warning:
+  en: "WARNING: %{error}"
+  ru: "ВНИМАНИЕ: %{error}"
+task.start_failed:
+  en: "Could not start \"%{program}\": %{error}"
+  ru: "Не удалось запустить «%{program}»: %{error}"
+task.exit_code:
+  en: "ERROR: Exited with code %{code}."
+  ru: "ОШИБКА: завершено с кодом %{code}."
+task.cancelled:
+  en: "Cancelled."
+  ru: "Отменено."
+task.compile:
+  en: "Compile %{name}"
+  ru: "Компиляция %{name}"
+task.hlmv:
+  en: "HLMV %{name}"
+  ru: "HLMV: %{name}"
+task.hlmv_plain:
+  en: "HLMV"
+  ru: "HLMV"
+task.no_compiled_model:
+  en: "The compiled model was not found. Compile it first."
+  ru: "Скомпилированная модель не найдена. Сначала скомпилируйте её."
+task.run:
+  en: "Run %{name}"
+  ru: "Запуск %{name}"
+task.asked_steam:
+  en: "Asked Steam to start %{name}."
+  ru: "Steam получил команду запустить %{name}."
+task.pack:
+  en: "Pack %{name}"
+  ru: "Упаковка %{name}"
+task.no_entry:
+  en: "The package has no such file."
+  ru: "В пакете нет такого файла."
+task.unpack:
+  en: "Unpack %{name}"
+  ru: "Распаковка %{name}"
+task.unpacking:
+  en: "Unpacking %{count} file(s) to \"%{folder}\"…"
+  ru: "Распаковка файлов (%{count}) в «%{folder}»…"
+task.unpack_cancelled:
+  en: "Cancelled after %{count} file(s)."
+  ru: "Отменено. Распаковано файлов: %{count}."
+task.unpacked:
+  en: "Unpacked %{count} file(s), %{failed} failed."
+  ru: "Распаковано файлов: %{count}, с ошибками: %{failed}."
+task.search:
+  en: "Search \"%{needle}\" in %{game}"
+  ru: "Поиск «%{needle}» в %{game}"
+task.search_where:
+  en: "Looking in the game's VPKs, its addons folder and its workshop downloads…"
+  ru: "Поиск в VPK игры, в папке addons и в загрузках из мастерской…"
+task.search_found:
+  en: "%{found} match(es) in %{total} package(s)."
+  ru: "Совпадений: %{found}, просмотрено пакетов: %{total}."
+task.search_limit:
+  en: "Stopped at %{limit} matches; narrow the search."
+  ru: "Поиск остановлен на %{limit} совпадениях; уточните запрос."
+task.workshop_list:
+  en: "Your workshop items"
+  ru: "Мои предметы в мастерской"
+task.list_failed:
+  en: "Could not get the item list (exit code %{code}). Is Steam running?"
+  ru: "Не удалось получить список предметов (код выхода %{code}). Steam запущен?"
+task.items:
+  en: "Items: %{count}."
+  ru: "Предметов: %{count}."
+task.update_item:
+  en: "Update item %{id}"
+  ru: "Обновление предмета %{id}"
+task.publish_new:
+  en: "Publish new item"
+  ru: "Публикация нового предмета"
+task.icon_converted:
+  en: "Icon converted to a 512x512 JPEG."
+  ru: "Значок преобразован в JPEG 512×512."
+task.created_item:
+  en: "Created item %{id}: %{url}"
+  ru: "Создан предмет %{id}: %{url}"
+task.publish_done:
+  en: "gmpublish finished; check the log above for errors."
+  ru: "gmpublish завершил работу; проверьте журнал выше на ошибки."
+task.publish_failed:
+  en: "Publish failed (exit code %{code})."
+  ru: "Ошибка публикации (код выхода %{code})."
+task.no_ids:
+  en: "No workshop links or IDs found."
+  ru: "Не найдено ссылок или ID предметов мастерской."
+task.download:
+  en: "Download %{name}"
+  ru: "Загрузка %{name}"
+task.from_cache:
+  en: "Copying from Steam's workshop cache: %{folder}"
+  ru: "Копирование из кэша мастерской Steam: %{folder}"
+task.downloading:
+  en: "Downloading %{url}"
+  ru: "Загрузка %{url}"
+task.download_failed:
+  en: "Download failed: %{error}"
+  ru: "Загрузка не удалась: %{error}"
+task.no_direct_link:
+  en: "This item has no direct download link. Subscribe to it in Steam (it will then be copied from Steam's cache), or install steamcmd."
+  ru: "У предмета нет прямой ссылки. Подпишитесь на него в Steam (тогда он будет скопирован из кэша Steam) или установите steamcmd."
+task.steamcmd_failed:
+  en: "ERROR: steamcmd did not download the item. Anonymous downloads only work for games that allow them; subscribe in Steam instead."
+  ru: "ОШИБКА: steamcmd не скачал предмет. Анонимная загрузка работает только для игр, которые её разрешают; подпишитесь на предмет в Steam."
+task.saved:
+  en: "Saved \"%{path}\"."
+  ru: "Сохранено: «%{path}»."

@@ -26,9 +26,585 @@ page.download:
 page.settings:
   en: "Settings"
   ru: "Настройки"
-page.not_ready:
-  en: "This page is not ready yet"
-  ru: "Эта страница пока не готова"
 tasks.none:
   en: "No tasks"
   ru: "Задач нет"
+app.unknown_file:
+  en: "Prybar does not open \"%{name}\"."
+  ru: "Prybar не открывает «%{name}»."
+common.browse:
+  en: "Browse…"
+  ru: "Обзор…"
+common.cancel:
+  en: "Cancel"
+  ru: "Отмена"
+common.open_folder:
+  en: "Open Folder"
+  ru: "Открыть папку"
+common.refresh:
+  en: "Refresh"
+  ru: "Обновить"
+game.loading:
+  en: "Looking for games…"
+  ru: "Поиск игр…"
+game.none:
+  en: "No game is selected."
+  ru: "Игра не выбрана."
+game.none_hint:
+  en: "Pick one on the Games page"
+  ru: "Выберите её на странице «Игры»"
+games.add_folder:
+  en: "Add Game Folder…"
+  ru: "Добавить папку игры…"
+games.add_folder_tip:
+  en: "Add a game or mod folder with a gameinfo.txt that Steam does not list, e.g. a mod kept elsewhere."
+  ru: "Добавить папку игры или мода с gameinfo.txt, которой нет в списках Steam, например мод в другом месте."
+games.base_missing:
+  en: "Runs on app %{id}, which is not installed."
+  ru: "Работает поверх приложения %{id}, которое не установлено."
+games.col_build:
+  en: "Build"
+  ru: "Сборка"
+games.col_game:
+  en: "Game"
+  ru: "Игра"
+games.col_id:
+  en: "App ID"
+  ru: "App ID"
+games.col_location:
+  en: "Location"
+  ru: "Расположение"
+games.col_proton:
+  en: "Proton"
+  ru: "Proton"
+games.col_tools:
+  en: "Tools"
+  ru: "Утилиты"
+games.found:
+  en: "Source games found: %{n}."
+  ru: "Найдено игр на Source: %{n}."
+games.mod:
+  en: "%{name} (mod)"
+  ru: "%{name} (мод)"
+games.no_steam:
+  en: "Steam installation not found."
+  ru: "Установка Steam не найдена."
+games.not_found:
+  en: "not found"
+  ru: "не найден"
+games.options:
+  en: "Launch options:"
+  ru: "Параметры запуска:"
+games.options_placeholder:
+  en: "Game launch options, e.g. -dev -console +map gm_construct"
+  ru: "Параметры запуска игры, например -dev -console +map gm_construct"
+games.proton_tools:
+  en: "%{name} (tools)"
+  ru: "%{name} (утилиты)"
+games.remove:
+  en: "Remove From List"
+  ru: "Убрать из списка"
+games.run_game:
+  en: "Run Game"
+  ru: "Запустить игру"
+games.run_hammer:
+  en: "Run Hammer"
+  ru: "Запустить Hammer"
+games.runs_on:
+  en: "Runs on %{name}."
+  ru: "Работает поверх %{name}."
+games.tools_choose:
+  en: "Choose Folder…"
+  ru: "Выбрать папку…"
+games.tools_custom:
+  en: "custom"
+  ru: "своя"
+games.tools_folder:
+  en: "Tools Folder"
+  ru: "Папка утилит"
+games.tools_found:
+  en: "found"
+  ru: "есть"
+games.tools_missing:
+  en: "missing"
+  ru: "нет"
+games.tools_missing_tip:
+  en: "No modding tools in this game's bin folder. Use \"Tools Folder\" to point at the bin folder of the Windows build or of another game."
+  ru: "В папке bin этой игры нет утилит для моддинга. Через «Папка утилит» укажите папку bin Windows-сборки или другой игры."
+games.tools_reset:
+  en: "Use the Game's Own"
+  ru: "Использовать утилиты игры"
+games.tools_tip:
+  en: "Use tools (studiomdl, hlmv, …) from another folder, e.g. the bin folder of the game's Windows build."
+  ru: "Использовать утилиты (studiomdl, hlmv, …) из другой папки, например из bin Windows-сборки игры."
+games.use:
+  en: "Work With This Game"
+  ru: "Работать с этой игрой"
+compile.add_folder:
+  en: "Add Folder…"
+  ru: "Добавить папку…"
+compile.add_qc:
+  en: "Add QC…"
+  ru: "Добавить QC…"
+compile.all:
+  en: "Compile All"
+  ru: "Компилировать все"
+compile.clear:
+  en: "Clear"
+  ru: "Очистить"
+compile.compiling:
+  en: "compiling…"
+  ru: "компиляция…"
+compile.empty:
+  en: "Add .qc files or drop them here."
+  ru: "Добавьте файлы .qc или перетащите их сюда."
+compile.extra_placeholder:
+  en: "Additional studiomdl options"
+  ru: "Дополнительные параметры studiomdl"
+compile.folder_placeholder:
+  en: "Folder for compiled files"
+  ru: "Папка для скомпилированных файлов"
+compile.missing:
+  en: "missing"
+  ru: "нет файла"
+compile.need_folder:
+  en: "Select an output folder."
+  ru: "Выберите папку для результата."
+compile.no_p4:
+  en: "No P4 (-nop4)"
+  ru: "Без P4 (-nop4)"
+compile.no_studiomdl:
+  en: "%{name} has no studiomdl. Set a tools folder on the Games page."
+  ru: "У %{name} нет studiomdl. Укажите папку утилит на странице «Игры»."
+compile.open_hlmv:
+  en: "Open in HLMV"
+  ru: "Открыть в HLMV"
+compile.options:
+  en: "Options:"
+  ru: "Параметры:"
+compile.out_folder:
+  en: "Work folder"
+  ru: "Рабочая папка"
+compile.out_game:
+  en: "Game's \"models\" folder"
+  ru: "Папка «models» игры"
+compile.out_subfolder:
+  en: "Subfolder of the QC's folder"
+  ru: "Подпапка рядом с QC"
+compile.output:
+  en: "Output to:"
+  ru: "Куда:"
+compile.queued:
+  en: "queued"
+  ru: "в очереди"
+compile.remove:
+  en: "Remove"
+  ru: "Убрать"
+compile.selected:
+  en: "Compile Selected"
+  ru: "Компилировать выбранные"
+compile.subtitle:
+  en: "Compiles models with the game's studiomdl. Double-click a file to view its model."
+  ru: "Компиляция моделей через studiomdl игры. Двойной щелчок по файлу открывает модель."
+compile.verbose:
+  en: "Verbose (-verbose)"
+  ru: "Подробно (-verbose)"
+compile.view_after:
+  en: "Open in HLMV afterwards"
+  ru: "Открыть в HLMV после компиляции"
+compile.view_after_hint:
+  en: "When a single model was compiled."
+  ru: "Если скомпилирована одна модель."
+view.mdl:
+  en: "MDL file:"
+  ru: "Файл MDL:"
+view.no_hlmv:
+  en: "%{name} has no hlmv. Set a tools folder on the Games page."
+  ru: "У %{name} нет hlmv. Укажите папку утилит на странице «Игры»."
+view.open:
+  en: "Open Viewer"
+  ru: "Открыть просмотр"
+view.open_empty:
+  en: "Open Without a Model"
+  ru: "Открыть без модели"
+view.placeholder:
+  en: "Path to a .mdl file"
+  ru: "Путь к файлу .mdl"
+view.subtitle:
+  en: "Opens models in the game's HLMV."
+  ru: "Открывает модели в HLMV игры."
+packages.file_placeholder:
+  en: "Path to a .vpk, .gma or workshop .bin file"
+  ru: "Путь к файлу .vpk, .gma или .bin из мастерской"
+packages.filter_placeholder:
+  en: "File name or path"
+  ru: "Имя или путь файла"
+packages.in_game:
+  en: "In all of the game's packages"
+  ru: "Во всех пакетах игры"
+packages.in_package:
+  en: "In this package"
+  ru: "В этом пакете"
+packages.need_folder:
+  en: "Select an output folder."
+  ru: "Выберите папку для распаковки."
+packages.no_preview:
+  en: "No preview for this file type."
+  ru: "Для этого типа файлов предпросмотра нет."
+packages.none:
+  en: "Open a package, or drop one onto the window."
+  ru: "Откройте пакет или перетащите его в окно."
+packages.open:
+  en: "Open"
+  ru: "Открыть"
+packages.opening:
+  en: "Opening…"
+  ru: "Открытие…"
+packages.out_beside:
+  en: "Subfolder next to the package"
+  ru: "Подпапка рядом с пакетом"
+packages.out_folder:
+  en: "Work folder"
+  ru: "Рабочая папка"
+packages.output:
+  en: "Unpack to:"
+  ru: "Распаковать в:"
+packages.output_placeholder:
+  en: "Folder for unpacked files"
+  ru: "Папка для распакованных файлов"
+packages.preview_hint:
+  en: "Select a file to preview it."
+  ru: "Выберите файл для предпросмотра."
+packages.search:
+  en: "Search"
+  ru: "Найти"
+packages.search_hint:
+  en: "Type a name and press Enter. Looks in the game's VPKs, its addons folder and its workshop downloads."
+  ru: "Введите имя и нажмите Enter. Поиск идёт по VPK игры, папке addons и загрузкам из мастерской."
+packages.summary:
+  en: "%{format} · %{count} files"
+  ru: "%{format} · файлов: %{count}"
+packages.unpack_all:
+  en: "Unpack All"
+  ru: "Распаковать всё"
+packages.unpack_selected:
+  en: "Unpack Selected (%{n})"
+  ru: "Распаковать выбранные (%{n})"
+pack.addon_loaded:
+  en: "Loaded from addon.json."
+  ru: "Загружено из addon.json."
+pack.addon_missing:
+  en: "The folder has no addon.json; it will be created from these fields."
+  ru: "В папке нет addon.json; он будет создан из этих полей."
+pack.addon_save_failed:
+  en: "Could not save addon.json: %{error}"
+  ru: "Не удалось сохранить addon.json: %{error}"
+pack.addon_saved:
+  en: "Saved to addon.json."
+  ru: "Сохранено в addon.json."
+pack.addon_too_many_tags:
+  en: "Loaded from addon.json. It has more than two tags; gmad accepts only two."
+  ru: "Загружено из addon.json. В нём больше двух тегов, а gmad принимает только два."
+pack.addon_unreadable:
+  en: "addon.json could not be read, so it is used as is: %{error}"
+  ru: "addon.json не удалось прочитать, поэтому он используется как есть: %{error}"
+pack.differs:
+  en: "The addon.json fields differ from the file. Save them to addon.json before packing?"
+  ru: "Поля addon.json отличаются от файла. Сохранить их в addon.json перед упаковкой?"
+pack.differs_title:
+  en: "addon.json changed"
+  ru: "addon.json изменён"
+pack.extra_placeholder:
+  en: "Additional packer options"
+  ru: "Дополнительные параметры упаковщика"
+pack.folder:
+  en: "Folder:"
+  ru: "Папка:"
+pack.folder_placeholder:
+  en: "Folder to pack"
+  ru: "Папка для упаковки"
+pack.format:
+  en: "Format:"
+  ru: "Формат:"
+pack.gma:
+  en: "GMA (gmad)"
+  ru: "GMA (gmad)"
+pack.multi:
+  en: "Multi-file VPK (-M)"
+  ru: "Многотомный VPK (-M)"
+pack.need_folder:
+  en: "Select an output folder."
+  ru: "Выберите папку для результата."
+pack.no_tag:
+  en: "(no tag)"
+  ru: "(без тега)"
+pack.no_tool:
+  en: "%{name} has no %{tool}. Set a tools folder on the Games page."
+  ru: "У %{name} нет %{tool}. Укажите папку утилит на странице «Игры»."
+pack.options:
+  en: "Options:"
+  ru: "Параметры:"
+pack.out_beside:
+  en: "Next to the folder"
+  ru: "Рядом с папкой"
+pack.out_folder:
+  en: "Work folder"
+  ru: "Рабочая папка"
+pack.output:
+  en: "Output to:"
+  ru: "Куда:"
+pack.output_placeholder:
+  en: "Folder for the packed file"
+  ru: "Папка для упакованного файла"
+pack.pack:
+  en: "Pack"
+  ru: "Упаковать"
+pack.pack_as_is:
+  en: "Pack As Is"
+  ru: "Упаковать как есть"
+pack.save_addon:
+  en: "Save to addon.json"
+  ru: "Сохранить в addon.json"
+pack.save_addon_tip:
+  en: "Writes the title, type and tags into the folder's addon.json, keeping its other settings."
+  ru: "Записывает название, тип и теги в addon.json папки, сохраняя остальные настройки файла."
+pack.save_and_pack:
+  en: "Save and Pack"
+  ru: "Сохранить и упаковать"
+pack.subtitle:
+  en: "Packs a folder with the game's vpk or gmad."
+  ru: "Упаковывает папку через vpk или gmad игры."
+pack.title_placeholder:
+  en: "Title (defaults to the folder name)"
+  ru: "Название (по умолчанию имя папки)"
+pack.vpk:
+  en: "VPK (vpk)"
+  ru: "VPK (vpk)"
+pack.warn_invalid:
+  en: "Skip invalid files (-warninvalid)"
+  ru: "Пропускать недопустимые файлы (-warninvalid)"
+ws.changes:
+  en: "Changes:"
+  ru: "Изменения:"
+ws.changes_placeholder:
+  en: "Change notes (updates only)"
+  ru: "Описание изменений (только для обновлений)"
+ws.confirm_new:
+  en: "Create a new workshop item from \"%{name}\"?"
+  ru: "Создать новый предмет мастерской из «%{name}»?"
+ws.confirm_update:
+  en: "Upload to workshop item %{id}?"
+  ru: "Загрузить в предмет мастерской %{id}?"
+ws.content:
+  en: "Content:"
+  ru: "Содержимое:"
+ws.content_placeholder:
+  en: "A .gma file, or a folder with addon.json to pack first"
+  ru: "Файл .gma или папка с addon.json, которую нужно сначала упаковать"
+ws.copy_id:
+  en: "Copy ID"
+  ru: "Копировать ID"
+ws.empty:
+  en: "Refresh to list your items. Select one to update it."
+  ru: "Обновите список, чтобы увидеть свои предметы. Выберите предмет, чтобы обновить его."
+ws.folder_to_pack:
+  en: "Folder to Pack…"
+  ru: "Папка для упаковки…"
+ws.gma_file:
+  en: "GMA File…"
+  ru: "Файл GMA…"
+ws.icon:
+  en: "Icon:"
+  ru: "Значок:"
+ws.icon_placeholder:
+  en: "Any image; converted to a 512x512 JPEG if needed"
+  ru: "Любое изображение; при необходимости преобразуется в JPEG 512×512"
+ws.id_placeholder:
+  en: "Empty creates a new item"
+  ru: "Пусто — будет создан новый предмет"
+ws.item_id:
+  en: "Item ID:"
+  ru: "ID предмета:"
+ws.new_hidden:
+  en: "New items start hidden; make them public on the workshop page."
+  ru: "Новые предметы создаются скрытыми; сделайте их публичными на странице мастерской."
+ws.new_item:
+  en: "New Item"
+  ru: "Новый предмет"
+ws.no_gmpublish:
+  en: "%{name} has no gmpublish; workshop publishing works for Garry's Mod."
+  ru: "У %{name} нет gmpublish; публикация в мастерскую работает для Garry's Mod."
+ws.open_page:
+  en: "Open Workshop Page"
+  ru: "Открыть страницу в мастерской"
+ws.publish:
+  en: "Publish"
+  ru: "Публикация"
+ws.publish_new:
+  en: "Publish New Item"
+  ru: "Опубликовать новый предмет"
+ws.subtitle:
+  en: "Your Garry's Mod workshop items, through the game's gmpublish. Double-click opens an item's page."
+  ru: "Ваши предметы мастерской Garry's Mod через gmpublish игры. Двойной щелчок открывает страницу предмета."
+ws.update_item:
+  en: "Update Item"
+  ru: "Обновить предмет"
+dl.convert:
+  en: "Unpack old .bin files to .gma"
+  ru: "Распаковывать старые .bin в .gma"
+dl.direct:
+  en: "direct download"
+  ru: "прямая ссылка"
+dl.download:
+  en: "Download (%{n})"
+  ru: "Скачать (%{n})"
+dl.from_cache:
+  en: "in Steam's workshop cache"
+  ru: "в кэше мастерской Steam"
+dl.get_info:
+  en: "Get Info"
+  ru: "Получить сведения"
+dl.hint:
+  en: "Enter workshop links or item IDs, or a collection, and press Get Info."
+  ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите «Получить сведения»."
+dl.in_collection:
+  en: "from collection %{id}"
+  ru: "из коллекции %{id}"
+dl.links_placeholder:
+  en: "Workshop links or IDs; collections are expanded"
+  ru: "Ссылки или ID предметов; коллекции раскрываются"
+dl.looking_up:
+  en: "Getting item details…"
+  ru: "Получение сведений о предметах…"
+dl.need_folder:
+  en: "Select an output folder."
+  ru: "Выберите папку для загрузок."
+dl.options:
+  en: "Options:"
+  ru: "Параметры:"
+dl.output:
+  en: "Output to:"
+  ru: "Куда:"
+dl.output_placeholder:
+  en: "Folder for downloaded items"
+  ru: "Папка для загруженных предметов"
+dl.steamcmd:
+  en: "via steamcmd"
+  ru: "через steamcmd"
+dl.subtitle:
+  en: "Saves workshop items: from Steam's cache when you are subscribed, from the direct link for old items, otherwise with steamcmd."
+  ru: "Сохраняет предметы мастерской: из кэша Steam при подписке, по прямой ссылке для старых предметов, иначе через steamcmd."
+dl.unavailable:
+  en: "not available: subscribe in Steam or install steamcmd"
+  ru: "недоступно: подпишитесь в Steam или установите steamcmd"
+dl.updated:
+  en: "updated %{date}"
+  ru: "обновлён %{date}"
+dl.with_title:
+  en: "Title in file name"
+  ru: "Название в имени файла"
+set.appearance:
+  en: "Appearance"
+  ru: "Внешний вид"
+set.dark_scheme:
+  en: "Dark scheme:"
+  ru: "Тёмная схема:"
+set.editor:
+  en: "Text editor:"
+  ru: "Текстовый редактор:"
+set.editor_default:
+  en: "Desktop default (no line numbers)"
+  ru: "Программа по умолчанию (без номера строки)"
+set.editor_hint:
+  en: "Opens files linked from the task log: %f is the file, %l the line. Pick a preset or type a command."
+  ru: "Открывает файлы по ссылкам из журнала задач: %f — файл, %l — строка. Выберите вариант или введите команду."
+set.editor_placeholder:
+  en: "Command, with %f for the file and %l for the line"
+  ru: "Команда, %f — файл, %l — строка"
+set.editor_presets:
+  en: "Presets"
+  ru: "Варианты"
+set.environment:
+  en: "Tool environment:"
+  ru: "Окружение утилит:"
+set.environment_hint:
+  en: "One NAME=value or -NAME per line. Applies to every tool started from now on; Proton's own variables cannot be overridden."
+  ru: "По одной строке NAME=значение или -NAME. Действует на все утилиты, запущенные после изменения; переменные самого Proton переопределить нельзя."
+set.environment_invalid:
+  en: "Ignored, not NAME=value or -NAME: %{lines}"
+  ru: "Пропущено, это не NAME=значение и не -NAME: %{lines}"
+set.language:
+  en: "Language:"
+  ru: "Язык:"
+set.language_system:
+  en: "System"
+  ru: "Системный"
+set.light_scheme:
+  en: "Light scheme:"
+  ru: "Светлая схема:"
+set.proton:
+  en: "Proton for tools:"
+  ru: "Proton для утилит:"
+set.proton_hint:
+  en: "Runs the Windows tools of every game that uses Proton."
+  ru: "Запускает Windows-утилиты всех игр, которые используют Proton."
+set.proton_missing:
+  en: "%{name} (not installed)"
+  ru: "%{name} (не установлен)"
+set.proton_own:
+  en: "The game's own (recommended)"
+  ru: "Proton игры (рекомендуется)"
+set.theme:
+  en: "Theme:"
+  ru: "Тема:"
+set.theme_dark:
+  en: "Dark"
+  ru: "Тёмная"
+set.theme_light:
+  en: "Light"
+  ru: "Светлая"
+set.theme_system:
+  en: "System"
+  ru: "Системная"
+set.tools:
+  en: "Tools"
+  ru: "Утилиты"
+tasks.clear:
+  en: "Clear Finished"
+  ru: "Убрать завершённые"
+tasks.copy:
+  en: "Copy Log"
+  ru: "Копировать журнал"
+tasks.count:
+  en: "%{n} task(s)"
+  ru: "Задач: %{n}"
+tasks.follow:
+  en: "Keep scrolling to the end"
+  ru: "Прокручивать к концу"
+tasks.running:
+  en: "%{n} running"
+  ru: "Выполняется: %{n}"
+tasks.select:
+  en: "Select a task to see its log."
+  ru: "Выберите задачу, чтобы увидеть её журнал."
+tasks.show_output:
+  en: "Show Result"
+  ru: "Показать результат"
+tasks.state_cancelled:
+  en: "cancelled"
+  ru: "отменено"
+tasks.state_done:
+  en: "done"
+  ru: "готово"
+tasks.state_failed:
+  en: "failed"
+  ru: "ошибка"
+tasks.state_running:
+  en: "running"
+  ru: "выполняется"
+tasks.title:
+  en: "Tasks"
+  ru: "Задачи"
+set.scheme_default:
+  en: "Default"
+  ru: "Стандартная"

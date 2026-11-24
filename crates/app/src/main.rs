@@ -2,8 +2,12 @@ rust_i18n::i18n!("locales", fallback = "en");
 
 mod cli;
 mod icons;
+mod model;
 mod shell;
 mod theme;
+mod ui_state;
+mod views;
+mod widgets;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -34,9 +38,6 @@ fn run_window(file: Option<PathBuf>) {
 	});
 	// One global locale for this crate, the core and gpui-component.
 	rust_i18n::set_locale(settings.language.locale());
-	if let Some(file) = &file {
-		tracing::info!("asked to open {}", file.display());
-	}
 
 	gpui_kit::application()
 		.with_assets(icons::AppAssets)
@@ -60,7 +61,7 @@ fn run_window(file: Option<PathBuf>) {
 			};
 			gpui_kit::open_window(options, cx, move |window, cx| {
 				theme::apply(&settings, window, cx);
-				cx.new(|_| shell::Shell::new())
+				cx.new(|cx| shell::Shell::new(paths, settings, file, window, cx))
 			})
 			.expect("open window");
 			cx.on_window_closed(|cx, _| cx.quit()).detach();

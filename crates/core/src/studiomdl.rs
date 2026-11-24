@@ -118,6 +118,17 @@ fn command_value<'a>(line: &'a str, command: &str) -> Option<&'a str> {
 	rest.split_whitespace().next()
 }
 
+/// Where a compiled model ends up: under `output_dir` when its files were moved
+/// there, otherwise in the game folder.
+pub fn compiled_model(
+	game_dir: &Path,
+	output_dir: Option<&Path>,
+	model_name: &str,
+) -> Option<PathBuf> {
+	let base = output_dir.unwrap_or(game_dir);
+	launcher::find_path_ignoring_case(base, &format!("models/{model_name}"))
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MoveResult {
 	/// False if nothing could be moved.

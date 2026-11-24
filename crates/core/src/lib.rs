@@ -3,6 +3,7 @@
 
 rust_i18n::i18n!("locales", fallback = "en");
 
+pub mod engine;
 pub mod error;
 mod fsutil;
 pub mod games;
@@ -19,6 +20,7 @@ pub mod studiomdl;
 pub mod vdf;
 pub mod workshop;
 
+pub use engine::{Command, Engine, Event};
 pub use error::{Error, Result};
 pub use games::{Games, Target};
 pub use paths::AppPaths;

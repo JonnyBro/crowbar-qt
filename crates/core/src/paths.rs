@@ -62,6 +62,11 @@ impl AppPaths {
 	pub fn settings_file(&self) -> PathBuf {
 		self.config_dir.join("settings.toml")
 	}
+
+	/// What the window remembers: page fields, the open page.
+	pub fn ui_state_file(&self) -> PathBuf {
+		self.config_dir.join("ui.json")
+	}
 }
 
 /// Drops `.`, resolves `..` and trailing slashes without touching the disk.

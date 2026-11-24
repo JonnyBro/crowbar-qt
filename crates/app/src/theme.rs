@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::OnceLock;
 
 use gpui_kit::component::{ActiveTheme, Theme, ThemeMode, ThemeRegistry};
 use gpui_kit::*;
@@ -33,6 +34,47 @@ const FONTS_BUNDLED: [&[u8]; 8] = [
 	include_bytes!("../assets/fonts/FiraCode-SemiBold.ttf"),
 	include_bytes!("../assets/fonts/FiraCode-Bold.ttf"),
 ];
+
+/// A color scheme as the scheme picker shows it.
+pub struct Scheme {
+	pub name: String,
+	pub dark: bool,
+	pub background: Hsla,
+	pub surface: Hsla,
+	pub foreground: Hsla,
+	pub accent: Hsla,
+}
+
+/// Every bundled scheme, in the order of the themes file.
+pub fn schemes() -> &'static [Scheme] {
+	static SCHEMES: OnceLock<Vec<Scheme>> = OnceLock::new();
+	SCHEMES.get_or_init(|| {
+		let file: serde_json::Value = serde_json::from_str(THEMES).unwrap_or_default();
+		let color = |colors: &serde_json::Value, key: &str| {
+			colors[key]
+				.as_str()
+				.and_then(|hex| u32::from_str_radix(hex.trim_start_matches('#'), 16).ok())
+				.map(|value| Hsla::from(rgb(value)))
+				.unwrap_or_default()
+		};
+		file["themes"]
+			.as_array()
+			.into_iter()
+			.flatten()
+			.map(|theme| {
+				let colors = &theme["colors"];
+				Scheme {
+					name: theme["name"].as_str().unwrap_or_default().to_owned(),
+					dark: theme["mode"] == "dark",
+					background: color(colors, "background"),
+					surface: color(colors, "sidebar.background"),
+					foreground: color(colors, "foreground"),
+					accent: color(colors, "primary.background"),
+				}
+			})
+			.collect()
+	})
+}
 
 pub fn install(cx: &mut App) {
 	let fonts = FONTS_BUNDLED.iter().map(|f| Cow::Borrowed(*f)).collect();
