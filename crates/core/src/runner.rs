@@ -27,10 +27,10 @@ pub fn game_command(app: &App, game_dir: Option<&Path>, options: &[String]) -> R
 	}
 	args.extend(options.iter().cloned());
 
-	let flatpak = app
-		.steam_root
-		.as_ref()
-		.is_some_and(|root| root.to_string_lossy().contains("/.var/app/com.valvesoftware.Steam/"));
+	let flatpak = app.steam_root.as_ref().is_some_and(|root| {
+		root.to_string_lossy()
+			.contains("/.var/app/com.valvesoftware.Steam/")
+	});
 	if flatpak {
 		let program = launcher::find_executable("flatpak").ok_or(Error::NoSteam)?;
 		let mut full = vec!["run".to_owned(), "com.valvesoftware.Steam".to_owned()];
@@ -52,7 +52,12 @@ pub fn hammer_command(app: &App, game_dir: &Path, user_env: &str) -> Result<Comm
 }
 
 /// HLMV, with a model or without one.
-pub fn hlmv_command(app: &App, game_dir: &Path, mdl: Option<&Path>, user_env: &str) -> Result<Command> {
+pub fn hlmv_command(
+	app: &App,
+	game_dir: &Path,
+	mdl: Option<&Path>,
+	user_env: &str,
+) -> Result<Command> {
 	let executable = launcher::require_tool(app, "hlmv")?;
 	if let Some(mdl) = mdl
 		&& !mdl.is_file()
@@ -61,7 +66,11 @@ pub fn hlmv_command(app: &App, game_dir: &Path, mdl: Option<&Path>, user_env: &s
 	}
 	let windows = launcher::is_windows_executable(&executable);
 	// -olddialogs makes HLMV accept a model from anywhere on disk, not only from the game's folders.
-	let mut args = vec!["-olddialogs".into(), "-game".into(), tool_path(windows, game_dir)];
+	let mut args = vec![
+		"-olddialogs".into(),
+		"-game".into(),
+		tool_path(windows, game_dir),
+	];
 	if let Some(mdl) = mdl {
 		args.push(tool_path(windows, mdl));
 	}
@@ -119,7 +128,12 @@ mod tests {
 		let without = hlmv_command(&app, &dir.join("game/hl2"), None, "").unwrap();
 		assert_eq!(without.args.len(), 5);
 		assert!(matches!(
-			hlmv_command(&app, &dir.join("game/hl2"), Some(&dir.join("missing.mdl")), ""),
+			hlmv_command(
+				&app,
+				&dir.join("game/hl2"),
+				Some(&dir.join("missing.mdl")),
+				""
+			),
 			Err(Error::Missing(_))
 		));
 	}
@@ -149,7 +163,15 @@ mod tests {
 		if let Ok(game) = game_command(&app, Some(&game_dir), &options) {
 			assert_eq!(
 				game.args,
-				["-applaunch", "4000", "-game", "garrysmod", "-dev", "+map", "gm_construct"]
+				[
+					"-applaunch",
+					"4000",
+					"-game",
+					"garrysmod",
+					"-dev",
+					"+map",
+					"gm_construct"
+				]
 			);
 		}
 

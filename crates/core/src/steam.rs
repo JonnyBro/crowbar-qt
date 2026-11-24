@@ -108,7 +108,10 @@ pub fn scan(root: &Path) -> Installation {
 			let Some(state) = document.find("AppState") else {
 				continue;
 			};
-			let id = state.get("appid").and_then(|id| id.parse().ok()).unwrap_or(0);
+			let id = state
+				.get("appid")
+				.and_then(|id| id.parse().ok())
+				.unwrap_or(0);
 			let install_dir = state.get("installdir").unwrap_or_default();
 			let install_path = steamapps.join("common").join(install_dir);
 			if id == 0 || install_dir.is_empty() || !install_path.is_dir() {
@@ -426,7 +429,9 @@ fn resolve_proton(app: &mut App, mapping: &HashMap<u32, String>, tools: &[Compat
 	let name = mapping.get(&app.id).or_else(|| mapping.get(&0)).cloned();
 
 	if let Some(name) = &name
-		&& let Some(tool) = tools.iter().find(|tool| tool.name.eq_ignore_ascii_case(name))
+		&& let Some(tool) = tools
+			.iter()
+			.find(|tool| tool.name.eq_ignore_ascii_case(name))
 	{
 		app.compat_tool_name = Some(tool.name.clone());
 		app.proton_path = Some(tool.path.clone());
@@ -529,7 +534,10 @@ mod tests {
 	#[test]
 	fn official_tool_names() {
 		let name = |dir| official_tool_name(dir);
-		assert_eq!(name("Proton - Experimental").as_deref(), Some("proton_experimental"));
+		assert_eq!(
+			name("Proton - Experimental").as_deref(),
+			Some("proton_experimental")
+		);
 		assert_eq!(name("Proton Hotfix").as_deref(), Some("proton_hotfix"));
 		assert_eq!(name("Proton 9.0 (Beta)").as_deref(), Some("proton_9"));
 		assert_eq!(name("Proton 6.3").as_deref(), Some("proton_63"));
@@ -577,7 +585,10 @@ mod tests {
 			"\"AppState\"\n{\n\"appid\" \"440\"\n\"name\" \"Team Fortress 2\"\n\"installdir\" \"Team Fortress 2\"\n}\n",
 		);
 		write(&root.join("steamapps/common/Team Fortress 2/tf.sh"), "");
-		write(&root.join("steamapps/common/Team Fortress 2/tf/GameInfo.txt"), "");
+		write(
+			&root.join("steamapps/common/Team Fortress 2/tf/GameInfo.txt"),
+			"",
+		);
 
 		write(
 			&root.join("steamapps/appmanifest_10.acf"),
@@ -638,7 +649,12 @@ mod tests {
 		assert!(dir.join("prefix").is_dir());
 
 		let mut native = App::default();
-		override_tools(&mut native, &dir.join("native/bin"), &tools, &dir.join("prefix2"));
+		override_tools(
+			&mut native,
+			&dir.join("native/bin"),
+			&tools,
+			&dir.join("prefix2"),
+		);
 		assert_eq!(native.proton_path, None);
 
 		let mut own = App {
@@ -649,7 +665,12 @@ mod tests {
 		assert_eq!(own.proton_path, Some(dir.join("mine")));
 
 		let mut custom = App::default();
-		override_tools(&mut custom, &dir.join("win/bin"), &tools[..1], &dir.join("prefix4"));
+		override_tools(
+			&mut custom,
+			&dir.join("win/bin"),
+			&tools[..1],
+			&dir.join("prefix4"),
+		);
 		assert_eq!(custom.compat_tool_name.as_deref(), Some("GE-Proton"));
 	}
 
@@ -678,7 +699,13 @@ mod tests {
 		std::fs::create_dir_all(root.join("steamapps/sourcemods/not a mod")).unwrap();
 
 		let installation = scan(&root);
-		let by_name = |name: &str| installation.apps.iter().find(|app| app.name == name).unwrap();
+		let by_name = |name: &str| {
+			installation
+				.apps
+				.iter()
+				.find(|app| app.name == name)
+				.unwrap()
+		};
 		let mymod = by_name("My Mod");
 		assert!(mymod.is_mod);
 		assert_eq!(mymod.id, 243730);
@@ -720,7 +747,10 @@ mod tests {
 			"\"AppState\"\n{\n\"appid\" \"4000\"\n\"name\" \"Garry's Mod\"\n\"installdir\" \"GarrysMod\"\n}\n",
 		);
 		write(&root.join("steamapps/common/GarrysMod/gmod.exe"), "");
-		write(&root.join("steamapps/common/GarrysMod/garrysmod/gameinfo.txt"), "");
+		write(
+			&root.join("steamapps/common/GarrysMod/garrysmod/gameinfo.txt"),
+			"",
+		);
 		std::fs::create_dir_all(root.join("steamapps/compatdata/4000/pfx")).unwrap();
 		write(
 			&root.join("steamapps/compatdata/4000/config_info"),

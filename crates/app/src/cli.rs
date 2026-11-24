@@ -132,7 +132,11 @@ pub fn run(command: CliCommand) -> ExitCode {
 			qc,
 			output_dir,
 		} => compile(appid, &game_dir, &qc, output_dir.as_deref()),
-		CliCommand::View { appid, game_dir, mdl } => view(appid, &game_dir, mdl.as_deref()),
+		CliCommand::View {
+			appid,
+			game_dir,
+			mdl,
+		} => view(appid, &game_dir, mdl.as_deref()),
 		CliCommand::Run {
 			appid,
 			game_dir,
@@ -297,8 +301,9 @@ fn pack(
 		PackFormat::Gma => packer::Format::Gma,
 	};
 	let output = std::path::absolute(output).map_err(|e| e.to_string())?;
-	let (warn_invalid, extra): (Vec<String>, Vec<String>) =
-		packer_options.into_iter().partition(|o| o == "-warninvalid");
+	let (warn_invalid, extra): (Vec<String>, Vec<String>) = packer_options
+		.into_iter()
+		.partition(|o| o == "-warninvalid");
 	let options = packer::Options {
 		multi_chunk: multi,
 		warn_invalid: !warn_invalid.is_empty(),
@@ -349,8 +354,8 @@ fn publish(appid: u32, mut request: publisher::Request) -> CliResult {
 	let app = context.app(appid)?;
 	let temp = tempfile::tempdir().map_err(|e| e.to_string())?;
 	if let Some(icon) = &request.icon {
-		let prepared =
-			publisher::prepare_icon(icon, &temp.path().join("icon.jpg")).map_err(|e| e.to_string())?;
+		let prepared = publisher::prepare_icon(icon, &temp.path().join("icon.jpg"))
+			.map_err(|e| e.to_string())?;
 		request.icon = Some(prepared);
 	}
 	let command = publisher::publish_command(app, &request, &context.settings.tool_environment)
@@ -386,7 +391,10 @@ fn download(items: &[String], output: &Path) -> CliResult {
 				_ => all.push(id),
 			}
 		}
-		let details = client.fetch_details(&all).await.map_err(|e| e.to_string())?;
+		let details = client
+			.fetch_details(&all)
+			.await
+			.map_err(|e| e.to_string())?;
 
 		let mut failed = 0;
 		for item in details {
@@ -473,7 +481,11 @@ fn games() -> CliResult {
 			out,
 			"  tools:   {}{}",
 			display_or(app.tools_path.as_deref(), "-"),
-			if app.tools_overridden { " (custom)" } else { "" }
+			if app.tools_overridden {
+				" (custom)"
+			} else {
+				""
+			}
 		);
 		if app.proton_path.is_some() || app.platform == Platform::Windows {
 			let _ = writeln!(

@@ -86,7 +86,10 @@ fn find_model_name(qc: &Path, visited: &mut HashSet<PathBuf>) -> Option<String> 
 	let bytes = std::fs::read(qc).ok()?;
 	let text = String::from_utf8_lossy(&bytes);
 
-	if let Some(name) = text.lines().find_map(|line| command_value(line, "$modelname")) {
+	if let Some(name) = text
+		.lines()
+		.find_map(|line| command_value(line, "$modelname"))
+	{
 		return Some(name.to_owned()).filter(|n| !n.is_empty());
 	}
 	let base = qc.parent().unwrap_or(Path::new("/"));
@@ -133,7 +136,8 @@ pub fn move_compiled_model(game_dir: &Path, model_name: &str, output_dir: &Path)
 		.parent()
 		.map(|p| p.to_string_lossy().into_owned())
 		.unwrap_or_default();
-	let Some(source_dir) = launcher::find_path_ignoring_case(game_dir, &format!("models/{subpath}"))
+	let Some(source_dir) =
+		launcher::find_path_ignoring_case(game_dir, &format!("models/{subpath}"))
 	else {
 		result.log.push(
 			t!(
@@ -152,7 +156,9 @@ pub fn move_compiled_model(game_dir: &Path, model_name: &str, output_dir: &Path)
 		return result;
 	}
 	if std::fs::create_dir_all(&target_dir).is_err() {
-		result.log.push(t!("studio.create_failed", path = target_dir.display()).into_owned());
+		result
+			.log
+			.push(t!("studio.create_failed", path = target_dir.display()).into_owned());
 		return result;
 	}
 
@@ -165,7 +171,12 @@ pub fn move_compiled_model(game_dir: &Path, model_name: &str, output_dir: &Path)
 			.unwrap_or_default()
 	);
 	let mut files: Vec<PathBuf> = std::fs::read_dir(&source_dir)
-		.map(|read| read.flatten().map(|e| e.path()).filter(|p| p.is_file()).collect())
+		.map(|read| {
+			read.flatten()
+				.map(|e| e.path())
+				.filter(|p| p.is_file())
+				.collect()
+		})
 		.unwrap_or_default();
 	files.sort();
 	for file in files {
@@ -292,7 +303,13 @@ mod tests {
 		);
 		assert_eq!(command.working_dir, Some(dir.join("src")));
 		assert!(matches!(
-			compile_command(&app, &dir.join("game/hl2"), &dir.join("src/missing.qc"), &options, ""),
+			compile_command(
+				&app,
+				&dir.join("game/hl2"),
+				&dir.join("src/missing.qc"),
+				&options,
+				""
+			),
 			Err(Error::Missing(_))
 		));
 	}
@@ -306,7 +323,10 @@ mod tests {
 			&qc,
 			b"// $modelname \"wrong.mdl\"\n$ModelName \"Props\\My Model\\Crate.MDL\"\n$body b \"a.smd\"\n",
 		);
-		assert_eq!(read_model_name(&qc).as_deref(), Some("Props/My Model/Crate.MDL"));
+		assert_eq!(
+			read_model_name(&qc).as_deref(),
+			Some("Props/My Model/Crate.MDL")
+		);
 		write(&qc, b"$cdmaterials x\n\t$modelname props/crate\n");
 		assert_eq!(read_model_name(&qc).as_deref(), Some("props/crate.mdl"));
 		write(&qc, b"$body b \"a.smd\"\n$modelnames x\n");
@@ -318,7 +338,10 @@ mod tests {
 			&temp.path().join("shared/common.qci"),
 			b"// $modelname \"no.mdl\"\n$include inner.qci\n",
 		);
-		write(&temp.path().join("shared/inner.qci"), b"$modelname \"props\\barrel\"\n");
+		write(
+			&temp.path().join("shared/inner.qci"),
+			b"$modelname \"props\\barrel\"\n",
+		);
 		assert_eq!(read_model_name(&qc).as_deref(), Some("props/barrel.mdl"));
 
 		// A file including itself must not loop.
@@ -350,8 +373,14 @@ mod tests {
 			names(&target),
 			["crate.dx90.vtx", "crate.mdl", "crate.phy", "crate.vvd"]
 		);
-		assert_eq!(std::fs::read(target.join("crate.mdl")).unwrap(), b"crate.mdl");
-		assert_eq!(names(&game.join("models/Props/new")), ["crate.txt", "crate2.mdl"]);
+		assert_eq!(
+			std::fs::read(target.join("crate.mdl")).unwrap(),
+			b"crate.mdl"
+		);
+		assert_eq!(
+			names(&game.join("models/Props/new")),
+			["crate.txt", "crate2.mdl"]
+		);
 		assert_eq!(result.log.len(), 4);
 
 		write(&game.join("models/solo/dir/a.mdl"), b"");

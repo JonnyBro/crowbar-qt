@@ -257,9 +257,10 @@ mod tests {
 
 	#[test]
 	fn comments_and_unquoted_tokens() {
-		let root =
-			parse("// header\nroot {\n  key value // trailing\n  \"a b\" \"c\" // Internal name\n}")
-				.unwrap();
+		let root = parse(
+			"// header\nroot {\n  key value // trailing\n  \"a b\" \"c\" // Internal name\n}",
+		)
+		.unwrap();
 		let node = root.find("root").unwrap();
 		assert_eq!(node.get("key"), Some("value"));
 		assert_eq!(node.get("a b"), Some("c"));

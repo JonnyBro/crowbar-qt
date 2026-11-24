@@ -12,7 +12,8 @@ use crate::launcher::{self, Command};
 use crate::package;
 use crate::paths::clean_path;
 
-const DETAILS_URL: &str = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
+const DETAILS_URL: &str =
+	"https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
 const COLLECTION_URL: &str =
 	"https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/";
 
@@ -169,7 +170,12 @@ pub fn find_cached_files(libraries: &[PathBuf], app_id: u32, id: u64) -> Vec<Pat
 		.map(|library| {
 			let dir = library.join(format!("steamapps/workshop/content/{app_id}/{id}"));
 			let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-				.map(|read| read.flatten().map(|e| e.path()).filter(|p| p.is_file()).collect())
+				.map(|read| {
+					read.flatten()
+						.map(|e| e.path())
+						.filter(|p| p.is_file())
+						.collect()
+				})
 				.unwrap_or_default();
 			files.sort();
 			files
@@ -262,7 +268,11 @@ pub fn parse_steamcmd_path(line: &str) -> Option<String> {
 
 /// A safe file name from an item: "<title> (<id>)", or the bare ID.
 pub fn file_base_name(details: &ItemDetails, with_title: bool) -> String {
-	let title = details.title.split_whitespace().collect::<Vec<_>>().join(" ");
+	let title = details
+		.title
+		.split_whitespace()
+		.collect::<Vec<_>>()
+		.join(" ");
 	if !with_title || title.is_empty() {
 		return details.id.to_string();
 	}
@@ -283,8 +293,14 @@ pub fn file_base_name(details: &ItemDetails, with_title: bool) -> String {
 /// Copies a downloaded file into `output_dir` as `<base_name>.<ext>`.
 /// With `convert`, LZMA-compressed files are unpacked and become .gma when they
 /// hold an addon.
-pub fn save_file(file: &Path, output_dir: &Path, base_name: &str, convert: bool) -> Result<PathBuf> {
-	std::fs::create_dir_all(output_dir).map_err(|_| Error::CreateFailed(output_dir.to_path_buf()))?;
+pub fn save_file(
+	file: &Path,
+	output_dir: &Path,
+	base_name: &str,
+	convert: bool,
+) -> Result<PathBuf> {
+	std::fs::create_dir_all(output_dir)
+		.map_err(|_| Error::CreateFailed(output_dir.to_path_buf()))?;
 
 	if convert && package::is_lzma_file(file) {
 		let temp = output_dir.join(format!(".{base_name}.partial"));
@@ -310,7 +326,8 @@ pub fn save_file(file: &Path, output_dir: &Path, base_name: &str, convert: bool)
 		return Ok(target);
 	}
 	let _ = std::fs::remove_file(&target);
-	std::fs::copy(file, &target).map_err(|_| Error::CopyFailed(file.to_path_buf(), target.clone()))?;
+	std::fs::copy(file, &target)
+		.map_err(|_| Error::CopyFailed(file.to_path_buf(), target.clone()))?;
 	Ok(target)
 }
 
@@ -353,7 +370,9 @@ impl Client {
 				.enumerate()
 				.map(|(i, id)| (format!("publishedfileids[{i}]"), id.to_string())),
 		);
-		Ok(parse_details_list(&self.post_form(DETAILS_URL, &form).await?))
+		Ok(parse_details_list(
+			&self.post_form(DETAILS_URL, &form).await?,
+		))
 	}
 
 	/// The items of a collection, and whether `id` was one.
@@ -362,7 +381,9 @@ impl Client {
 			("collectioncount".to_owned(), "1".to_owned()),
 			("publishedfileids[0]".to_owned(), id.to_string()),
 		];
-		Ok(parse_collection(&self.post_form(COLLECTION_URL, &form).await?))
+		Ok(parse_collection(
+			&self.post_form(COLLECTION_URL, &form).await?,
+		))
 	}
 
 	/// Small downloads kept in memory, e.g. preview images.
@@ -403,8 +424,8 @@ impl Client {
 				.and_then(reqwest::Response::error_for_status)
 				.map_err(|e| Error::Network(e.to_string()))?;
 			let total = response.content_length();
-			let mut out = std::fs::File::create(&partial)
-				.map_err(|_| Error::WriteFailed(partial.clone()))?;
+			let mut out =
+				std::fs::File::create(&partial).map_err(|_| Error::WriteFailed(partial.clone()))?;
 			let mut received = 0;
 			while let Some(chunk) = response
 				.chunk()
@@ -416,7 +437,8 @@ impl Client {
 				received += chunk.len() as u64;
 				on_progress(received, total);
 			}
-			out.flush().map_err(|_| Error::WriteFailed(partial.clone()))?;
+			out.flush()
+				.map_err(|_| Error::WriteFailed(partial.clone()))?;
 			Ok::<(), Error>(())
 		};
 		let outcome = tokio::select! {
@@ -424,7 +446,9 @@ impl Client {
 			() = cancel => Err(Error::Cancelled),
 		};
 		match outcome {
-			Ok(()) => std::fs::rename(&partial, file).map_err(|_| Error::WriteFailed(file.to_path_buf())),
+			Ok(()) => {
+				std::fs::rename(&partial, file).map_err(|_| Error::WriteFailed(file.to_path_buf()))
+			}
 			Err(e) => {
 				let _ = std::fs::remove_file(&partial);
 				Err(e)
@@ -450,7 +474,9 @@ mod tests {
 	fn item_ids() {
 		assert_eq!(parse_item_id(" 104603291 "), Some(104_603_291));
 		assert_eq!(
-			parse_item_id("https://steamcommunity.com/sharedfiles/filedetails/?id=104603291&searchtext="),
+			parse_item_id(
+				"https://steamcommunity.com/sharedfiles/filedetails/?id=104603291&searchtext="
+			),
 			Some(104_603_291)
 		);
 		assert_eq!(
@@ -508,7 +534,12 @@ mod tests {
 		assert!(!list[1].is_valid());
 		assert_eq!(list[1].id, 2);
 
-		assert!(!parse_details(br#"{"response":{"publishedfiledetails":[{"publishedfileid":"5","result":9}]}}"#).is_valid());
+		assert!(
+			!parse_details(
+				br#"{"response":{"publishedfiledetails":[{"publishedfileid":"5","result":9}]}}"#
+			)
+			.is_valid()
+		);
 		assert!(!parse_details(b"garbage").is_valid());
 	}
 
@@ -582,7 +613,7 @@ mod tests {
 		write(&cached, b"GMAD plain");
 		assert_eq!(
 			find_cached_files(&[dir.join("empty"), lib.clone()], 4000, 42),
-			[cached.clone()]
+			std::slice::from_ref(&cached)
 		);
 		assert!(find_cached_files(&[lib], 4000, 43).is_empty());
 

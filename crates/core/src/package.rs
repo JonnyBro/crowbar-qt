@@ -98,7 +98,8 @@ impl Package {
 		if head.starts_with(b"GMAD") {
 			return read_gma(file);
 		}
-		if head.len() >= 4 && u32::from_le_bytes([head[0], head[1], head[2], head[3]]) == VPK_SIGNATURE
+		if head.len() >= 4
+			&& u32::from_le_bytes([head[0], head[1], head[2], head[3]]) == VPK_SIGNATURE
 		{
 			return read_vpk(file);
 		}
@@ -140,7 +141,8 @@ impl Package {
 
 	/// Writes the entry under `output_dir`; paths that would land outside it are refused.
 	pub fn extract(&self, entry: &Entry, output_dir: &Path) -> Result<PathBuf> {
-		let relative = safe_relative_path(&entry.path).ok_or_else(|| Error::UnsafePath(entry.path.clone()))?;
+		let relative =
+			safe_relative_path(&entry.path).ok_or_else(|| Error::UnsafePath(entry.path.clone()))?;
 		let shown = relative.display().to_string();
 		let target = output_dir.join(&relative);
 		if let Some(parent) = target.parent() {
@@ -248,7 +250,10 @@ fn read_vpk(file: &Path) -> Result<Package> {
 	let io = |e| Error::Io(file.to_path_buf(), e);
 	let mut dir_file = File::open(file).map_err(io)?;
 	let mut head = Vec::with_capacity(28);
-	(&mut dir_file).take(28).read_to_end(&mut head).map_err(io)?;
+	(&mut dir_file)
+		.take(28)
+		.read_to_end(&mut head)
+		.map_err(io)?;
 	if head.len() < 12 || le_u32(&head[0..4]) != VPK_SIGNATURE {
 		return Err(Error::NotVpkDir);
 	}
@@ -376,7 +381,8 @@ fn read_gma(file: &Path) -> Result<Package> {
 	let mut data_offset = 0u64;
 	while reader.u32().map_err(corrupt)? != 0 {
 		let path = reader.cstring().map_err(corrupt)?;
-		let length = u64::try_from(reader.i64().map_err(corrupt)?).map_err(|_| Error::GmaCorrupt)?;
+		let length =
+			u64::try_from(reader.i64().map_err(corrupt)?).map_err(|_| Error::GmaCorrupt)?;
 		let crc = reader.u32().map_err(corrupt)?;
 		entries.push(Entry {
 			path,
@@ -426,8 +432,10 @@ fn safe_relative_path(path: &str) -> Option<PathBuf> {
 }
 
 fn display_name(path: &Path) -> String {
-	path.file_name()
-		.map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned())
+	path.file_name().map_or_else(
+		|| path.display().to_string(),
+		|n| n.to_string_lossy().into_owned(),
+	)
 }
 
 fn le_u32(bytes: &[u8]) -> u32 {
@@ -565,7 +573,11 @@ mod tests {
 			let paths: Vec<_> = package.entries.iter().map(|e| e.path.as_str()).collect();
 			assert_eq!(
 				paths,
-				["models/props/crate.mdl", "models/props/barrel.mdl", "readme.txt"]
+				[
+					"models/props/crate.mdl",
+					"models/props/barrel.mdl",
+					"readme.txt"
+				]
 			);
 			assert_eq!(package.entries[1].size, 7);
 
@@ -703,7 +715,16 @@ mod tests {
 			safe_relative_path("a\\b/../c.txt"),
 			Some(PathBuf::from("a/c.txt"))
 		);
-		for path in ["", ".", "..", "../x", "a/../../x", "/etc/passwd", "C:/x", "\\\\server\\x"] {
+		for path in [
+			"",
+			".",
+			"..",
+			"../x",
+			"a/../../x",
+			"/etc/passwd",
+			"C:/x",
+			"\\\\server\\x",
+		] {
 			assert_eq!(safe_relative_path(path), None, "{path}");
 		}
 	}
@@ -711,7 +732,10 @@ mod tests {
 	#[test]
 	fn numbered_parts() {
 		let dir = |name: &str| numbered_part_dir_file(Path::new(name));
-		assert_eq!(dir("/x/Pak01_003.VPK"), Some(PathBuf::from("/x/Pak01_dir.vpk")));
+		assert_eq!(
+			dir("/x/Pak01_003.VPK"),
+			Some(PathBuf::from("/x/Pak01_dir.vpk"))
+		);
 		assert_eq!(dir("/x/pak01_dir.vpk"), None);
 		assert_eq!(dir("/x/pak01_03.vpk"), None);
 		assert_eq!(dir("/x/_003.vpk"), None);

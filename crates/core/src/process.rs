@@ -57,7 +57,10 @@ pub async fn run(
 		// The command holds our copies of the pipe's write end; dropping it here
 		// lets the reader see the end of output once the tool is gone.
 	};
-	let pid = child.id().and_then(|id| i32::try_from(id).ok()).and_then(Pid::from_raw);
+	let pid = child
+		.id()
+		.and_then(|id| i32::try_from(id).ok())
+		.and_then(Pid::from_raw);
 
 	let (tx, mut rx) = mpsc::unbounded_channel();
 	tokio::task::spawn_blocking(move || read_lines(reader, &tx));
@@ -111,7 +114,10 @@ fn read_lines(reader: std::io::PipeReader, tx: &mpsc::UnboundedSender<String>) {
 				if buffer.last() == Some(&b'\n') {
 					buffer.pop();
 				}
-				if tx.send(String::from_utf8_lossy(&buffer).into_owned()).is_err() {
+				if tx
+					.send(String::from_utf8_lossy(&buffer).into_owned())
+					.is_err()
+				{
 					return;
 				}
 			}
@@ -157,7 +163,10 @@ fn kill_marked(marker: &str, signal: Signal) {
 		let Ok(environ) = std::fs::read(entry.path().join("environ")) else {
 			continue;
 		};
-		if environ.split(|&b| b == 0).any(|var| var == marker.as_bytes()) {
+		if environ
+			.split(|&b| b == 0)
+			.any(|var| var == marker.as_bytes())
+		{
 			let _ = rustix::process::kill_process(pid, signal);
 		}
 	}

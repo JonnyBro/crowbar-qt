@@ -122,10 +122,12 @@ pub fn find_path_ignoring_case(base: &Path, relative: &str) -> Option<PathBuf> {
 			current = exact;
 			continue;
 		}
-		let found = std::fs::read_dir(&current)
-			.ok()?
-			.flatten()
-			.find(|entry| entry.file_name().to_string_lossy().eq_ignore_ascii_case(part))?;
+		let found = std::fs::read_dir(&current).ok()?.flatten().find(|entry| {
+			entry
+				.file_name()
+				.to_string_lossy()
+				.eq_ignore_ascii_case(part)
+		})?;
 		current = found.path();
 	}
 	current.exists().then(|| clean_path(&current))
@@ -267,7 +269,10 @@ pub fn build(
 
 	let app_id = app.id.to_string();
 	let env = &mut command.env;
-	env.insert("STEAM_COMPAT_DATA_PATH".into(), prefix.display().to_string());
+	env.insert(
+		"STEAM_COMPAT_DATA_PATH".into(),
+		prefix.display().to_string(),
+	);
 	env.insert(
 		"STEAM_COMPAT_CLIENT_INSTALL_PATH".into(),
 		app.steam_root
@@ -350,7 +355,9 @@ mod tests {
 
 	#[test]
 	fn proton_noise() {
-		assert!(is_proton_noise("ProtonFixes[1] WARN: Skipping fix execution."));
+		assert!(is_proton_noise(
+			"ProtonFixes[1] WARN: Skipping fix execution."
+		));
 		assert!(is_proton_noise("ntsync: up and running."));
 		assert!(!is_proton_noise("Building binary model files..."));
 	}
@@ -410,7 +417,11 @@ mod tests {
 		assert_eq!(command.program, dir.join("proton/proton"));
 		assert_eq!(
 			command.args,
-			["runinprefix".to_owned(), exe.display().to_string(), "-x".into()]
+			[
+				"runinprefix".to_owned(),
+				exe.display().to_string(),
+				"-x".into()
+			]
 		);
 		assert_eq!(
 			command.env["STEAM_COMPAT_DATA_PATH"],
@@ -424,8 +435,14 @@ mod tests {
 		let gui = build(&app, &exe, vec![], Mode::Gui, "").unwrap();
 		assert_eq!(gui.args[0], "run");
 
-		let native = build(&app, &dir.join("native/tool"), vec!["-a".into()], Mode::Console, "")
-			.unwrap();
+		let native = build(
+			&app,
+			&dir.join("native/tool"),
+			vec!["-a".into()],
+			Mode::Console,
+			"",
+		)
+		.unwrap();
 		assert_eq!(native.program, dir.join("native/tool"));
 		assert_eq!(native.args, ["-a"]);
 

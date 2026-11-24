@@ -25,7 +25,11 @@ pub struct Target {
 
 impl Games {
 	pub fn scan(settings: &Settings, paths: &AppPaths) -> Self {
-		Self::from_installations(steam::scan_all(), settings, &paths.data_dir().join("prefixes"))
+		Self::from_installations(
+			steam::scan_all(),
+			settings,
+			&paths.data_dir().join("prefixes"),
+		)
 	}
 
 	/// `prefixes_dir` holds the Wine prefixes made for games whose chosen
@@ -81,7 +85,11 @@ impl Games {
 			.and_then(|name| games.compat_tools.iter().find(|tool| tool.name == name))
 			.cloned();
 		if let Some(chosen) = chosen {
-			for app in games.apps.iter_mut().filter(|app| app.proton_path.is_some()) {
+			for app in games
+				.apps
+				.iter_mut()
+				.filter(|app| app.proton_path.is_some())
+			{
 				app.proton_path = Some(chosen.path.clone());
 				app.compat_tool_name = Some(chosen.name.clone());
 			}
@@ -190,12 +198,15 @@ mod tests {
 		};
 		settings.update_game(440, |g| g.tools = Some(dir.join("wintools")));
 
-		let games =
-			Games::from_installations(vec![installation], &settings, &dir.join("prefixes"));
+		let games = Games::from_installations(vec![installation], &settings, &dir.join("prefixes"));
 		let names: Vec<_> = games.apps.iter().map(|a| a.name.as_str()).collect();
 		assert_eq!(names, ["Added", "Garry's Mod", "Team Fortress 2"]);
 
-		let tf2 = games.apps.iter().find(|a| a.name == "Team Fortress 2").unwrap();
+		let tf2 = games
+			.apps
+			.iter()
+			.find(|a| a.name == "Team Fortress 2")
+			.unwrap();
 		assert!(tf2.tools_overridden);
 		assert_eq!(tf2.compat_data_path, Some(dir.join("prefixes/440")));
 		// The chosen Proton wins over the one picked for the overridden tools.

@@ -47,7 +47,13 @@ pub struct Request {
 
 pub fn list_command(app: &App, user_env: &str) -> Result<Command> {
 	let executable = launcher::require_tool(app, "gmpublish")?;
-	let mut command = launcher::build(app, &executable, vec!["list".into()], Mode::Console, user_env)?;
+	let mut command = launcher::build(
+		app,
+		&executable,
+		vec!["list".into()],
+		Mode::Console,
+		user_env,
+	)?;
 	command.working_dir = executable.parent().map(Path::to_path_buf);
 	Ok(command)
 }
@@ -129,7 +135,8 @@ impl ListParser {
 			return;
 		};
 		let mut fields = rest.splitn(3, '\t');
-		let (Some(id), Some(size), Some(title)) = (fields.next(), fields.next(), fields.next()) else {
+		let (Some(id), Some(size), Some(title)) = (fields.next(), fields.next(), fields.next())
+		else {
 			return;
 		};
 		if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
@@ -193,7 +200,8 @@ pub fn prepare_icon(icon: &Path, converted: &Path) -> Result<PathBuf> {
 	let scaled = square.resize_exact(ICON_SIZE, ICON_SIZE, image::imageops::FilterType::Lanczos3);
 	let flat = flatten_on_white(&scaled);
 
-	let write_error = |e: &dyn std::fmt::Display| Error::IconWrite(converted.to_path_buf(), e.to_string());
+	let write_error =
+		|e: &dyn std::fmt::Display| Error::IconWrite(converted.to_path_buf(), e.to_string());
 	let file = std::fs::File::create(converted).map_err(|e| write_error(&e))?;
 	let mut encoder =
 		image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::BufWriter::new(file), 92);
@@ -311,7 +319,10 @@ mod tests {
 			gma: Some(dir.join("a.gma")),
 			..Request::default()
 		};
-		assert!(matches!(publish_command(&app, &request, ""), Err(Error::NeedsIcon)));
+		assert!(matches!(
+			publish_command(&app, &request, ""),
+			Err(Error::NeedsIcon)
+		));
 		request.icon = Some(dir.join("icon.jpg"));
 		request.changes = "ignored for create".into();
 		let command = publish_command(&app, &request, "").unwrap();
@@ -344,7 +355,10 @@ mod tests {
 		);
 
 		request.gma = None;
-		assert!(matches!(publish_command(&app, &request, ""), Err(Error::NeedsSomething)));
+		assert!(matches!(
+			publish_command(&app, &request, ""),
+			Err(Error::NeedsSomething)
+		));
 		request.gma = Some(dir.join("missing.gma"));
 		assert!(matches!(
 			publish_command(&app, &request, ""),
@@ -352,7 +366,10 @@ mod tests {
 		));
 		request.id = None;
 		request.gma = None;
-		assert!(matches!(publish_command(&app, &request, ""), Err(Error::NeedsGmaAndIcon)));
+		assert!(matches!(
+			publish_command(&app, &request, ""),
+			Err(Error::NeedsGmaAndIcon)
+		));
 	}
 
 	#[test]
@@ -363,7 +380,10 @@ mod tests {
 
 		let out = temp.path().join("out.jpg");
 		assert_eq!(prepare_icon(&wide, &out).unwrap(), out);
-		let reader = ImageReader::open(&out).unwrap().with_guessed_format().unwrap();
+		let reader = ImageReader::open(&out)
+			.unwrap()
+			.with_guessed_format()
+			.unwrap();
 		assert_eq!(reader.format(), Some(ImageFormat::Jpeg));
 		let result = reader.decode().unwrap().to_rgb8();
 		assert_eq!(result.dimensions(), (512, 512));

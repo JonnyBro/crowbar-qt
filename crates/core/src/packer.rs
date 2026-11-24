@@ -159,7 +159,9 @@ pub fn finish_pack(
 		.map(|s| s.to_string_lossy().into_owned())
 		.unwrap_or_default();
 
-	let move_to = |source: &Path, target: PathBuf, result: &mut PackResult| match move_file(source, &target) {
+	let move_to = |source: &Path, target: PathBuf, result: &mut PackResult| match move_file(
+		source, &target,
+	) {
 		Ok(()) => {
 			result.log.push(
 				t!(
@@ -193,7 +195,9 @@ pub fn finish_pack(
 		return result;
 	}
 
-	let threshold = started.checked_sub(Duration::from_secs(2)).unwrap_or(started);
+	let threshold = started
+		.checked_sub(Duration::from_secs(2))
+		.unwrap_or(started);
 	let mut chunks: Vec<(PathBuf, String)> = std::fs::read_dir(parent)
 		.map(|read| {
 			read.flatten()
@@ -232,7 +236,8 @@ fn chunk_suffix(file_name: &str, folder_name: &str) -> Option<String> {
 	}
 	let (base, suffix) = stem.rsplit_once('_')?;
 	let suffix = suffix.to_ascii_lowercase();
-	let valid = suffix == "dir" || (suffix.len() == 3 && suffix.bytes().all(|b| b.is_ascii_digit()));
+	let valid =
+		suffix == "dir" || (suffix.len() == 3 && suffix.bytes().all(|b| b.is_ascii_digit()));
 	(valid && base == folder_name).then_some(suffix)
 }
 
@@ -298,7 +303,8 @@ pub fn save_addon_json(folder: &Path, info: &AddonInfo) -> Result<()> {
 			if !parsed.is_object() {
 				return Err(Error::InvalidJsonKept(String::new()));
 			}
-			let original = String::from_utf8(original).map_err(|e| Error::InvalidJsonKept(e.to_string()))?;
+			let original =
+				String::from_utf8(original).map_err(|e| Error::InvalidJsonKept(e.to_string()))?;
 			update_addon_json(&original, info).ok_or(Error::UnsafeUpdate)?
 		}
 		Err(e) if e.kind() == std::io::ErrorKind::NotFound => new_addon_json(info),
@@ -325,7 +331,10 @@ fn write_checked(path: &Path, text: &str, info: &AddonInfo) -> Result<()> {
 		.flatten()
 		.filter_map(serde_json::Value::as_str)
 		.collect();
-	if check["title"] != info.title.as_str() || check["type"] != info.kind.as_str() || tags != info.tags {
+	if check["title"] != info.title.as_str()
+		|| check["type"] != info.kind.as_str()
+		|| tags != info.tags
+	{
 		return Err(Error::UnsafeUpdate);
 	}
 	let tmp = path.with_extension("json.tmp");
@@ -355,7 +364,11 @@ fn format_tags(tags: &[String], original: &str, key_indent: &str, newline: &str)
 	if original.contains('\n') {
 		let mut item_indent = format!(
 			"{key_indent}{}",
-			if key_indent.starts_with(' ') { "    " } else { "\t" }
+			if key_indent.starts_with(' ') {
+				"    "
+			} else {
+				"\t"
+			}
 		);
 		if let Some(first) = original.find('"').filter(|&i| i > 0) {
 			let before = &original[..first];
@@ -557,7 +570,7 @@ fn update_addon_json(text: &str, info: &AddonInfo) -> Option<String> {
 		}
 	}
 
-	edits.sort_by(|a, b| b.0.cmp(&a.0));
+	edits.sort_by_key(|edit| std::cmp::Reverse(edit.0));
 	let mut result = text.to_owned();
 	for (start, end, replacement) in edits {
 		result.replace_range(start..end, &replacement);
@@ -612,8 +625,15 @@ mod tests {
 		let win_addon = to_windows_path(&addon);
 		let out = dir.join("out/a.gma");
 
-		let command = pack_command(&app, Format::Vpk, &addon, Path::new(""), &Options::default(), "")
-			.unwrap();
+		let command = pack_command(
+			&app,
+			Format::Vpk,
+			&addon,
+			Path::new(""),
+			&Options::default(),
+			"",
+		)
+		.unwrap();
 		assert_eq!(
 			command.args,
 			[
@@ -622,9 +642,15 @@ mod tests {
 				win_addon.clone()
 			]
 		);
-		let command =
-			pack_command(&app, Format::Vpk, &dir.join("addon/"), Path::new(""), &multi_chunk(), "")
-				.unwrap();
+		let command = pack_command(
+			&app,
+			Format::Vpk,
+			&dir.join("addon/"),
+			Path::new(""),
+			&multi_chunk(),
+			"",
+		)
+		.unwrap();
 		assert_eq!(command.args[2..], ["-M".to_owned(), win_addon.clone()]);
 
 		assert!(matches!(
@@ -633,7 +659,8 @@ mod tests {
 		));
 
 		write(&addon.join("addon.json"), b"{}");
-		let command = pack_command(&app, Format::Gma, &addon, &out, &Options::default(), "").unwrap();
+		let command =
+			pack_command(&app, Format::Gma, &addon, &out, &Options::default(), "").unwrap();
 		assert_eq!(
 			command.args[2..],
 			[
@@ -655,7 +682,10 @@ mod tests {
 		flags.multi_chunk = true;
 		flags.extra = vec!["-c".into(), "100".into()];
 		let command = pack_command(&app, Format::Vpk, &addon, Path::new(""), &flags, "").unwrap();
-		assert_eq!(command.args[2..], ["-M".to_owned(), "-c".into(), "100".into(), win_addon]);
+		assert_eq!(
+			command.args[2..],
+			["-M".to_owned(), "-c".into(), "100".into(), win_addon]
+		);
 	}
 
 	#[test]
@@ -667,13 +697,15 @@ mod tests {
 		let started = SystemTime::now();
 		let single = dir.join("elsewhere/final.vpk");
 
-		assert!(finish_pack(Format::Vpk, &addon, &single, &Options::default(), started)
-			.files
-			.is_empty());
+		assert!(
+			finish_pack(Format::Vpk, &addon, &single, &Options::default(), started)
+				.files
+				.is_empty()
+		);
 		write(&dir.join("addon.vpk"), b"packed");
 		assert_eq!(
 			finish_pack(Format::Vpk, &addon, &single, &Options::default(), started).files,
-			[single.clone()]
+			std::slice::from_ref(&single)
 		);
 		assert_eq!(read(&single), "packed");
 		assert!(!dir.join("addon.vpk").exists());
@@ -696,9 +728,17 @@ mod tests {
 		// Chunks older than this run belong to a previous build.
 		write(&dir.join("addon_dir.vpk"), b"stale");
 		let later = SystemTime::now() + Duration::from_secs(60);
-		assert!(finish_pack(Format::Vpk, &addon, &dir.join("multi2/a.vpk"), &multi_chunk(), later)
+		assert!(
+			finish_pack(
+				Format::Vpk,
+				&addon,
+				&dir.join("multi2/a.vpk"),
+				&multi_chunk(),
+				later
+			)
 			.files
-			.is_empty());
+			.is_empty()
+		);
 	}
 
 	#[test]
@@ -711,16 +751,23 @@ mod tests {
 			&dir.join("addon.json"),
 			br#"{"title": "Old", "type": "Weapon", "tags": ["Fun"], "ignore": ["*.txt"], "description": "keep me"}"#,
 		);
-		assert_eq!(read_addon_json(dir).unwrap(), info("Old", "weapon", &["fun"]));
+		assert_eq!(
+			read_addon_json(dir).unwrap(),
+			info("Old", "weapon", &["fun"])
+		);
 
 		save_addon_json(dir, &info("New", "tool", &["build", "fun"])).unwrap();
-		let saved: serde_json::Value = serde_json::from_str(&read(&dir.join("addon.json"))).unwrap();
+		let saved: serde_json::Value =
+			serde_json::from_str(&read(&dir.join("addon.json"))).unwrap();
 		assert_eq!(saved["title"], "New");
 		assert_eq!(saved["type"], "tool");
 		assert_eq!(saved["tags"].as_array().unwrap().len(), 2);
 		assert_eq!(saved["description"], "keep me");
 		assert_eq!(saved["ignore"][0], "*.txt");
-		assert_eq!(read_addon_json(dir).unwrap(), info("New", "tool", &["build", "fun"]));
+		assert_eq!(
+			read_addon_json(dir).unwrap(),
+			info("New", "tool", &["build", "fun"])
+		);
 
 		write(&dir.join("addon.json"), b"{ broken, }");
 		assert!(matches!(read_addon_json(dir), Err(Error::InvalidJson(_))));
@@ -784,7 +831,11 @@ mod tests {
 	fn create_never_replaces() {
 		let temp = tempfile::tempdir().unwrap();
 		assert!(!has_addon_json(temp.path()));
-		create_addon_json(temp.path(), &info("My \"Addon\"", "model", &["fun", "build"])).unwrap();
+		create_addon_json(
+			temp.path(),
+			&info("My \"Addon\"", "model", &["fun", "build"]),
+		)
+		.unwrap();
 		assert!(has_addon_json(temp.path()));
 		assert_eq!(
 			read_addon_json(temp.path()).unwrap(),
