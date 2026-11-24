@@ -6,22 +6,36 @@ on:
       - "**"
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: archlinux:latest
     steps:
-      - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed base-devel cmake git qt6-base qt6-svg qt6-tools xz procps-ng
-
       - uses: actions/checkout@v4
 
-      - name: Build
+      - name: Install Rust
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build -j"$(nproc)"
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt
+          rustup default stable
 
-      - name: Test
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: ctest --test-dir build --output-on-failure
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libfreetype-dev \
+            libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb1-dev libvulkan-dev
+
+      - uses: rui314/setup-mold@v1
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --locked
+
+      - name: Tests
+        run: cargo test --locked

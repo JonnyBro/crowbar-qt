@@ -1,11 +1,1 @@
-/build*
-/.cache/
-/compile_commands.json
-CMakeUserPresets.json
-# makepkg output
-/packaging/aur/**/src/
-/packaging/aur/**/pkg/
-/packaging/aur/crowbar-qt/
-/packaging/aur/*/crowbar-qt/
-/packaging/aur/**/*.pkg.tar.*
-/packaging/aur/*/crowbar-qt-*.tar.*
+/target

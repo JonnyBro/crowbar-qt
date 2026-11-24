@@ -1,0 +1,13 @@
+_version: 2
+err.no_platform_dirs:
+  en: "could not determine platform directories"
+  ru: "не удалось определить системные папки"
+err.io:
+  en: "I/O error at %{path}: %{source}"
+  ru: "ошибка ввода-вывода (%{path}): %{source}"
+err.settings_parse:
+  en: "could not read the settings in %{path}: %{source}"
+  ru: "не удалось прочитать настройки из %{path}: %{source}"
+err.settings_serialize:
+  en: "could not save the settings: %{error}"
+  ru: "не удалось сохранить настройки: %{error}"

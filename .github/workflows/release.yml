@@ -5,91 +5,61 @@ on:
     tags:
       - "v*"
 
+env:
+  CARGO_TERM_COLOR: always
+
 permissions:
   contents: write
 
 jobs:
-  appimage:
-    # The oldest supported Ubuntu, so the AppImage runs on as many distributions as possible.
+  linux:
+    # The oldest supported Ubuntu, so the binary's glibc is old enough for most distributions.
     runs-on: ubuntu-22.04
-    env:
-      # GitHub runners have no FUSE; linuxdeploy extracts itself instead.
-      APPIMAGE_EXTRACT_AND_RUN: 1
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check that the tag matches the project version
+      - name: Check that the tag matches the workspace version
         run: |
-          version=$(sed -n 's/^project(crowbar-qt VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match the version $version in CMakeLists.txt"
+            echo "::error::Tag $GITHUB_REF_NAME does not match the workspace version $version"
             exit 1
           fi
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake liblzma-dev xz-utils file \
-            libgl1-mesa-dev libegl1 libxkbcommon-x11-0 libxkbcommon-dev \
-            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
-            libwayland-cursor0 libwayland-egl1
+          sudo apt-get install -y clang pkg-config libfontconfig-dev libfreetype-dev \
+            libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb1-dev libvulkan-dev
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.8.3"
-          cache: true
+      - uses: rui314/setup-mold@v1
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build and test
-        env:
-          QT_QPA_PLATFORM: offscreen
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build -j"$(nproc)"
-          ctest --test-dir build --output-on-failure
+          cargo test --locked
+          cargo build --release --locked -p prybar
 
-      - name: Build AppImage
-        run: |
-          QMAKE="$QT_ROOT_DIR/bin/qmake" WORK="$PWD/build-appimage" packaging/appimage/build-appimage.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appimage
-          path: build-appimage/Crowbar_Qt-*.AppImage
-
-  arch:
-    # Built against Arch's own Qt; this is what the crowbar-qt-bin AUR package installs.
-    runs-on: ubuntu-latest
-    container: archlinux:latest
-    steps:
-      - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed base-devel cmake git qt6-base qt6-svg qt6-tools xz zstd procps-ng
-
-      - uses: actions/checkout@v4
-
-      - name: Build and test
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build build -j"$(nproc)"
-          ctest --test-dir build --output-on-failure
-
-      - name: Pack the installed files
+      - name: Pack
         run: |
           version=${GITHUB_REF_NAME#v}
-          DESTDIR="$PWD/dist/root" cmake --install build
-          tar --zstd -C dist/root -cf "dist/crowbar-qt-$version-x86_64.tar.zst" usr
+          mkdir -p dist
+          tar --zstd -C target/release -cf "dist/prybar-$version-x86_64-linux.tar.zst" prybar
 
       - uses: actions/upload-artifact@v4
         with:
-          name: arch
-          path: dist/crowbar-qt-*-x86_64.tar.zst
+          name: linux
+          path: dist/*
 
   release:
-    needs: [appimage, arch]
+    needs: [linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
