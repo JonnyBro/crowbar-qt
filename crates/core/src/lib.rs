@@ -4,10 +4,23 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod error;
+mod fsutil;
+pub mod games;
+pub mod launcher;
+pub mod package;
+pub mod packer;
 pub mod paths;
+pub mod process;
+pub mod publisher;
+pub mod runner;
 pub mod settings;
+pub mod steam;
+pub mod studiomdl;
+pub mod vdf;
+pub mod workshop;
 
 pub use error::{Error, Result};
+pub use games::{Games, Target};
 pub use paths::AppPaths;
 pub use settings::Settings;
 

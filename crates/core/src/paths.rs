@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use directories::ProjectDirs;
 
@@ -64,6 +64,25 @@ impl AppPaths {
 	}
 }
 
+/// Drops `.`, resolves `..` and trailing slashes without touching the disk.
+pub fn clean_path(path: &Path) -> PathBuf {
+	let mut result = PathBuf::new();
+	for component in path.components() {
+		match component {
+			Component::CurDir => {}
+			Component::ParentDir => {
+				if matches!(result.components().next_back(), Some(Component::Normal(_))) {
+					result.pop();
+				} else if !result.has_root() {
+					result.push("..");
+				}
+			}
+			other => result.push(other),
+		}
+	}
+	result
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -77,5 +96,12 @@ mod tests {
 		assert!(paths.data_dir().is_dir());
 		assert!(paths.cache_dir().is_dir());
 		assert!(paths.logs_dir().is_dir());
+	}
+
+	#[test]
+	fn clean_path_is_lexical() {
+		assert_eq!(clean_path(Path::new("/a/./b/../c/")), Path::new("/a/c"));
+		assert_eq!(clean_path(Path::new("/../a")), Path::new("/a"));
+		assert_eq!(clean_path(Path::new("../a/..")), Path::new(".."));
 	}
 }

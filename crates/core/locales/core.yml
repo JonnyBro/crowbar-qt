@@ -11,3 +11,144 @@ err.settings_parse:
 err.settings_serialize:
   en: "could not save the settings: %{error}"
   ru: "не удалось сохранить настройки: %{error}"
+pkg.io:
+  en: "%{path}: %{error}"
+  ru: "%{path}: %{error}"
+pkg.not_vpk_dir:
+  en: "Not a VPK directory file. Open the *_dir.vpk file of a multi-part package."
+  ru: "Это не главный файл VPK. Для многотомного пакета откройте файл *_dir.vpk."
+pkg.vpk_version:
+  en: "Unsupported VPK version %{version}."
+  ru: "Неподдерживаемая версия VPK: %{version}."
+pkg.vpk_truncated:
+  en: "The VPK file table is truncated."
+  ru: "Таблица файлов VPK обрезана."
+pkg.vpk_corrupt:
+  en: "The VPK file table is corrupt."
+  ru: "Таблица файлов VPK повреждена."
+pkg.not_gma:
+  en: "Not a GMA file."
+  ru: "Это не файл GMA."
+pkg.gma_corrupt:
+  en: "The GMA file table is corrupt."
+  ru: "Таблица файлов GMA повреждена."
+pkg.lzma_invalid:
+  en: "\"%{name}\" is not a valid LZMA-compressed package."
+  ru: "«%{name}» не является корректным пакетом, сжатым LZMA."
+pkg.lzma_no_gma:
+  en: "\"%{name}\" is LZMA-compressed but holds no GMA addon (it may be a dupe or a save)."
+  ru: "«%{name}» сжат LZMA, но внутри не аддон GMA (возможно, это дубликат или сохранение)."
+pkg.unknown:
+  en: "\"%{name}\" is not a VPK or GMA package."
+  ru: "«%{name}» не является пакетом VPK или GMA."
+pkg.too_large:
+  en: "\"%{path}\" is too large to preview."
+  ru: "«%{path}» слишком большой для предпросмотра."
+pkg.cannot_read:
+  en: "%{path}: cannot read \"%{archive}\"."
+  ru: "%{path}: не удалось прочитать «%{archive}»."
+pkg.truncated:
+  en: "%{path}: data is truncated or the disk is full."
+  ru: "%{path}: данные обрезаны или диск заполнен."
+pkg.unsafe_path:
+  en: "Unsafe path \"%{path}\" skipped."
+  ru: "Пропущен небезопасный путь «%{path}»."
+pkg.create_folder:
+  en: "Could not create the folder for \"%{path}\"."
+  ru: "Не удалось создать папку для «%{path}»."
+launch.missing:
+  en: "\"%{path}\" does not exist."
+  ru: "«%{path}» не существует."
+launch.no_proton:
+  en: "No Proton version found for %{name}."
+  ru: "Для %{name} не найдена версия Proton."
+launch.no_prefix:
+  en: "%{name} has no Proton prefix yet. Start the game once from Steam."
+  ru: "У %{name} ещё нет префикса Proton. Запустите игру один раз из Steam."
+launch.no_steam:
+  en: "The steam command was not found."
+  ru: "Команда steam не найдена."
+launch.no_tool:
+  en: "%{name} has no %{tool} in its tools folder. Set one on the Games page."
+  ru: "У %{name} нет %{tool} в папке утилит. Укажите её на странице «Игры»."
+fs.moved:
+  en: "Moved \"%{name}\" to \"%{folder}\"."
+  ru: "«%{name}» перемещён в «%{folder}»."
+fs.move_failed:
+  en: "WARNING: Could not move \"%{source}\" to \"%{target}\"."
+  ru: "ВНИМАНИЕ: не удалось переместить «%{source}» в «%{target}»."
+studio.folder_not_found:
+  en: "WARNING: Compiled model folder \"%{game}/models/%{subpath}\" was not found."
+  ru: "ВНИМАНИЕ: папка скомпилированной модели «%{game}/models/%{subpath}» не найдена."
+studio.create_failed:
+  en: "WARNING: Could not create \"%{path}\"."
+  ru: "ВНИМАНИЕ: не удалось создать «%{path}»."
+studio.no_compiled:
+  en: "WARNING: No compiled files for \"%{model}\" found in \"%{folder}\"."
+  ru: "ВНИМАНИЕ: скомпилированные файлы «%{model}» не найдены в «%{folder}»."
+studio.no_modelname:
+  en: "WARNING: No $modelname found in the QC file; compiled files were left in the game's \"models\" folder."
+  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке «models» игры."
+pack.not_folder:
+  en: "\"%{path}\" is not a folder."
+  ru: "«%{path}» не является папкой."
+pack.no_addon_json:
+  en: "gmad needs an addon.json file in \"%{path}\"."
+  ru: "Для gmad нужен файл addon.json в «%{path}»."
+pack.io:
+  en: "%{path}: %{error}"
+  ru: "%{path}: %{error}"
+pack.invalid_json:
+  en: "addon.json is not valid JSON: %{error}"
+  ru: "addon.json — некорректный JSON: %{error}"
+pack.invalid_json_kept:
+  en: "addon.json is not valid JSON, so it was left as is: %{error}"
+  ru: "addon.json — некорректный JSON, поэтому оставлен как есть: %{error}"
+pack.unsafe_update:
+  en: "addon.json could not be updated safely, so it was left as is."
+  ru: "addon.json не удалось безопасно обновить, поэтому он оставлен как есть."
+pack.addon_json_exists:
+  en: "The folder already has an addon.json."
+  ru: "В папке уже есть addon.json."
+pack.not_created:
+  en: "WARNING: The packer did not create \"%{path}\"."
+  ru: "ВНИМАНИЕ: упаковщик не создал «%{path}»."
+ws.not_found:
+  en: "Item %{id} was not found, or it is private or removed."
+  ru: "Предмет %{id} не найден, скрыт или удалён."
+ws.no_details:
+  en: "Steam returned no item details."
+  ru: "Steam не вернул сведения о предмете."
+ws.network:
+  en: "Could not reach Steam: %{error}"
+  ru: "Нет связи со Steam: %{error}"
+ws.no_steamcmd:
+  en: "steamcmd is not installed."
+  ru: "steamcmd не установлен."
+ws.create_failed:
+  en: "Could not create \"%{path}\"."
+  ru: "Не удалось создать «%{path}»."
+ws.write_failed:
+  en: "Could not write \"%{path}\"."
+  ru: "Не удалось записать «%{path}»."
+ws.copy_failed:
+  en: "Could not copy \"%{source}\" to \"%{target}\"."
+  ru: "Не удалось скопировать «%{source}» в «%{target}»."
+ws.cancelled:
+  en: "Cancelled."
+  ru: "Отменено."
+pub.needs_gma_and_icon:
+  en: "A new item needs a GMA file and an icon."
+  ru: "Для нового предмета нужны файл GMA и значок."
+pub.needs_something:
+  en: "Select a GMA file, an icon or both to update."
+  ru: "Для обновления выберите файл GMA, значок или и то и другое."
+pub.needs_icon:
+  en: "A new item needs an icon."
+  ru: "Для нового предмета нужен значок."
+pub.icon_read:
+  en: "Could not read the icon \"%{path}\": %{error}"
+  ru: "Не удалось прочитать значок «%{path}»: %{error}"
+pub.icon_write:
+  en: "Could not write \"%{path}\": %{error}"
+  ru: "Не удалось записать «%{path}»: %{error}"
