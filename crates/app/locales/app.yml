@@ -1,0 +1,34 @@
+_version: 2
+nav.main:
+  en: "Tools"
+  ru: "Инструменты"
+page.games:
+  en: "Games"
+  ru: "Игры"
+page.compile:
+  en: "Compile"
+  ru: "Компиляция"
+page.view:
+  en: "View"
+  ru: "Просмотр"
+page.packages:
+  en: "Browse Packages"
+  ru: "Обзор пакетов"
+page.pack:
+  en: "Pack"
+  ru: "Упаковка"
+page.workshop:
+  en: "Workshop"
+  ru: "Мастерская"
+page.download:
+  en: "Download"
+  ru: "Загрузка"
+page.settings:
+  en: "Settings"
+  ru: "Настройки"
+page.not_ready:
+  en: "This page is not ready yet"
+  ru: "Эта страница пока не готова"
+tasks.none:
+  en: "No tasks"
+  ru: "Задач нет"
