@@ -34,31 +34,31 @@ pkg.gma_corrupt:
   ru: "Таблица файлов GMA повреждена."
 pkg.lzma_invalid:
   en: "\"%{name}\" is not a valid LZMA-compressed package."
-  ru: "«%{name}» не является корректным пакетом, сжатым LZMA."
+  ru: "\"%{name}\" не является корректным пакетом, сжатым LZMA."
 pkg.lzma_no_gma:
   en: "\"%{name}\" is LZMA-compressed but holds no GMA addon (it may be a dupe or a save)."
-  ru: "«%{name}» сжат LZMA, но внутри не аддон GMA (возможно, это дубликат или сохранение)."
+  ru: "\"%{name}\" сжат LZMA, но внутри не аддон GMA (возможно, это дубликат или сохранение)."
 pkg.unknown:
   en: "\"%{name}\" is not a VPK or GMA package."
-  ru: "«%{name}» не является пакетом VPK или GMA."
+  ru: "\"%{name}\" не является пакетом VPK или GMA."
 pkg.too_large:
   en: "\"%{path}\" is too large to preview."
-  ru: "«%{path}» слишком большой для предпросмотра."
+  ru: "\"%{path}\" слишком большой для предпросмотра."
 pkg.cannot_read:
   en: "%{path}: cannot read \"%{archive}\"."
-  ru: "%{path}: не удалось прочитать «%{archive}»."
+  ru: "%{path}: не удалось прочитать \"%{archive}\"."
 pkg.truncated:
   en: "%{path}: data is truncated or the disk is full."
   ru: "%{path}: данные обрезаны или диск заполнен."
 pkg.unsafe_path:
   en: "Unsafe path \"%{path}\" skipped."
-  ru: "Пропущен небезопасный путь «%{path}»."
+  ru: "Пропущен небезопасный путь \"%{path}\"."
 pkg.create_folder:
   en: "Could not create the folder for \"%{path}\"."
-  ru: "Не удалось создать папку для «%{path}»."
+  ru: "Не удалось создать папку для \"%{path}\"."
 launch.missing:
   en: "\"%{path}\" does not exist."
-  ru: "«%{path}» не существует."
+  ru: "\"%{path}\" не существует."
 launch.no_proton:
   en: "No Proton version found for %{name}."
   ru: "Для %{name} не найдена версия Proton."
@@ -70,31 +70,31 @@ launch.no_steam:
   ru: "Команда steam не найдена."
 launch.no_tool:
   en: "%{name} has no %{tool} in its tools folder. Set one on the Games page."
-  ru: "У %{name} нет %{tool} в папке утилит. Укажите её на странице «Игры»."
+  ru: "У %{name} нет %{tool} в папке утилит. Укажите её на странице \"Игры\"."
 fs.moved:
   en: "Moved \"%{name}\" to \"%{folder}\"."
-  ru: "«%{name}» перемещён в «%{folder}»."
+  ru: "\"%{name}\" перемещён в \"%{folder}\"."
 fs.move_failed:
   en: "WARNING: Could not move \"%{source}\" to \"%{target}\"."
-  ru: "ВНИМАНИЕ: не удалось переместить «%{source}» в «%{target}»."
+  ru: "ВНИМАНИЕ: не удалось переместить \"%{source}\" в \"%{target}\"."
 studio.folder_not_found:
   en: "WARNING: Compiled model folder \"%{game}/models/%{subpath}\" was not found."
-  ru: "ВНИМАНИЕ: папка скомпилированной модели «%{game}/models/%{subpath}» не найдена."
+  ru: "ВНИМАНИЕ: папка скомпилированной модели \"%{game}/models/%{subpath}\" не найдена."
 studio.create_failed:
   en: "WARNING: Could not create \"%{path}\"."
-  ru: "ВНИМАНИЕ: не удалось создать «%{path}»."
+  ru: "ВНИМАНИЕ: не удалось создать \"%{path}\"."
 studio.no_compiled:
   en: "WARNING: No compiled files for \"%{model}\" found in \"%{folder}\"."
-  ru: "ВНИМАНИЕ: скомпилированные файлы «%{model}» не найдены в «%{folder}»."
+  ru: "ВНИМАНИЕ: скомпилированные файлы \"%{model}\" не найдены в \"%{folder}\"."
 studio.no_modelname:
   en: "WARNING: No $modelname found in the QC file; compiled files were left in the game's \"models\" folder."
-  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке «models» игры."
+  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке \"models\" игры."
 pack.not_folder:
   en: "\"%{path}\" is not a folder."
-  ru: "«%{path}» не является папкой."
+  ru: "\"%{path}\" не является папкой."
 pack.no_addon_json:
   en: "gmad needs an addon.json file in \"%{path}\"."
-  ru: "Для gmad нужен файл addon.json в «%{path}»."
+  ru: "Для gmad нужен файл addon.json в \"%{path}\"."
 pack.io:
   en: "%{path}: %{error}"
   ru: "%{path}: %{error}"
@@ -112,7 +112,7 @@ pack.addon_json_exists:
   ru: "В папке уже есть addon.json."
 pack.not_created:
   en: "WARNING: The packer did not create \"%{path}\"."
-  ru: "ВНИМАНИЕ: упаковщик не создал «%{path}»."
+  ru: "ВНИМАНИЕ: упаковщик не создал \"%{path}\"."
 ws.not_found:
   en: "Item %{id} was not found, or it is private or removed."
   ru: "Предмет %{id} не найден, скрыт или удалён."
@@ -127,13 +127,13 @@ ws.no_steamcmd:
   ru: "steamcmd не установлен."
 ws.create_failed:
   en: "Could not create \"%{path}\"."
-  ru: "Не удалось создать «%{path}»."
+  ru: "Не удалось создать \"%{path}\"."
 ws.write_failed:
   en: "Could not write \"%{path}\"."
-  ru: "Не удалось записать «%{path}»."
+  ru: "Не удалось записать \"%{path}\"."
 ws.copy_failed:
   en: "Could not copy \"%{source}\" to \"%{target}\"."
-  ru: "Не удалось скопировать «%{source}» в «%{target}»."
+  ru: "Не удалось скопировать \"%{source}\" в \"%{target}\"."
 ws.cancelled:
   en: "Cancelled."
   ru: "Отменено."
@@ -148,10 +148,10 @@ pub.needs_icon:
   ru: "Для нового предмета нужен значок."
 pub.icon_read:
   en: "Could not read the icon \"%{path}\": %{error}"
-  ru: "Не удалось прочитать значок «%{path}»: %{error}"
+  ru: "Не удалось прочитать значок \"%{path}\": %{error}"
 pub.icon_write:
   en: "Could not write \"%{path}\": %{error}"
-  ru: "Не удалось записать «%{path}»: %{error}"
+  ru: "Не удалось записать \"%{path}\": %{error}"
 task.error:
   en: "ERROR: %{error}"
   ru: "ОШИБКА: %{error}"
@@ -160,7 +160,7 @@ task.warning:
   ru: "ВНИМАНИЕ: %{error}"
 task.start_failed:
   en: "Could not start \"%{program}\": %{error}"
-  ru: "Не удалось запустить «%{program}»: %{error}"
+  ru: "Не удалось запустить \"%{program}\": %{error}"
 task.exit_code:
   en: "ERROR: Exited with code %{code}."
   ru: "ОШИБКА: завершено с кодом %{code}."
@@ -196,7 +196,7 @@ task.unpack:
   ru: "Распаковка %{name}"
 task.unpacking:
   en: "Unpacking %{count} file(s) to \"%{folder}\"…"
-  ru: "Распаковка файлов (%{count}) в «%{folder}»…"
+  ru: "Распаковка файлов (%{count}) в \"%{folder}\"…"
 task.unpack_cancelled:
   en: "Cancelled after %{count} file(s)."
   ru: "Отменено. Распаковано файлов: %{count}."
@@ -205,7 +205,7 @@ task.unpacked:
   ru: "Распаковано файлов: %{count}, с ошибками: %{failed}."
 task.search:
   en: "Search \"%{needle}\" in %{game}"
-  ru: "Поиск «%{needle}» в %{game}"
+  ru: "Поиск \"%{needle}\" в %{game}"
 task.search_where:
   en: "Looking in the game's VPKs, its addons folder and its workshop downloads…"
   ru: "Поиск в VPK игры, в папке addons и в загрузках из мастерской…"
@@ -265,13 +265,13 @@ task.steamcmd_failed:
   ru: "ОШИБКА: steamcmd не скачал предмет. Анонимная загрузка работает только для игр, которые её разрешают; подпишитесь на предмет в Steam."
 task.saved:
   en: "Saved \"%{path}\"."
-  ru: "Сохранено: «%{path}»."
+  ru: "Сохранено: \"%{path}\"."
 task.update:
   en: "Updating Prybar to %{version}"
   ru: "Обновление Prybar до %{version}"
 update.no_archive:
-  en: "This release has no Linux archive to update from."
-  ru: "В этом релизе нет архива для Linux, обновиться не из чего."
+  en: "This release has no Linux archive."
+  ru: "В этом релизе нет архива для Linux."
 update.no_sum:
   en: "SHA256SUMS has no checksum for %{name}."
   ru: "В SHA256SUMS нет контрольной суммы для %{name}."
@@ -283,4 +283,4 @@ update.no_binary:
   ru: "В архиве нет бинарника prybar."
 update.installed:
   en: "Installed to \"%{path}\". Restart Prybar to use the new version."
-  ru: "Установлено в «%{path}». Перезапустите Prybar, чтобы перейти на новую версию."
+  ru: "Установлено в \"%{path}\". Перезапустите Prybar, чтобы перейти на новую версию."

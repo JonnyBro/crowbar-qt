@@ -36,7 +36,7 @@ pub struct PackView {
 	_subscriptions: Vec<Subscription>,
 }
 
-/// So many refused files are listed on the page; the rest are counted.
+/// How many refused files the page lists; the rest are only counted.
 const SHOWN_INVALID: usize = 8;
 
 impl PackView {
@@ -242,7 +242,7 @@ impl PackView {
 		});
 	}
 
-	/// gmad fails on the first file it does not allow; asks first instead.
+	/// gmad stops at the first file it does not allow, so ask before running it.
 	fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
 		let prefs = &self.model.read(cx).ui.pack;
 		let (gma, warn_invalid) = (prefs.gma, prefs.warn_invalid);
@@ -601,7 +601,7 @@ impl Render for PackView {
 	}
 }
 
-/// What gmad will make of the folder: how many files go in, and which it refuses.
+/// How many files gmad will pack, and which ones it refuses.
 fn check_report(check: &Result<gma_whitelist::Check, String>, warn_invalid: bool, cx: &App) -> Div {
 	let theme = cx.theme();
 	let check = match check {

@@ -126,7 +126,6 @@ pub struct TaskView {
 /// An engine event that only the pages know what to do with.
 pub struct EngineEvent(pub Event);
 
-/// A task stopped running.
 pub struct TaskFinished {
 	pub snapshot: TaskSnapshot,
 	pub took: Duration,

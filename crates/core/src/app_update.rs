@@ -110,8 +110,8 @@ pub fn current_exe() -> std::io::Result<PathBuf> {
 	)
 }
 
-/// Whether this binary can replace itself: it lives in a folder the user can
-/// write to, not in a system folder a package manager owns.
+/// Whether this binary can replace itself, which needs a folder the user can
+/// write to. A package manager's system folder is not one.
 pub fn can_replace_self() -> bool {
 	current_exe()
 		.ok()
@@ -195,7 +195,7 @@ fn sha256_file(path: &Path) -> std::io::Result<String> {
 		.collect())
 }
 
-/// Only the binary is taken from the archive; nothing else in it is written out.
+/// Writes out only the binary from the archive.
 fn replace_binary(archive: &Path, dir: &Path, target: &Path) -> Result<(), String> {
 	use std::os::unix::fs::PermissionsExt;
 

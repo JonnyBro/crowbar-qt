@@ -10,12 +10,13 @@ Works with games installed natively and through Proton.
 ## Installing
 
 Download `prybar-vX.Y.Z-linux-x86_64.tar.gz` from the releases page and unpack it to a folder you own, such as
-`~/Apps/prybar`. Settings → Application → Add to Menu puts Prybar with its icon into the application menu and
-registers `.qc`, `.mdl`, `.vpk` and `.gma`, so the file manager can open them with it. Files opened this way
-while the window is open go to that window.
+`~/Apps/prybar`. Settings → Application → Add to Menu adds Prybar and its icon to the application menu and
+registers `.qc`, `.mdl`, `.vpk` and `.gma`, so the file manager can open them in Prybar. If the window is
+already open, the files open there.
 
-At start Prybar asks GitHub for a newer release (this can be turned off in Settings). The update button in the
-sidebar downloads the release archive, checks it against `SHA256SUMS`, replaces the binary and restarts.
+At start Prybar asks GitHub for a newer release; Settings can turn this off. The update button in the sidebar
+downloads the release archive, checks it against `SHA256SUMS` and replaces the binary. Restart Prybar from the
+same button to run the new version.
 
 ## Building
 
@@ -62,8 +63,8 @@ Interface strings live in `crates/*/locales/*.yml` (English and Russian). The co
 
 Every push and pull request runs `.github/workflows/ci.yml` (format, clippy, tests). Pushing a tag `vX.Y.Z`
 that matches the workspace version in `Cargo.toml` runs `.github/workflows/release.yml`, which builds the Linux
-archive (binary, desktop entry, icon, MIME types) and publishes a GitHub release with notes written by git-cliff from the Conventional Commits since the
-previous tag.
+archive (binary, desktop entry, icon, MIME types) and publishes a GitHub release with notes written by git-cliff
+from the Conventional Commits since the previous tag.
 
 ## License
 

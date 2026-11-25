@@ -82,7 +82,6 @@ pub struct Check {
 	pub ignored: usize,
 }
 
-/// gmad compares without regard to case.
 fn wildcard(pattern: &str, text: &str) -> bool {
 	let pattern = pattern.to_ascii_lowercase();
 	let text = text.to_ascii_lowercase();

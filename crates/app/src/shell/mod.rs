@@ -32,7 +32,7 @@ use crate::views::{
 };
 use tasks::TasksPanel;
 
-/// A batch of tasks that ran at least this long is worth a system notification.
+/// A batch that ran at least this long gets a system notification.
 const NOTIFY_AFTER: Duration = Duration::from_secs(5);
 const NOTIFICATION_TAG: &str = "prybar-tasks";
 

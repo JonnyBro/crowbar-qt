@@ -31,7 +31,7 @@ tasks.none:
   ru: "Задач нет"
 app.unknown_file:
   en: "Prybar does not open \"%{name}\"."
-  ru: "Prybar не открывает «%{name}»."
+  ru: "Prybar не открывает \"%{name}\"."
 common.browse:
   en: "Browse…"
   ru: "Обзор…"
@@ -52,7 +52,7 @@ game.none:
   ru: "Игра не выбрана."
 game.none_hint:
   en: "Pick one on the Games page"
-  ru: "Выберите её на странице «Игры»"
+  ru: "Выберите её на странице \"Игры\""
 games.add_folder:
   en: "Add Game Folder…"
   ru: "Добавить папку игры…"
@@ -130,7 +130,7 @@ games.tools_missing:
   ru: "нет"
 games.tools_missing_tip:
   en: "No modding tools in this game's bin folder. Use \"Tools Folder\" to point at the bin folder of the Windows build or of another game."
-  ru: "В папке bin этой игры нет утилит для моддинга. Через «Папка утилит» укажите папку bin Windows-сборки или другой игры."
+  ru: "В папке bin этой игры нет утилит для моддинга. Через \"Папка утилит\" укажите папку bin Windows-сборки или другой игры."
 games.tools_reset:
   en: "Use the Game's Own"
   ru: "Использовать утилиты игры"
@@ -175,7 +175,7 @@ compile.no_p4:
   ru: "Без P4 (-nop4)"
 compile.no_studiomdl:
   en: "%{name} has no studiomdl. Set a tools folder on the Games page."
-  ru: "У %{name} нет studiomdl. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет studiomdl. Укажите папку утилит на странице \"Игры\"."
 compile.open_hlmv:
   en: "Open in HLMV"
   ru: "Открыть в HLMV"
@@ -187,7 +187,7 @@ compile.out_folder:
   ru: "Рабочая папка"
 compile.out_game:
   en: "Game's \"models\" folder"
-  ru: "Папка «models» игры"
+  ru: "Папка \"models\" игры"
 compile.out_subfolder:
   en: "Subfolder of the QC's folder"
   ru: "Подпапка рядом с QC"
@@ -220,7 +220,7 @@ view.mdl:
   ru: "Файл MDL:"
 view.no_hlmv:
   en: "%{name} has no hlmv. Set a tools folder on the Games page."
-  ru: "У %{name} нет hlmv. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет hlmv. Укажите папку утилит на странице \"Игры\"."
 view.open:
   en: "Open Viewer"
   ru: "Открыть просмотр"
@@ -340,7 +340,7 @@ pack.no_tag:
   ru: "(без тега)"
 pack.no_tool:
   en: "%{name} has no %{tool}. Set a tools folder on the Games page."
-  ru: "У %{name} нет %{tool}. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет %{tool}. Укажите папку утилит на странице \"Игры\"."
 pack.options:
   en: "Options:"
   ru: "Параметры:"
@@ -391,7 +391,7 @@ ws.changes_placeholder:
   ru: "Описание изменений (только для обновлений)"
 ws.confirm_new:
   en: "Create a new workshop item from \"%{name}\"?"
-  ru: "Создать новый предмет мастерской из «%{name}»?"
+  ru: "Создать новый предмет мастерской из \"%{name}\"?"
 ws.confirm_update:
   en: "Upload to workshop item %{id}?"
   ru: "Загрузить в предмет мастерской %{id}?"
@@ -466,7 +466,7 @@ dl.get_info:
   ru: "Получить сведения"
 dl.hint:
   en: "Enter workshop links or item IDs, or a collection, and press Get Info."
-  ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите «Получить сведения»."
+  ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите \"Получить сведения\"."
 dl.links_placeholder:
   en: "Workshop links or IDs; collections are expanded"
   ru: "Ссылки или ID предметов; коллекции раскрываются"
@@ -687,8 +687,8 @@ set.desktop_remove:
   en: "Remove"
   ru: "Убрать"
 set.desktop_hint:
-  en: "Adds Prybar with its icon to the application menu and lets the file manager open .qc, .mdl, .vpk and .gma files with it."
-  ru: "Добавляет Prybar с иконкой в меню приложений, и файловый менеджер сможет открывать им файлы .qc, .mdl, .vpk и .gma."
+  en: "Adds Prybar and its icon to the application menu so the file manager opens .qc, .mdl, .vpk and .gma files in it."
+  ru: "Добавляет Prybar с иконкой в меню приложений, чтобы файловый менеджер открывал в нём файлы .qc, .mdl, .vpk и .gma."
 set.desktop_added:
   en: "Prybar is in the application menu."
   ru: "Prybar добавлен в меню приложений."
@@ -705,7 +705,7 @@ update.installing:
   en: "Updating…"
   ru: "Обновление…"
 update.restart:
-  en: "Restart to Update"
+  en: "Restart"
   ru: "Перезапустить"
 update.restart_failed:
   en: "Could not start the new version: %{error}"
@@ -727,7 +727,7 @@ pack.check_will_skip:
   ru: "Они будут пропущены."
 pack.check_will_fail:
   en: "Remove them, add them to \"ignore\" in addon.json, or turn on skipping invalid files."
-  ru: "Уберите их, добавьте в «ignore» в addon.json или включите пропуск недопустимых файлов."
+  ru: "Уберите их, добавьте в \"ignore\" в addon.json или включите пропуск недопустимых файлов."
 pack.check_failed:
   en: "Could not read the folder: %{error}"
   ru: "Не удалось прочитать папку: %{error}"
@@ -736,7 +736,7 @@ pack.invalid_title:
   ru: "gmad не пропустит часть файлов"
 pack.invalid_ask:
   en: "%{n} file(s) are not on gmad's whitelist, and gmad will refuse to pack the folder. Pack without them?"
-  ru: "Файлов не из вайтлиста gmad: %{n}. С ними gmad откажется паковать папку. Упаковать без них?"
+  ru: "Файлов вне вайтлиста gmad: %{n}. С ними gmad откажется паковать папку. Упаковать без них?"
 pack.pack_without:
   en: "Pack Without Them"
   ru: "Упаковать без них"
