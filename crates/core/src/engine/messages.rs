@@ -8,7 +8,10 @@ use crate::packer;
 use crate::publisher::WorkshopItem;
 use crate::settings::Settings;
 use crate::studiomdl;
+use crate::vtf;
 use crate::workshop::ItemDetails;
+
+pub const TEXTURE_PREVIEW_SIDE: u32 = 1024;
 
 /// Ties an answer to the question; the UI picks the numbers.
 pub type RequestId = u64;
@@ -52,6 +55,7 @@ pub enum Command {
 		path: PathBuf,
 	},
 	/// An entry's data for a preview; answered with [`Event::EntryRead`].
+	/// VTF textures arrive decoded, as a PNG of at most [`TEXTURE_PREVIEW_SIDE`] pixels a side.
 	ReadEntry {
 		request: RequestId,
 		package: Arc<Package>,
@@ -125,6 +129,8 @@ pub enum Event {
 	EntryRead {
 		request: RequestId,
 		result: Result<Arc<Vec<u8>>, String>,
+		/// Set when `result` is a texture converted to PNG.
+		texture: Option<vtf::Info>,
 	},
 	SearchResults {
 		request: RequestId,

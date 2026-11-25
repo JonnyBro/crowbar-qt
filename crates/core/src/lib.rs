@@ -22,6 +22,7 @@ pub mod steam;
 pub mod studiomdl;
 pub mod vdf;
 pub mod vpk_writer;
+pub mod vtf;
 pub mod workshop;
 
 pub use engine::{Command, Engine, Event};

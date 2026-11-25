@@ -7,10 +7,11 @@ use std::sync::Arc;
 use rust_i18n::t;
 
 use super::Context;
-use super::messages::{Event, RequestId};
+use super::messages::{Event, RequestId, TEXTURE_PREVIEW_SIDE};
 use super::task::{TaskKind, TaskState};
 use crate::games::Target;
 use crate::package::Package;
+use crate::vtf;
 
 /// More would only bury what the user is after.
 const MAX_SEARCH_RESULTS: usize = 5000;
@@ -34,14 +35,39 @@ pub(super) fn read_entry(
 ) {
 	let sink = context.sink.clone();
 	tokio::task::spawn_blocking(move || {
-		let result = match package.entries.get(index) {
-			Some(entry) => package
-				.read(entry, max_size)
-				.map(Arc::new)
-				.map_err(|e| e.to_string()),
-			None => Err(t!("task.no_entry").into_owned()),
+		let Some(entry) = package.entries.get(index) else {
+			let result = Err(t!("task.no_entry").into_owned());
+			sink.emit(Event::EntryRead {
+				request,
+				result,
+				texture: None,
+			});
+			return;
 		};
-		sink.emit(Event::EntryRead { request, result });
+		let data = package.read(entry, max_size).map_err(|e| e.to_string());
+		let event = if entry.path.to_ascii_lowercase().ends_with(".vtf") {
+			match data.and_then(|data| {
+				vtf::decode(&data, TEXTURE_PREVIEW_SIDE).map_err(|e| e.to_string())
+			}) {
+				Ok((info, texture)) => Event::EntryRead {
+					request,
+					result: Ok(Arc::new(texture.to_png())),
+					texture: Some(info),
+				},
+				Err(e) => Event::EntryRead {
+					request,
+					result: Err(e),
+					texture: None,
+				},
+			}
+		} else {
+			Event::EntryRead {
+				request,
+				result: data.map(Arc::new),
+				texture: None,
+			}
+		};
+		sink.emit(event);
 	});
 }
 

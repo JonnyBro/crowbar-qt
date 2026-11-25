@@ -368,3 +368,15 @@ vpk.skipped:
 vpk.too_big:
   en: "the data is over 4 GB; split it into chunks"
   ru: "данных больше 4 ГБ, включите разбиение на части"
+vtf.not_vtf:
+  en: "Not a VTF texture."
+  ru: "Это не текстура VTF."
+vtf.version:
+  en: "Unsupported VTF version %{version}."
+  ru: "Неподдерживаемая версия VTF: %{version}."
+vtf.truncated:
+  en: "The VTF file is truncated."
+  ru: "Файл VTF обрезан."
+vtf.format:
+  en: "Textures in the %{format} format can't be previewed."
+  ru: "Текстуры в формате %{format} не показываются."

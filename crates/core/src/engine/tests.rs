@@ -253,7 +253,9 @@ fn open_read_and_unpack_a_package() {
 		max_size: 100,
 	});
 	let data = h.wait(|e| match e {
-		Event::EntryRead { request: 8, result } => Some(result.clone()),
+		Event::EntryRead {
+			request: 8, result, ..
+		} => Some(result.clone()),
 		_ => None,
 	});
 	assert_eq!(data.unwrap().as_slice(), b"print(1)");

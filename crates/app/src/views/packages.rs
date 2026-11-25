@@ -24,6 +24,8 @@ use super::text_window::{self, TextWindow};
 
 /// Bigger entries are not read for a preview.
 const MAX_PREVIEW: u64 = 4 * 1024 * 1024;
+/// Textures keep their largest mipmap at the end, so the whole file is read.
+const MAX_TEXTURE_PREVIEW: u64 = 160 * 1024 * 1024;
 const TEXT_EXTENSIONS: [&str; 16] = [
 	"txt", "vmt", "qc", "qci", "lua", "json", "cfg", "res", "vdf", "nut", "smd", "fgd", "md",
 	"ini", "rad", "kv",
@@ -44,7 +46,11 @@ enum Preview {
 		text: String,
 		path: String,
 	},
-	Image(Arc<Image>),
+	Image {
+		image: Arc<Image>,
+		/// Size and format, for textures.
+		caption: Option<String>,
+	},
 	Unsupported,
 	Error(String),
 }
@@ -220,11 +226,19 @@ impl PackagesView {
 				}
 				self.apply_filter(cx);
 			}
-			Event::EntryRead { request, result } => {
+			Event::EntryRead {
+				request,
+				result,
+				texture,
+			} => {
 				if matches!(self.preview, Preview::Loading(r) if r == *request) {
-					self.preview = match result {
-						Ok(data) => self.make_preview(data, window, cx),
-						Err(e) => Preview::Error(e.clone()),
+					self.preview = match (result, texture) {
+						(Ok(png), Some(info)) => Preview::Image {
+							image: Arc::new(Image::from_bytes(ImageFormat::Png, png.to_vec())),
+							caption: Some(texture_caption(info)),
+						},
+						(Ok(data), None) => self.make_preview(data, window, cx),
+						(Err(e), _) => Preview::Error(e.clone()),
 					};
 					cx.notify();
 				}
@@ -263,7 +277,10 @@ impl PackagesView {
 			.map(|e| e.to_string_lossy().to_lowercase())
 			.unwrap_or_default();
 		if let Some(format) = widgets::image_format(data) {
-			return Preview::Image(Arc::new(Image::from_bytes(format, data.to_vec())));
+			return Preview::Image {
+				image: Arc::new(Image::from_bytes(format, data.to_vec())),
+				caption: None,
+			};
 		}
 		if TEXT_EXTENSIONS.contains(&extension.as_str()) {
 			let text = String::from_utf8_lossy(data).into_owned();
@@ -336,7 +353,12 @@ impl PackagesView {
 		let Some(entry) = package.entries.get(index) else {
 			return;
 		};
-		if entry.size > MAX_PREVIEW {
+		let max_size = if entry.path.to_ascii_lowercase().ends_with(".vtf") {
+			MAX_TEXTURE_PREVIEW
+		} else {
+			MAX_PREVIEW
+		};
+		if entry.size > max_size {
 			self.preview = Preview::Unsupported;
 			cx.notify();
 			return;
@@ -347,7 +369,7 @@ impl PackagesView {
 			request,
 			package,
 			index,
-			max_size: MAX_PREVIEW,
+			max_size,
 		});
 		cx.notify();
 	}
@@ -428,13 +450,28 @@ impl PackagesView {
 			Preview::Loading(_) => centered("…".into()),
 			Preview::Unsupported => centered(t!("packages.no_preview").into_owned()),
 			Preview::Error(e) => centered(e.clone()),
-			Preview::Image(image) => div()
+			Preview::Image { image, caption } => v_flex()
 				.size_full()
 				.p_3()
-				.flex()
+				.gap_2()
 				.items_center()
 				.justify_center()
-				.child(img(image.clone()).max_w_full().max_h_full())
+				.child(
+					div()
+						.flex_1()
+						.min_h_0()
+						.w_full()
+						.flex()
+						.items_center()
+						.justify_center()
+						.child(img(image.clone()).max_w_full().max_h_full()),
+				)
+				.children(caption.clone().map(|caption| {
+					div()
+						.text_xs()
+						.text_color(theme.muted_foreground)
+						.child(caption)
+				}))
 				.into_any_element(),
 			Preview::Text { editor, text, path } => {
 				let text = text.clone();
@@ -690,4 +727,13 @@ impl Render for PackagesView {
 					),
 			)
 	}
+}
+
+fn texture_caption(info: &prybar_core::vtf::Info) -> String {
+	let mut size = format!("{}×{}", info.width, info.height);
+	if info.depth > 1 {
+		size += &format!("×{}", info.depth);
+	}
+	let (major, minor) = info.version;
+	format!("{size} · {} · VTF {major}.{minor}", info.format.name())
 }
