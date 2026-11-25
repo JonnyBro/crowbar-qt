@@ -398,6 +398,19 @@ impl Render for SettingsView {
 				cx,
 			))
 			.child(hint(t!("set.environment_hint"), cx))
+			.child(field(
+				"GMA".into(),
+				Checkbox::new("use-gmad")
+					.label(t!("set.use_gmad").into_owned())
+					.checked(settings.use_gmad)
+					.on_click(cx.listener(|this, checked: &bool, _, cx| {
+						let checked = *checked;
+						this.model
+							.update(cx, |m, cx| m.update_settings(|s| s.use_gmad = checked, cx));
+					})),
+				cx,
+			))
+			.child(hint(t!("set.use_gmad_hint"), cx))
 			.when(!invalid.is_empty(), |this| {
 				this.child(
 					div().text_sm().text_color(cx.theme().warning).child(

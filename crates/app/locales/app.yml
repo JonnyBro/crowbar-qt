@@ -740,3 +740,9 @@ pack.invalid_ask:
 pack.pack_without:
   en: "Pack Without Them"
   ru: "Упаковать без них"
+set.use_gmad:
+  en: "Pack with the game's gmad"
+  ru: "Паковать через gmad игры"
+set.use_gmad_hint:
+  en: "Prybar writes GMA files itself, the same bytes gmad writes, without the game or Proton. Turn this on if a gmad update changes something Prybar doesn't know about yet; packing and publishing will then need the selected game's gmad."
+  ru: "Prybar сам пишет GMA, байт в байт как gmad, без игры и Proton. Включите, если в обновлении gmad появится что-то, чего Prybar ещё не знает. Тогда для упаковки и публикации понадобится gmad выбранной игры."

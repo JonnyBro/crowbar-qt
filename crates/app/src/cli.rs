@@ -92,6 +92,9 @@ pub enum PackageCommand {
 		/// Split a VPK into numbered parts.
 		#[arg(long)]
 		multi: bool,
+		/// Pack a GMA with the game's gmad instead of Prybar's own writer.
+		#[arg(long)]
+		gmad: bool,
 		/// Passed to the packer as they are.
 		#[arg(last = true)]
 		packer_options: Vec<String>,
@@ -154,8 +157,9 @@ pub fn run(command: CliCommand) -> ExitCode {
 			folder,
 			output,
 			multi,
+			gmad,
 			packer_options,
-		}) => pack(appid, format, &folder, &output, multi, packer_options),
+		}) => pack(appid, format, &folder, &output, multi, gmad, packer_options),
 		CliCommand::Workshop(WorkshopCommand::List { appid }) => workshop_list(appid),
 		CliCommand::Workshop(WorkshopCommand::Publish {
 			appid,
@@ -293,18 +297,22 @@ fn pack(
 	folder: &Path,
 	output: &Path,
 	multi: bool,
+	gmad: bool,
 	packer_options: Vec<String>,
 ) -> CliResult {
 	let output = std::path::absolute(output).map_err(|e| e.to_string())?;
 	let (warn_invalid, extra): (Vec<String>, Vec<String>) = packer_options
 		.into_iter()
 		.partition(|o| o == "-warninvalid");
-	if matches!(format, PackFormat::Gma) {
+	if matches!(format, PackFormat::Gma) && !gmad {
 		return pack_gma(folder, &output, !warn_invalid.is_empty());
 	}
 	let context = Context::load()?;
 	let app = context.app(appid)?;
-	let format = packer::Format::Vpk;
+	let format = match format {
+		PackFormat::Vpk => packer::Format::Vpk,
+		PackFormat::Gma => packer::Format::Gma,
+	};
 	let options = packer::Options {
 		multi_chunk: multi,
 		warn_invalid: !warn_invalid.is_empty(),

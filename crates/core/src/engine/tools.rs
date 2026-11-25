@@ -263,7 +263,7 @@ pub(super) async fn pack(
 	output: &Path,
 	options: &packer::Options,
 ) -> Option<Vec<PathBuf>> {
-	if format == packer::Format::Gma {
+	if format == packer::Format::Gma && !context.settings.use_gmad {
 		return pack_gma(task, folder, output, options.warn_invalid);
 	}
 	let Some(target) = target else {

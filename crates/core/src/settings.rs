@@ -63,6 +63,10 @@ pub struct Settings {
 	/// Game folders added by hand (a gameinfo.txt folder outside Steam's lists).
 	#[serde(skip_serializing_if = "Vec::is_empty")]
 	pub custom_folders: Vec<PathBuf>,
+	/// Pack GMA with the game's gmad instead of Prybar's own writer, in case
+	/// gmad changes before Prybar catches up.
+	#[serde(skip_serializing_if = "std::ops::Not::not")]
+	pub use_gmad: bool,
 	/// Don't ask GitHub for a newer release at start.
 	#[serde(skip_serializing_if = "std::ops::Not::not")]
 	pub skip_update_check: bool,

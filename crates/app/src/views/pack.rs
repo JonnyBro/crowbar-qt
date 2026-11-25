@@ -285,8 +285,9 @@ impl PackView {
 		};
 		let model = self.model.read(cx);
 		let prefs = model.ui.pack.clone();
+		let own_gma = prefs.gma && !model.settings.use_gmad;
 		let target = model.target.clone();
-		if target.is_none() && !prefs.gma {
+		if target.is_none() && !own_gma {
 			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
 			return;
 		}
@@ -310,7 +311,7 @@ impl PackView {
 		let options = packer::Options {
 			multi_chunk: !prefs.gma && prefs.multi,
 			warn_invalid: prefs.gma && (prefs.warn_invalid || skip_invalid),
-			extra: if prefs.gma {
+			extra: if own_gma {
 				Vec::new()
 			} else {
 				widgets::split_words(&prefs.extra)
@@ -433,10 +434,12 @@ impl Render for PackView {
 		let model = self.model.read(cx);
 		let prefs = model.ui.pack.clone();
 		let format = if prefs.gma { Format::Gma } else { Format::Vpk };
+		// The game's gmad is used only when the settings ask for it.
+		let own_gma = prefs.gma && !model.settings.use_gmad;
 		let missing_tool = model
 			.target
 			.as_ref()
-			.filter(|_| !prefs.gma)
+			.filter(|_| !own_gma)
 			.filter(|t| launcher::find_tool(&t.app, format.tool_name()).is_none())
 			.map(|t| t.app.name.clone());
 		let has_folder = !widgets::text(&self.folder, cx).is_empty();
@@ -490,7 +493,7 @@ impl Render for PackView {
 						})),
 				)
 			})
-			.when(!prefs.gma, |this| {
+			.when(!own_gma, |this| {
 				this.child(div().flex_1().child(Input::new(&self.extra).small()))
 			});
 		let output_row = v_flex()
