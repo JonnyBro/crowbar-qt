@@ -1,33 +1,28 @@
 use std::collections::HashMap;
-use std::ops::Range;
 use std::sync::Arc;
 
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
-	ActiveTheme, Disableable, Icon, IconName, Sizable, WindowExt, h_flex, v_flex,
+	ActiveTheme, Disableable, Icon, IconName, Sizable, Size, WindowExt, h_flex, v_flex,
 };
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::engine::{Event, RequestId, TaskKind, TaskState};
-use prybar_core::publisher::WorkshopItem;
-use prybar_core::workshop::{ItemDetails, item_url};
+use prybar_core::workshop::item_url;
 use prybar_core::{Command, launcher};
 use rust_i18n::t;
 
 use crate::model::{EngineEvent, Model};
-use crate::theme::Mono;
-use crate::widgets::{self, browse_button, field, format_date, page_header, path_row};
+use crate::widgets::{self, browse_button, field, page_header, path_row};
 
-const ROW_HEIGHT: f32 = 52.;
-const ICON_SIZE: f32 = 44.;
+use super::workshop_table::{self, WorkshopTable};
 
 pub struct WorkshopView {
 	model: Entity<Model>,
-	items: Vec<WorkshopItem>,
-	details: HashMap<u64, ItemDetails>,
-	previews: HashMap<u64, Arc<Image>>,
+	table: Entity<TableState<WorkshopTable>>,
 	/// Preview requests in flight, by the item they are for.
 	fetching: HashMap<RequestId, u64>,
 	selected: Option<u64>,
@@ -35,29 +30,50 @@ pub struct WorkshopView {
 	content: Entity<InputState>,
 	icon: Entity<InputState>,
 	changes: Entity<InputState>,
-	scroll: UniformListScrollHandle,
 	_subscriptions: Vec<Subscription>,
 }
 
 impl WorkshopView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		let prefs = model.read(cx).ui.workshop.clone();
 		let item_id = widgets::new_input("", t!("ws.id_placeholder").into_owned(), window, cx);
-		let content = widgets::new_input(
-			&prefs.content,
-			t!("ws.content_placeholder").into_owned(),
-			window,
-			cx,
-		);
-		let icon = widgets::new_input(
-			&prefs.icon,
-			t!("ws.icon_placeholder").into_owned(),
-			window,
-			cx,
-		);
+		let content = widgets::new_input("", t!("ws.content_placeholder").into_owned(), window, cx);
+		let icon = widgets::new_input("", t!("ws.icon_placeholder").into_owned(), window, cx);
 		let changes = widgets::new_input("", t!("ws.changes_placeholder").into_owned(), window, cx);
+		let table = cx.new(|cx| TableState::new(WorkshopTable::default(), window, cx));
 		let subscriptions = vec![
 			cx.observe(&model, |_, _, cx| cx.notify()),
+			// Sorting moves rows; the highlight follows the selected item, not its old row.
+			cx.observe(&table, |this, table, cx| {
+				let Some(id) = this.selected else {
+					return;
+				};
+				let index = table.read(cx).delegate().row_of(id);
+				if let Some(index) = index
+					&& table.read(cx).selected_row() != Some(index)
+				{
+					table.update(cx, |table, cx| table.set_selected_row(index, cx));
+				}
+			}),
+			cx.subscribe_in(
+				&table,
+				window,
+				|this, table, event: &TableEvent, window, cx| {
+					let id = |row: &usize| table.read(cx).delegate().row_id(*row);
+					match event {
+						TableEvent::SelectRow(row) => {
+							if let Some(id) = id(row) {
+								this.select(id, window, cx);
+							}
+						}
+						TableEvent::DoubleClickedRow(row) => {
+							if let Some(id) = id(row) {
+								widgets::open_with_desktop(item_url(id));
+							}
+						}
+						_ => {}
+					}
+				},
+			),
 			cx.subscribe_in(
 				&model,
 				window,
@@ -70,16 +86,13 @@ impl WorkshopView {
 		];
 		Self {
 			model,
-			items: Vec::new(),
-			details: HashMap::new(),
-			previews: HashMap::new(),
+			table,
 			fetching: HashMap::new(),
 			selected: None,
 			item_id,
 			content,
 			icon,
 			changes,
-			scroll: UniformListScrollHandle::new(),
 			_subscriptions: subscriptions,
 		}
 	}
@@ -87,12 +100,21 @@ impl WorkshopView {
 	fn on_event(&mut self, event: &Event, window: &mut Window, cx: &mut Context<Self>) {
 		match event {
 			Event::WorkshopItems(items) => {
-				self.items = items.clone();
-				cx.notify();
+				let items = items.clone();
+				self.table.update(cx, |table, cx| {
+					table.delegate_mut().set_items(items);
+					cx.notify();
+				});
 			}
 			Event::WorkshopDetails(details) => {
 				for item in details {
-					if !item.preview_url.is_empty() && !self.previews.contains_key(&item.id) {
+					let has_preview = self
+						.table
+						.read(cx)
+						.delegate()
+						.previews
+						.contains_key(&item.id);
+					if !item.preview_url.is_empty() && !has_preview {
 						let request = self.model.update(cx, |m, _| m.request_id());
 						self.fetching.insert(request, item.id);
 						self.model.read(cx).send(Command::FetchImage {
@@ -100,18 +122,22 @@ impl WorkshopView {
 							url: item.preview_url.clone(),
 						});
 					}
-					self.details.insert(item.id, item.clone());
 				}
-				cx.notify();
+				self.table.update(cx, |table, cx| {
+					table.delegate_mut().set_details(details);
+					cx.notify();
+				});
 			}
 			Event::Image { request, result } => {
 				if let Some(id) = self.fetching.remove(request)
 					&& let Ok(bytes) = result
 					&& let Some(format) = widgets::image_format(bytes)
 				{
-					self.previews
-						.insert(id, Arc::new(Image::from_bytes(format, bytes.to_vec())));
-					cx.notify();
+					let image = Arc::new(Image::from_bytes(format, bytes.to_vec()));
+					self.table.update(cx, |table, cx| {
+						table.delegate_mut().previews.insert(id, image);
+						cx.notify();
+					});
 				}
 			}
 			Event::Published { id, .. } => {
@@ -143,13 +169,6 @@ impl WorkshopView {
 	}
 
 	fn publish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-		let content = widgets::text(&self.content, cx);
-		let icon = widgets::text(&self.icon, cx);
-		self.model.update(cx, |m, _| {
-			m.ui.workshop.content = content.clone();
-			m.ui.workshop.icon = icon;
-			m.save_ui();
-		});
 		let id = widgets::text(&self.item_id, cx).parse::<u64>().ok();
 		let content_path = widgets::path(&self.content, cx).unwrap_or_default();
 		let icon = widgets::path(&self.icon, cx);
@@ -192,75 +211,6 @@ impl WorkshopView {
 				})
 		});
 	}
-
-	fn render_rows(
-		&mut self,
-		range: Range<usize>,
-		_: &mut Window,
-		cx: &mut Context<Self>,
-	) -> Vec<AnyElement> {
-		let theme = cx.theme().clone();
-		range
-			.filter_map(|ix| self.items.get(ix).map(|item| (ix, item.clone())))
-			.map(|(ix, item)| {
-				let id = item.id;
-				let details = self.details.get(&id);
-				let updated = details
-					.map(|d| format_date(d.updated))
-					.filter(|d| !d.is_empty());
-				let preview: AnyElement = match self.previews.get(&id) {
-					Some(image) => img(image.clone())
-						.size(px(ICON_SIZE))
-						.rounded(theme.radius)
-						.into_any_element(),
-					None => div()
-						.size(px(ICON_SIZE))
-						.rounded(theme.radius)
-						.bg(theme.muted)
-						.into_any_element(),
-				};
-				h_flex()
-					.id(("ws-item", ix))
-					.h(px(ROW_HEIGHT))
-					.px_3()
-					.gap_3()
-					.border_b_1()
-					.border_color(theme.border.opacity(0.5))
-					.when(self.selected == Some(id), |r| r.bg(theme.list_active))
-					.hover(|r| r.bg(theme.list_hover))
-					.on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
-						if event.click_count() == 2 {
-							widgets::open_with_desktop(item_url(id));
-						} else {
-							this.select(id, window, cx);
-						}
-					}))
-					.child(preview)
-					.child(
-						v_flex()
-							.flex_1()
-							.min_w_0()
-							.child(div().truncate().child(item.title.clone()))
-							.child(
-								div()
-									.text_xs()
-									.mono(cx)
-									.text_color(theme.muted_foreground)
-									.child(id.to_string()),
-							),
-					)
-					.child(div().w(px(90.)).text_sm().child(item.size.clone()))
-					.child(
-						div()
-							.w(px(100.))
-							.text_sm()
-							.text_color(theme.muted_foreground)
-							.child(updated.unwrap_or_default()),
-					)
-					.into_any_element()
-			})
-			.collect()
-	}
 }
 
 impl Render for WorkshopView {
@@ -280,7 +230,7 @@ impl Render for WorkshopView {
 		let selected = self.selected;
 		let content = self.content.clone();
 		let icon = self.icon.clone();
-		let count = self.items.len();
+		let count = self.table.read(cx).delegate().rows.len();
 
 		let list: AnyElement = if count == 0 {
 			div()
@@ -292,9 +242,9 @@ impl Render for WorkshopView {
 				.child(t!("ws.empty").into_owned())
 				.into_any_element()
 		} else {
-			uniform_list("ws-items", count, cx.processor(Self::render_rows))
-				.track_scroll(&self.scroll)
-				.flex_1()
+			DataTable::new(&self.table)
+				.with_size(Size::Size(px(workshop_table::ROW_HEIGHT)))
+				.header_row_height(px(32.))
 				.into_any_element()
 		};
 
@@ -380,15 +330,7 @@ impl Render for WorkshopView {
 						)
 					}),
 			)
-			.child(
-				v_flex()
-					.flex_1()
-					.min_h_0()
-					.border_1()
-					.border_color(theme.border)
-					.rounded(theme.radius)
-					.child(list),
-			)
+			.child(v_flex().flex_1().min_h_0().child(list))
 			.child(field(
 				t!("ws.item_id").into_owned(),
 				Input::new(&self.item_id).small(),

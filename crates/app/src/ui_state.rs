@@ -1,33 +1,71 @@
-//! What the pages remember between runs: fields, choices, the open page.
+//! What the pages remember between runs: choices and options, the open page.
+//! Paths are not remembered; every run starts with empty path fields.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use gpui_kit::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiState {
+	/// Size and place of the window when it was last closed.
+	pub window: Option<SavedBounds>,
 	pub page: String,
 	pub tasks_open: bool,
 	pub compile: CompilePrefs,
-	pub view_mdl: String,
 	pub packages: PackagesPrefs,
 	pub pack: PackPrefs,
-	pub workshop: WorkshopPrefs,
 	pub download: DownloadPrefs,
 }
 
 impl Default for UiState {
 	fn default() -> Self {
 		Self {
+			window: None,
 			page: String::new(),
 			tasks_open: true,
 			compile: CompilePrefs::default(),
-			view_mdl: String::new(),
 			packages: PackagesPrefs::default(),
 			pack: PackPrefs::default(),
-			workshop: WorkshopPrefs::default(),
 			download: DownloadPrefs::default(),
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SavedBounds {
+	pub x: f32,
+	pub y: f32,
+	pub width: f32,
+	pub height: f32,
+	pub maximized: bool,
+}
+
+impl SavedBounds {
+	pub fn from_window(bounds: WindowBounds) -> Self {
+		let (b, maximized) = match bounds {
+			WindowBounds::Windowed(b) => (b, false),
+			WindowBounds::Maximized(b) | WindowBounds::Fullscreen(b) => (b, true),
+		};
+		Self {
+			x: b.origin.x.as_f32(),
+			y: b.origin.y.as_f32(),
+			width: b.size.width.as_f32(),
+			height: b.size.height.as_f32(),
+			maximized,
+		}
+	}
+
+	pub fn to_window(self) -> WindowBounds {
+		let b = Bounds::new(
+			point(px(self.x), px(self.y)),
+			size(px(self.width), px(self.height)),
+		);
+		if self.maximized {
+			WindowBounds::Maximized(b)
+		} else {
+			WindowBounds::Windowed(b)
 		}
 	}
 }
@@ -48,10 +86,8 @@ pub enum OutputMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CompilePrefs {
-	pub files: Vec<PathBuf>,
 	pub output: OutputMode,
 	pub subfolder: String,
-	pub folder: String,
 	pub no_p4: bool,
 	pub verbose: bool,
 	pub view_after: bool,
@@ -61,10 +97,8 @@ pub struct CompilePrefs {
 impl Default for CompilePrefs {
 	fn default() -> Self {
 		Self {
-			files: Vec::new(),
 			output: OutputMode::Beside,
 			subfolder: "compiled".into(),
-			folder: String::new(),
 			no_p4: true,
 			verbose: false,
 			view_after: false,
@@ -76,34 +110,22 @@ impl Default for CompilePrefs {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PackagesPrefs {
-	pub file: String,
 	pub output: OutputMode,
-	pub folder: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PackPrefs {
-	pub folder: String,
 	pub gma: bool,
 	pub output: OutputMode,
-	pub output_folder: String,
 	pub multi: bool,
 	pub warn_invalid: bool,
 	pub extra: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct WorkshopPrefs {
-	pub content: String,
-	pub icon: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DownloadPrefs {
-	pub folder: String,
 	pub with_title: bool,
 	pub convert: bool,
 }
@@ -111,7 +133,6 @@ pub struct DownloadPrefs {
 impl Default for DownloadPrefs {
 	fn default() -> Self {
 		Self {
-			folder: String::new(),
 			with_title: true,
 			convert: true,
 		}

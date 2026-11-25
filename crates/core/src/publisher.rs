@@ -31,8 +31,31 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkshopItem {
 	pub id: u64,
+	/// As gmpublish prints it, e.g. "145.0 KB".
 	pub size: String,
 	pub title: String,
+}
+
+impl WorkshopItem {
+	/// The size in bytes; `None` when gmpublish printed nothing sensible, as
+	/// it does for some items ("17179869184.0 GB").
+	pub fn size_bytes(&self) -> Option<u64> {
+		parse_size(&self.size)
+	}
+}
+
+/// gmpublish sizes use 1024-based units with SI names.
+fn parse_size(text: &str) -> Option<u64> {
+	const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+	/// Bigger than any addon the workshop accepts.
+	const LIMIT: f64 = 1024. * 1024. * 1024. * 1024.;
+	let (number, unit) = text.trim().split_once(' ')?;
+	let number: f64 = number.parse().ok()?;
+	let power = UNITS
+		.iter()
+		.position(|u| u.eq_ignore_ascii_case(unit.trim()))?;
+	let bytes = number * 1024f64.powi(i32::try_from(power).ok()?);
+	(bytes.is_finite() && (0.0..LIMIT).contains(&bytes)).then_some(bytes.round() as u64)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -279,6 +302,20 @@ mod tests {
 		assert_eq!(items[1].title, "MW 2019 SMG | Compressed 512x512");
 		assert_eq!(items[2].title, "Two lines");
 		assert_eq!(items[3].title, "");
+	}
+
+	#[test]
+	fn sizes() {
+		let item = |size: &str| WorkshopItem {
+			size: size.into(),
+			..WorkshopItem::default()
+		};
+		assert_eq!(item("1 B").size_bytes(), Some(1));
+		assert_eq!(item("145.0 KB").size_bytes(), Some(148_480));
+		assert_eq!(item("12.8 MB").size_bytes(), Some(13_421_773));
+		assert_eq!(item("17179869184.0 GB").size_bytes(), None);
+		assert_eq!(item("").size_bytes(), None);
+		assert_eq!(item("big").size_bytes(), None);
 	}
 
 	#[test]

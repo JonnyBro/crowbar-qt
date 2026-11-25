@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
-use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
 	ActiveTheme, Disableable, Icon, IconName, Sizable, WindowExt, h_flex, v_flex,
 };
@@ -16,49 +16,97 @@ use prybar_core::{Command, launcher, studiomdl};
 use rust_i18n::t;
 
 use crate::model::Model;
-use crate::theme::Mono;
 use crate::ui_state::OutputMode;
 use crate::widgets::{
 	self, PickOptions, browse_button, choice, field, hint, page_header, path_row,
 };
 
-const ROW_HEIGHT: f32 = 28.;
+use super::compile_table::CompileTable;
 
 pub struct CompileView {
 	model: Entity<Model>,
-	selected: BTreeSet<usize>,
-	/// Files sent to the engine whose task hasn't started yet.
-	queued: BTreeSet<PathBuf>,
+	table: Entity<TableState<CompileTable>>,
+	/// The file clicked last; the one actions use when none is checked.
+	current: Option<PathBuf>,
 	subfolder: Entity<InputState>,
 	folder: Entity<InputState>,
 	extra: Entity<InputState>,
-	scroll: UniformListScrollHandle,
+	_subscriptions: Vec<Subscription>,
 }
 
 impl CompileView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		cx.observe(&model, |this, model, cx| {
-			let model = model.read(cx);
-			this.queued.retain(|file| {
-				model
-					.task_for(file)
-					.is_none_or(|t| t.snapshot.state.is_finished())
-			});
-			// A cancelled compile stops the rest of the queue.
-			let cancelled = model.tasks.iter().any(|t| {
-				t.snapshot.kind == TaskKind::Compile && t.snapshot.state == TaskState::Cancelled
-			});
-			if cancelled && model.running() == 0 {
-				this.queued.clear();
-			}
-			cx.notify();
-		})
-		.detach();
+		let table = cx.new(|cx| TableState::new(CompileTable::new(model.clone()), window, cx));
+		let subscriptions = vec![
+			cx.observe(&model, |this, model, cx| {
+				let model = model.read(cx);
+				// A cancelled compile stops the rest of the queue.
+				let cancelled = model.tasks.iter().any(|t| {
+					t.snapshot.kind == TaskKind::Compile && t.snapshot.state == TaskState::Cancelled
+				});
+				let idle = model.running() == 0;
+				let started: Vec<PathBuf> = this
+					.table
+					.read(cx)
+					.delegate()
+					.queued
+					.iter()
+					.filter(|f| {
+						model
+							.task_for(f)
+							.is_some_and(|t| !t.snapshot.state.is_finished())
+					})
+					.cloned()
+					.collect();
+				this.table.update(cx, |table, cx| {
+					let queued = &mut table.delegate_mut().queued;
+					for file in started {
+						queued.remove(&file);
+					}
+					if cancelled && idle {
+						queued.clear();
+					}
+					cx.notify();
+				});
+				cx.notify();
+			}),
+			cx.observe(&table, |this, table, cx| {
+				// Sorting moves rows; the highlight follows the current file, not its old row.
+				if let Some(current) = &this.current {
+					let index = table.read(cx).delegate().row_of(current);
+					if let Some(index) = index
+						&& table.read(cx).selected_row() != Some(index)
+					{
+						table.update(cx, |table, cx| table.set_selected_row(index, cx));
+					}
+				}
+				cx.notify();
+			}),
+			cx.subscribe_in(
+				&table,
+				window,
+				|this, table, event: &TableEvent, window, cx| {
+					let file = |row: &usize| table.read(cx).delegate().file(*row).cloned();
+					match event {
+						TableEvent::SelectRow(row) => {
+							this.current = file(row);
+							cx.notify();
+						}
+						TableEvent::DoubleClickedRow(row) => {
+							if let Some(file) = file(row) {
+								this.view_compiled(&file, window, cx);
+							}
+						}
+						_ => {}
+					}
+				},
+			),
+		];
 		let prefs = model.read(cx).ui.compile.clone();
 		Self {
 			subfolder: widgets::new_input(&prefs.subfolder, "compiled".into(), window, cx),
 			folder: widgets::new_input(
-				&prefs.folder,
+				"",
 				t!("compile.folder_placeholder").into_owned(),
 				window,
 				cx,
@@ -70,14 +118,10 @@ impl CompileView {
 				cx,
 			),
 			model,
-			selected: BTreeSet::new(),
-			queued: BTreeSet::new(),
-			scroll: UniformListScrollHandle::new(),
+			table,
+			current: None,
+			_subscriptions: subscriptions,
 		}
-	}
-
-	fn files<'a>(&self, cx: &'a App) -> &'a [PathBuf] {
-		&self.model.read(cx).ui.compile.files
 	}
 
 	/// QC files, and every QC file under folders.
@@ -90,36 +134,45 @@ impl CompileView {
 				found.push(path);
 			}
 		}
-		self.model.update(cx, |m, _| {
-			for file in found {
-				if !m.ui.compile.files.contains(&file) {
-					m.ui.compile.files.push(file);
-				}
-			}
-			m.save_ui();
+		self.table.update(cx, |table, cx| {
+			table.delegate_mut().add(found, cx);
+			cx.notify();
 		});
 		cx.notify();
 	}
 
+	/// The checked files, or the current one when none is checked.
+	fn picked(&self, cx: &App) -> Vec<PathBuf> {
+		self.table.read(cx).delegate().picked(self.current.as_ref())
+	}
+
 	fn remove_selected(&mut self, cx: &mut Context<Self>) {
-		let selected = std::mem::take(&mut self.selected);
-		self.model.update(cx, |m, _| {
-			let mut i = 0;
-			m.ui.compile.files.retain(|_| {
-				let keep = !selected.contains(&i);
-				i += 1;
-				keep
-			});
-			m.save_ui();
+		let gone: BTreeSet<PathBuf> = self.picked(cx).into_iter().collect();
+		if self.current.as_ref().is_some_and(|c| gone.contains(c)) {
+			self.current = None;
+		}
+		self.table.update(cx, |table, cx| {
+			table.delegate_mut().remove(&gone, cx);
+			table.clear_selection(cx);
+			cx.notify();
 		});
 		cx.notify();
 	}
 
 	fn clear(&mut self, cx: &mut Context<Self>) {
-		self.selected.clear();
-		self.model.update(cx, |m, _| {
-			m.ui.compile.files.clear();
-			m.save_ui();
+		self.current = None;
+		let all: BTreeSet<PathBuf> = self
+			.table
+			.read(cx)
+			.delegate()
+			.files
+			.iter()
+			.cloned()
+			.collect();
+		self.table.update(cx, |table, cx| {
+			table.delegate_mut().remove(&all, cx);
+			table.clear_selection(cx);
+			cx.notify();
 		});
 		cx.notify();
 	}
@@ -132,13 +185,11 @@ impl CompileView {
 	/// Writes the fields into the remembered state; `None` when the output folder is missing.
 	fn store(&mut self, cx: &mut Context<Self>) -> Option<CompileOutput> {
 		let subfolder = widgets::text(&self.subfolder, cx);
-		let folder = widgets::text(&self.folder, cx);
 		let extra = widgets::text(&self.extra, cx);
 		let folder_path = widgets::path(&self.folder, cx);
 		self.model.update(cx, |m, _| {
 			let prefs = &mut m.ui.compile;
 			prefs.subfolder = subfolder.clone();
-			prefs.folder = folder;
 			prefs.extra = extra;
 			m.save_ui();
 			match m.ui.compile.output {
@@ -165,15 +216,11 @@ impl CompileView {
 			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
 			return;
 		};
-		let files: Vec<PathBuf> = model
-			.ui
-			.compile
-			.files
-			.iter()
-			.enumerate()
-			.filter(|(i, _)| !selected_only || self.selected.contains(i))
-			.map(|(_, f)| f.clone())
-			.collect();
+		let files = if selected_only {
+			self.picked(cx)
+		} else {
+			self.table.read(cx).delegate().files.clone()
+		};
 		if files.is_empty() {
 			return;
 		}
@@ -184,13 +231,17 @@ impl CompileView {
 			extra: widgets::split_words(&prefs.extra),
 		};
 		let view_after = prefs.view_after;
-		self.queued.extend(files.iter().cloned());
+		let queued = files.clone();
 		model.send(Command::Compile {
 			target,
 			files,
 			options,
 			output,
 			view_after,
+		});
+		self.table.update(cx, |table, cx| {
+			table.delegate_mut().queued.extend(queued);
+			cx.notify();
 		});
 		cx.notify();
 	}
@@ -203,7 +254,10 @@ impl CompileView {
 				model.send(Command::Cancel(task.snapshot.id));
 			}
 		}
-		self.queued.clear();
+		self.table.update(cx, |table, cx| {
+			table.delegate_mut().queued.clear();
+			cx.notify();
+		});
 		cx.notify();
 	}
 
@@ -230,81 +284,6 @@ impl CompileView {
 			}
 		}
 	}
-
-	fn status(&self, file: &Path, cx: &App) -> (String, Hsla) {
-		let theme = cx.theme();
-		let task = self.model.read(cx).task_for(file);
-		if task.is_some_and(|t| !t.snapshot.state.is_finished()) {
-			return (t!("compile.compiling").into_owned(), theme.primary);
-		}
-		if self.queued.contains(file) {
-			return (t!("compile.queued").into_owned(), theme.muted_foreground);
-		}
-		if !file.is_file() {
-			return (t!("compile.missing").into_owned(), theme.danger);
-		}
-		match task.map(|t| t.snapshot.state) {
-			Some(TaskState::Succeeded) => (t!("tasks.state_done").into_owned(), theme.success),
-			Some(TaskState::Failed) => (t!("tasks.state_failed").into_owned(), theme.danger),
-			Some(TaskState::Cancelled) => (
-				t!("tasks.state_cancelled").into_owned(),
-				theme.muted_foreground,
-			),
-			_ => (String::new(), theme.muted_foreground),
-		}
-	}
-
-	fn render_rows(
-		&mut self,
-		range: Range<usize>,
-		_: &mut Window,
-		cx: &mut Context<Self>,
-	) -> Vec<AnyElement> {
-		let theme = cx.theme().clone();
-		let files = self.files(cx).to_vec();
-		range
-			.filter_map(|ix| files.get(ix).map(|f| (ix, f.clone())))
-			.map(|(ix, file)| {
-				let (status, color) = self.status(&file, cx);
-				let selected = self.selected.contains(&ix);
-				let double = file.clone();
-				h_flex()
-					.id(("qc", ix))
-					.h(px(ROW_HEIGHT))
-					.px_3()
-					.gap_3()
-					.border_b_1()
-					.border_color(theme.border.opacity(0.5))
-					.when(selected, |r| r.bg(theme.list_active))
-					.hover(|r| r.bg(theme.list_hover))
-					.on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
-						if event.click_count() == 2 {
-							this.view_compiled(&double, window, cx);
-							return;
-						}
-						if event.modifiers().control || event.modifiers().shift {
-							if !this.selected.remove(&ix) {
-								this.selected.insert(ix);
-							}
-						} else {
-							this.selected = BTreeSet::from([ix]);
-						}
-						cx.notify();
-					}))
-					.child(
-						div()
-							.flex_1()
-							.min_w_0()
-							.truncate()
-							.mono(cx)
-							.text_sm()
-							.child(file.display().to_string()),
-					)
-					.child(div().w(px(120.)).text_sm().text_color(color).child(status))
-					.into_any_element()
-			})
-			.collect()
-	}
 }
 
 fn collect_qcs(dir: &Path, found: &mut Vec<PathBuf>) {
@@ -329,7 +308,10 @@ impl Render for CompileView {
 	fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
 		let model = self.model.read(cx);
 		let prefs = model.ui.compile.clone();
-		let count = prefs.files.len();
+		let delegate = self.table.read(cx).delegate();
+		let count = delegate.files.len();
+		let queued = !delegate.queued.is_empty();
+		let picked = self.picked(cx).len();
 		let no_studiomdl = model
 			.target
 			.as_ref()
@@ -387,7 +369,7 @@ impl Render for CompileView {
 					.label(t!("compile.remove"))
 					.small()
 					.ghost()
-					.disabled(self.selected.is_empty())
+					.disabled(picked == 0)
 					.on_click(cx.listener(|this, _, _, cx| this.remove_selected(cx))),
 			)
 			.child(
@@ -409,9 +391,8 @@ impl Render for CompileView {
 				.child(t!("compile.empty").into_owned())
 				.into_any_element()
 		} else {
-			uniform_list("qc-files", count, cx.processor(Self::render_rows))
-				.track_scroll(&self.scroll)
-				.flex_1()
+			DataTable::new(&self.table)
+				.header_row_height(px(32.))
 				.into_any_element()
 		};
 
@@ -492,11 +473,7 @@ impl Render for CompileView {
 			)
 			.child(div().flex_1().child(Input::new(&self.extra).small()));
 
-		let selected_file = self
-			.selected
-			.iter()
-			.next()
-			.and_then(|i| prefs.files.get(*i).cloned());
+		let selected_file = self.current.clone();
 		v_flex()
 			.size_full()
 			.p_5()
@@ -515,15 +492,7 @@ impl Render for CompileView {
 				)
 			})
 			.child(list_actions)
-			.child(
-				v_flex()
-					.flex_1()
-					.min_h_0()
-					.border_1()
-					.border_color(theme.border)
-					.rounded(theme.radius)
-					.child(list),
-			)
+			.child(v_flex().flex_1().min_h_0().child(list))
 			.child(field(t!("compile.output").into_owned(), output, cx))
 			.child(field(t!("compile.options").into_owned(), options, cx))
 			.child(field(
@@ -563,7 +532,7 @@ impl Render for CompileView {
 							.label(t!("compile.selected"))
 							.small()
 							.outline()
-							.disabled(self.selected.is_empty() || compiling)
+							.disabled(picked == 0 || compiling)
 							.on_click(
 								cx.listener(|this, _, window, cx| this.compile(true, window, cx)),
 							),
@@ -582,7 +551,7 @@ impl Render for CompileView {
 							})),
 					)
 					.child(div().flex_1())
-					.when(compiling || !self.queued.is_empty(), |this| {
+					.when(compiling || queued, |this| {
 						this.child(
 							Button::new("compile-cancel")
 								.label(t!("common.cancel"))

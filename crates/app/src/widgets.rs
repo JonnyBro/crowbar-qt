@@ -39,7 +39,7 @@ pub fn field(label: String, control: impl IntoElement, cx: &App) -> Div {
 		.items_center()
 		.child(
 			div()
-				.w(px(150.))
+				.w(px(180.))
 				.flex_shrink_0()
 				.text_color(cx.theme().muted_foreground)
 				.child(label),
@@ -248,6 +248,19 @@ pub fn image_format(data: &[u8]) -> Option<ImageFormat> {
 		Some(ImageFormat::Webp)
 	} else {
 		None
+	}
+}
+
+/// Items without a value go after the rest whichever way the column sorts;
+/// `descending` turns around only the order of the values themselves.
+pub fn missing_last<T: Ord>(a: Option<T>, b: Option<T>, descending: bool) -> std::cmp::Ordering {
+	use std::cmp::Ordering;
+	match (a, b) {
+		(Some(a), Some(b)) if descending => b.cmp(&a),
+		(Some(a), Some(b)) => a.cmp(&b),
+		(Some(_), None) => Ordering::Less,
+		(None, Some(_)) => Ordering::Greater,
+		(None, None) => Ordering::Equal,
 	}
 }
 

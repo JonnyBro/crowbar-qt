@@ -39,6 +39,8 @@ fn run_window(file: Option<PathBuf>) {
 	// One global locale for this crate, the core and gpui-component.
 	rust_i18n::set_locale(settings.language.locale());
 
+	let saved_window = ui_state::UiState::load(&paths.ui_state_file()).window;
+
 	gpui_kit::application()
 		.with_assets(icons::AppAssets)
 		.run(move |cx: &mut App| {
@@ -46,11 +48,9 @@ fn run_window(file: Option<PathBuf>) {
 			theme::install(cx);
 
 			let options = WindowOptions {
-				window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-					None,
-					size(px(1100.), px(720.)),
-					cx,
-				))),
+				window_bounds: Some(saved_window.map(|b| b.to_window()).unwrap_or_else(|| {
+					WindowBounds::Windowed(Bounds::centered(None, size(px(1100.), px(720.)), cx))
+				})),
 				window_min_size: Some(size(px(800.), px(500.))),
 				titlebar: Some(TitlebarOptions {
 					title: Some("Prybar".into()),

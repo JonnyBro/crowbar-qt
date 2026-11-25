@@ -23,8 +23,6 @@ const LINE_HEIGHT: f32 = 20.;
 pub struct TasksPanel {
 	model: Entity<Model>,
 	selected: Option<TaskId>,
-	/// The newest task is selected when it starts.
-	follow_new: bool,
 	/// The log keeps scrolling to its end while the task writes to it.
 	follow_log: bool,
 	known: usize,
@@ -36,7 +34,7 @@ impl TasksPanel {
 	pub fn new(model: Entity<Model>, cx: &mut Context<Self>) -> Self {
 		cx.observe(&model, |this, model, cx| {
 			let tasks = &model.read(cx).tasks;
-			if tasks.len() > this.known && this.follow_new {
+			if tasks.len() > this.known {
 				this.selected = tasks.last().map(|t| t.snapshot.id);
 				this.follow_log = true;
 			}
@@ -53,7 +51,6 @@ impl TasksPanel {
 		Self {
 			model,
 			selected: None,
-			follow_new: true,
 			follow_log: true,
 			known: 0,
 			shown_lines: 0,
@@ -150,7 +147,6 @@ impl TasksPanel {
 					.hover(|row| row.bg(theme.list_hover))
 					.on_click(cx.listener(move |this, _, _, cx| {
 						this.selected = Some(id);
-						this.follow_new = false;
 						this.follow_log = true;
 						cx.notify();
 					}))
@@ -315,6 +311,7 @@ fn render_line(
 	};
 	let row = h_flex()
 		.id(("log-line", ix))
+		.w_full()
 		.h(px(LINE_HEIGHT))
 		.mono(cx)
 		.text_sm()

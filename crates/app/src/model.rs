@@ -71,7 +71,7 @@ pub fn find_link(line: &str) -> Option<Link> {
 		let quoted = prev == Some(b'"');
 		let at_boundary = prev.is_none_or(|b| {
 			b.is_ascii_whitespace() || matches!(b, b'"' | b'\'' | b'(' | b'=' | b'[')
-		});
+		}) || line[..start].ends_with('«');
 		if !at_boundary {
 			continue;
 		}
@@ -83,7 +83,7 @@ pub fn find_link(line: &str) -> Option<Link> {
 			}
 		} else {
 			rest.find(|c: char| {
-				c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>' | '|' | ',' | ':')
+				c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>' | '|' | ',' | ':' | '»')
 			})
 			.unwrap_or(rest.len())
 		};
@@ -295,6 +295,10 @@ mod tests {
 		assert_eq!(link.path, dir.join("b.smd"));
 		assert_eq!(link.line, Some(3));
 		assert_eq!(&line[link.range], format!("{d}/B.SMD(3)"));
+
+		let line = format!("Unpacking 1 file(s) to «{d}/b.smd»…");
+		let link = find_link(&line).unwrap();
+		assert_eq!(&line[link.range], format!("{d}/b.smd"));
 
 		let line = format!("Saved {d}/b.smd.");
 		let link = find_link(&line).unwrap();

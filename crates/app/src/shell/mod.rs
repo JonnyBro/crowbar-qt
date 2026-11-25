@@ -154,6 +154,18 @@ impl Shell {
 			})
 		};
 
+		window.on_window_should_close(cx, {
+			let model = model.downgrade();
+			move |window, cx| {
+				let bounds = crate::ui_state::SavedBounds::from_window(window.window_bounds());
+				let _ = model.update(cx, |model, _| {
+					model.ui.window = Some(bounds);
+					model.save_ui();
+				});
+				true
+			}
+		});
+
 		let subscriptions = vec![
 			cx.subscribe_in(
 				&model,

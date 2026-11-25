@@ -376,7 +376,7 @@ fn scheme_row(label: String, picker: AnyElement, cx: &App) -> Div {
 		.items_start()
 		.child(
 			div()
-				.w(px(150.))
+				.w(px(180.))
 				.pt_1()
 				.flex_shrink_0()
 				.text_color(cx.theme().muted_foreground)

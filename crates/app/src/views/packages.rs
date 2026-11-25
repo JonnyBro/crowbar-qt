@@ -1,11 +1,10 @@
-use std::collections::BTreeSet;
-use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
 	ActiveTheme, Disableable, Icon, IconName, Sizable, WindowExt, h_flex, v_flex,
 };
@@ -19,9 +18,10 @@ use rust_i18n::t;
 use crate::model::{EngineEvent, Model};
 use crate::theme::Mono;
 use crate::ui_state::OutputMode;
-use crate::widgets::{self, browse_button, choice, field, format_size, page_header, path_row};
+use crate::widgets::{self, browse_button, choice, field, page_header, path_row};
 
-const ROW_HEIGHT: f32 = 26.;
+use super::packages_table::{EntriesTable, Match, ResultsTable};
+
 /// Bigger entries are not read for a preview.
 const MAX_PREVIEW: u64 = 4 * 1024 * 1024;
 const TEXT_PREVIEW_LINES: usize = 2000;
@@ -53,32 +53,24 @@ pub struct PackagesView {
 	package: Option<Arc<Package>>,
 	opening: Option<RequestId>,
 	open_error: Option<String>,
-	/// Entries the filter lets through, as indexes into the package's entries.
-	shown: Vec<usize>,
-	selected: BTreeSet<usize>,
+	entries: Entity<TableState<EntriesTable>>,
+	results: Entity<TableState<ResultsTable>>,
+	/// The entry clicked last, shown in the preview; the one "Unpack selected"
+	/// takes when none is checked.
 	focused: Option<usize>,
 	preview: Preview,
 	scope: Scope,
 	search: Option<RequestId>,
 	/// The running search, for cancelling it when a new one starts.
 	search_task: Option<TaskId>,
-	/// Matches of the search over every package: package, entry path, size.
-	results: Vec<(PathBuf, String, u64)>,
 	/// Shown once the package being opened from a search result is there.
 	pending_filter: Option<String>,
-	scroll: UniformListScrollHandle,
 	_subscriptions: Vec<Subscription>,
 }
 
 impl PackagesView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		let prefs = model.read(cx).ui.packages.clone();
-		let file = widgets::new_input(
-			&prefs.file,
-			t!("packages.file_placeholder").into_owned(),
-			window,
-			cx,
-		);
+		let file = widgets::new_input("", t!("packages.file_placeholder").into_owned(), window, cx);
 		let filter = widgets::new_input(
 			"",
 			t!("packages.filter_placeholder").into_owned(),
@@ -86,13 +78,47 @@ impl PackagesView {
 			cx,
 		);
 		let output = widgets::new_input(
-			&prefs.folder,
+			"",
 			t!("packages.output_placeholder").into_owned(),
 			window,
 			cx,
 		);
+		let entries = cx.new(|cx| TableState::new(EntriesTable::default(), window, cx));
+		let results = cx.new(|cx| TableState::new(ResultsTable::default(), window, cx));
 		let subscriptions = vec![
 			cx.observe(&model, |_, _, cx| cx.notify()),
+			cx.observe(&entries, |this, table, cx| {
+				// Sorting moves rows; the highlight follows the focused entry.
+				if let Some(focused) = this.focused {
+					let index = table.read(cx).delegate().row_of(focused);
+					if let Some(index) = index
+						&& table.read(cx).selected_row() != Some(index)
+					{
+						table.update(cx, |table, cx| table.set_selected_row(index, cx));
+					}
+				}
+				cx.notify();
+			}),
+			cx.subscribe(&entries, |this, table, event: &TableEvent, cx| {
+				if let TableEvent::SelectRow(row) = event
+					&& let Some(index) = table.read(cx).delegate().entry_index(*row)
+					&& this.focused != Some(index)
+				{
+					this.focus(index, cx);
+				}
+			}),
+			cx.subscribe_in(
+				&results,
+				window,
+				|this, table, event: &TableEvent, window, cx| {
+					if let TableEvent::SelectRow(row) = event
+						&& let Some(found) = table.read(cx).delegate().get(*row).cloned()
+					{
+						this.pending_filter = Some(found.path);
+						this.open_file(&found.package, window, cx);
+					}
+				},
+			),
 			cx.subscribe_in(
 				&model,
 				window,
@@ -117,7 +143,7 @@ impl PackagesView {
 				}
 			}),
 		];
-		let mut view = Self {
+		Self {
 			model,
 			file,
 			filter,
@@ -125,22 +151,16 @@ impl PackagesView {
 			package: None,
 			opening: None,
 			open_error: None,
-			shown: Vec::new(),
-			selected: BTreeSet::new(),
+			entries,
+			results,
 			focused: None,
 			preview: Preview::None,
 			scope: Scope::Package,
 			search: None,
 			search_task: None,
-			results: Vec::new(),
 			pending_filter: None,
-			scroll: UniformListScrollHandle::new(),
 			_subscriptions: subscriptions,
-		};
-		if !prefs.file.is_empty() && Path::new(&prefs.file).is_file() {
-			view.open(window, cx);
 		}
-		view
 	}
 
 	pub fn open_file(&mut self, path: &Path, window: &mut Window, cx: &mut Context<Self>) {
@@ -152,12 +172,7 @@ impl PackagesView {
 		let Some(path) = widgets::path(&self.file, cx) else {
 			return;
 		};
-		let text = path.display().to_string();
-		let request = self.model.update(cx, |m, _| {
-			m.ui.packages.file = text;
-			m.save_ui();
-			m.request_id()
-		});
+		let request = self.model.update(cx, |m, _| m.request_id());
 		self.opening = Some(request);
 		self.open_error = None;
 		self.model
@@ -170,12 +185,16 @@ impl PackagesView {
 		match event {
 			Event::PackageOpened { request, result } if Some(*request) == self.opening => {
 				self.opening = None;
-				self.selected.clear();
 				self.focused = None;
 				self.preview = Preview::None;
 				match result {
 					Ok(package) => {
 						self.package = Some(package.clone());
+						let package = package.clone();
+						self.entries.update(cx, |table, cx| {
+							table.delegate_mut().set_package(Some(package));
+							table.clear_selection(cx);
+						});
 						self.open_error = None;
 						if let Some(filter) = self.pending_filter.take() {
 							self.scope = Scope::Package;
@@ -184,6 +203,10 @@ impl PackagesView {
 					}
 					Err(e) => {
 						self.package = None;
+						self.entries.update(cx, |table, cx| {
+							table.delegate_mut().set_package(None);
+							table.clear_selection(cx);
+						});
 						self.open_error = Some(e.clone());
 					}
 				}
@@ -205,11 +228,18 @@ impl PackagesView {
 				matches,
 			} if Some(*request) == self.search => {
 				self.search_task = Some(*task);
-				self.results.extend(
-					matches
-						.iter()
-						.map(|(path, size)| (package.clone(), path.clone(), *size)),
-				);
+				let found: Vec<Match> = matches
+					.iter()
+					.map(|(path, size)| Match {
+						package: package.clone(),
+						path: path.clone(),
+						size: *size,
+					})
+					.collect();
+				self.results.update(cx, |table, cx| {
+					table.delegate_mut().extend(found);
+					cx.notify();
+				});
 				cx.notify();
 			}
 			_ => {}
@@ -247,16 +277,10 @@ impl PackagesView {
 		let needle = widgets::text(&self.filter, cx)
 			.to_lowercase()
 			.replace('\\', "/");
-		self.shown = match &self.package {
-			Some(package) => package
-				.entries
-				.iter()
-				.enumerate()
-				.filter(|(_, e)| needle.is_empty() || e.path.to_lowercase().contains(&needle))
-				.map(|(i, _)| i)
-				.collect(),
-			None => Vec::new(),
-		};
+		self.entries.update(cx, |table, cx| {
+			table.delegate_mut().set_filter(&needle);
+			cx.notify();
+		});
 		cx.notify();
 	}
 
@@ -287,7 +311,11 @@ impl PackagesView {
 			target,
 			needle,
 		});
-		self.results.clear();
+		self.results.update(cx, |table, cx| {
+			table.delegate_mut().clear();
+			table.clear_selection(cx);
+			cx.notify();
+		});
 		self.search = Some(request);
 		cx.notify();
 	}
@@ -319,9 +347,7 @@ impl PackagesView {
 	fn output_dir(&mut self, cx: &mut Context<Self>) -> Option<PathBuf> {
 		let package = self.package.as_ref()?;
 		let folder = widgets::path(&self.output, cx);
-		let text = widgets::text(&self.output, cx);
 		let mode = self.model.update(cx, |m, _| {
-			m.ui.packages.folder = text;
 			m.save_ui();
 			m.ui.packages.output
 		});
@@ -351,10 +377,13 @@ impl PackagesView {
 			return;
 		};
 		let indexes = if selected_only {
-			self.selected.iter().copied().collect()
+			self.picked(cx)
 		} else {
 			Vec::new()
 		};
+		if selected_only && indexes.is_empty() {
+			return;
+		}
 		self.model.read(cx).send(Command::Unpack {
 			package,
 			indexes,
@@ -362,119 +391,14 @@ impl PackagesView {
 		});
 	}
 
-	fn render_entries(
-		&mut self,
-		range: Range<usize>,
-		_: &mut Window,
-		cx: &mut Context<Self>,
-	) -> Vec<AnyElement> {
-		let theme = cx.theme().clone();
-		let Some(package) = self.package.clone() else {
-			return Vec::new();
-		};
-		range
-			.filter_map(|row| {
-				let index = *self.shown.get(row)?;
-				let entry = package.entries.get(index)?;
-				let selected = self.selected.contains(&index);
-				let focused = self.focused == Some(index);
-				Some(
-					h_flex()
-						.id(("entry", row))
-						.h(px(ROW_HEIGHT))
-						.px_3()
-						.gap_3()
-						.border_b_1()
-						.border_color(theme.border.opacity(0.4))
-						.when(selected, |r| r.bg(theme.list_active))
-						.when(focused && !selected, |r| r.bg(theme.list_hover))
-						.hover(|r| r.bg(theme.list_hover))
-						.on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
-							if event.modifiers().control || event.modifiers().shift {
-								if !this.selected.remove(&index) {
-									this.selected.insert(index);
-								}
-							} else {
-								this.selected = BTreeSet::from([index]);
-							}
-							this.focus(index, cx);
-						}))
-						.child(
-							div()
-								.flex_1()
-								.min_w_0()
-								.truncate()
-								.mono(cx)
-								.text_sm()
-								.child(entry.path.clone()),
-						)
-						.child(
-							div()
-								.w(px(90.))
-								.text_sm()
-								.text_color(theme.muted_foreground)
-								.child(format_size(entry.size)),
-						)
-						.into_any_element(),
-				)
-			})
-			.collect()
-	}
-
-	fn render_results(
-		&mut self,
-		range: Range<usize>,
-		_: &mut Window,
-		cx: &mut Context<Self>,
-	) -> Vec<AnyElement> {
-		let theme = cx.theme().clone();
-		range
-			.filter_map(|row| {
-				let (package, path, size) = self.results.get(row)?.clone();
-				let open = package.clone();
-				let filter = path.clone();
-				Some(
-					h_flex()
-						.id(("result", row))
-						.h(px(ROW_HEIGHT))
-						.px_3()
-						.gap_3()
-						.border_b_1()
-						.border_color(theme.border.opacity(0.4))
-						.hover(|r| r.bg(theme.list_hover))
-						.cursor_pointer()
-						.on_click(cx.listener(move |this, _, window, cx| {
-							this.pending_filter = Some(filter.clone());
-							this.open_file(&open, window, cx);
-						}))
-						.child(
-							div()
-								.w(px(220.))
-								.truncate()
-								.text_sm()
-								.text_color(theme.muted_foreground)
-								.child(widgets::file_name(&package)),
-						)
-						.child(
-							div()
-								.flex_1()
-								.min_w_0()
-								.truncate()
-								.mono(cx)
-								.text_sm()
-								.child(path),
-						)
-						.child(
-							div()
-								.w(px(90.))
-								.text_sm()
-								.text_color(theme.muted_foreground)
-								.child(format_size(size)),
-						)
-						.into_any_element(),
-				)
-			})
-			.collect()
+	/// The checked entries, or the focused one when none is checked.
+	fn picked(&self, cx: &App) -> Vec<usize> {
+		let checked = &self.entries.read(cx).delegate().checked;
+		if checked.is_empty() {
+			self.focused.into_iter().collect()
+		} else {
+			checked.iter().copied().collect()
+		}
 	}
 
 	fn preview(&self, cx: &App) -> AnyElement {
@@ -525,6 +449,7 @@ impl Render for PackagesView {
 		let file = self.file.clone();
 		let output = self.output.clone();
 		let searching = self.scope == Scope::Game;
+		let picked = self.picked(cx).len();
 
 		let summary = match (&self.package, &self.open_error, self.opening) {
 			(_, _, Some(_)) => t!("packages.opening").into_owned(),
@@ -545,7 +470,7 @@ impl Render for PackagesView {
 		};
 
 		let list: AnyElement = if searching {
-			if self.results.is_empty() {
+			if self.results.read(cx).delegate().matches.is_empty() {
 				div()
 					.flex_1()
 					.flex()
@@ -555,24 +480,14 @@ impl Render for PackagesView {
 					.child(t!("packages.search_hint").into_owned())
 					.into_any_element()
 			} else {
-				uniform_list(
-					"results",
-					self.results.len(),
-					cx.processor(Self::render_results),
-				)
-				.track_scroll(&self.scroll)
-				.flex_1()
-				.into_any_element()
+				DataTable::new(&self.results)
+					.header_row_height(px(32.))
+					.into_any_element()
 			}
 		} else {
-			uniform_list(
-				"entries",
-				self.shown.len(),
-				cx.processor(Self::render_entries),
-			)
-			.track_scroll(&self.scroll)
-			.flex_1()
-			.into_any_element()
+			DataTable::new(&self.entries)
+				.header_row_height(px(32.))
+				.into_any_element()
 		};
 
 		let output_row = v_flex()
@@ -698,16 +613,7 @@ impl Render for PackagesView {
 					.flex_1()
 					.min_h_0()
 					.gap_3()
-					.child(
-						v_flex()
-							.flex_1()
-							.min_w_0()
-							.h_full()
-							.border_1()
-							.border_color(theme.border)
-							.rounded(theme.radius)
-							.child(list),
-					)
+					.child(v_flex().flex_1().min_w_0().h_full().child(list))
 					.child(
 						v_flex()
 							.w(px(340.))
@@ -736,10 +642,10 @@ impl Render for PackagesView {
 					)
 					.child(
 						Button::new("unpack-selected")
-							.label(t!("packages.unpack_selected", n = self.selected.len()))
+							.label(t!("packages.unpack_selected", n = picked))
 							.small()
 							.outline()
-							.disabled(self.package.is_none() || self.selected.is_empty())
+							.disabled(self.package.is_none() || picked == 0)
 							.on_click(
 								cx.listener(|this, _, window, cx| this.unpack(true, window, cx)),
 							),

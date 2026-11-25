@@ -467,9 +467,6 @@ dl.get_info:
 dl.hint:
   en: "Enter workshop links or item IDs, or a collection, and press Get Info."
   ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите «Получить сведения»."
-dl.in_collection:
-  en: "from collection %{id}"
-  ru: "из коллекции %{id}"
 dl.links_placeholder:
   en: "Workshop links or IDs; collections are expanded"
   ru: "Ссылки или ID предметов; коллекции раскрываются"
@@ -497,9 +494,6 @@ dl.subtitle:
 dl.unavailable:
   en: "not available: subscribe in Steam or install steamcmd"
   ru: "недоступно: подпишитесь в Steam или установите steamcmd"
-dl.updated:
-  en: "updated %{date}"
-  ru: "обновлён %{date}"
 dl.with_title:
   en: "Title in file name"
   ru: "Название в имени файла"
@@ -608,3 +602,51 @@ tasks.title:
 set.scheme_default:
   en: "Default"
   ru: "Стандартная"
+dl.ctrl_enter:
+  en: "or Ctrl+Enter in the field"
+  ru: "или Ctrl+Enter в поле"
+ws.col_title:
+  en: "Title"
+  ru: "Название"
+ws.col_id:
+  en: "ID"
+  ru: "ID"
+ws.col_size:
+  en: "Size"
+  ru: "Размер"
+ws.col_updated:
+  en: "Updated"
+  ru: "Обновлён"
+compile.col_file:
+  en: "QC file"
+  ru: "Файл QC"
+compile.col_status:
+  en: "Status"
+  ru: "Статус"
+packages.col_path:
+  en: "Path"
+  ru: "Путь"
+packages.col_size:
+  en: "Size"
+  ru: "Размер"
+packages.col_package:
+  en: "Package"
+  ru: "Пакет"
+dl.col_title:
+  en: "Title"
+  ru: "Название"
+dl.col_size:
+  en: "Size"
+  ru: "Размер"
+dl.col_updated:
+  en: "Updated"
+  ru: "Обновлён"
+dl.col_source:
+  en: "Source"
+  ru: "Источник"
+dl.col_collection:
+  en: "Collection"
+  ru: "Коллекция"
+dl.col_id:
+  en: "ID"
+  ru: "ID"

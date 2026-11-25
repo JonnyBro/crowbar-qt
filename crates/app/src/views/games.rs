@@ -1,29 +1,22 @@
-use std::ops::Range;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::tooltip::Tooltip;
+use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::paths::clean_path;
-use prybar_core::steam::{App as SteamApp, Platform};
-use prybar_core::{Command, Target, launcher};
+use prybar_core::steam::App as SteamApp;
+use prybar_core::{Command, Games, Target, launcher};
 use rust_i18n::t;
 
 use crate::model::Model;
-use crate::theme::Mono;
-use crate::widgets::{self, PickOptions, file_name, page_header};
+use crate::widgets::{self, PickOptions, page_header};
 
-const ROW_HEIGHT: f32 = 30.;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Row {
-	App(usize),
-	Dir(usize, usize),
-}
+use super::games_table::{GamesTable, Row};
 
 pub struct GamesView {
 	model: Entity<Model>,
@@ -31,13 +24,44 @@ pub struct GamesView {
 	options: Entity<InputState>,
 	/// The app whose launch options the field shows.
 	options_app: Option<u32>,
-	scroll: UniformListScrollHandle,
+	table: Entity<TableState<GamesTable>>,
+	/// The scan the table shows, to notice a new one.
+	shown: Option<Arc<Games>>,
+	_subscriptions: Vec<Subscription>,
 }
 
 impl GamesView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		cx.observe(&model, |_, _, cx| cx.notify()).detach();
-		Self {
+		let table = cx.new(|cx| TableState::new(GamesTable::default(), window, cx));
+		let subscriptions = vec![
+			cx.observe(&model, |this, _, cx| this.sync(cx)),
+			// Sorting moves rows; the highlight follows the selected game, not its old row.
+			cx.observe(&table, |this, table, cx| {
+				let Some(selected) = this.selected else {
+					return;
+				};
+				let index = table.read(cx).delegate().row_index(selected);
+				if let Some(index) = index
+					&& table.read(cx).selected_row() != Some(index)
+				{
+					table.update(cx, |table, cx| table.set_selected_row(index, cx));
+				}
+			}),
+			cx.subscribe_in(
+				&table,
+				window,
+				|this, table, event: &TableEvent, window, cx| match event {
+					TableEvent::SelectRow(ix) => {
+						if let Some(row) = table.read(cx).delegate().row(*ix) {
+							this.select(row, window, cx);
+						}
+					}
+					TableEvent::DoubleClickedRow(_) => this.use_selected(cx),
+					_ => {}
+				},
+			),
+		];
+		let mut view = Self {
 			options: widgets::new_input(
 				"",
 				t!("games.options_placeholder").into_owned(),
@@ -47,31 +71,50 @@ impl GamesView {
 			model,
 			selected: None,
 			options_app: None,
-			scroll: UniformListScrollHandle::new(),
-		}
+			table,
+			shown: None,
+			_subscriptions: subscriptions,
+		};
+		view.sync(cx);
+		view
 	}
 
-	fn rows(&self, cx: &App) -> Vec<Row> {
-		let games = &self.model.read(cx).games;
-		let mut rows = Vec::new();
-		for (i, app) in games.apps.iter().enumerate() {
-			rows.push(Row::App(i));
-			rows.extend((0..app.game_dirs.len()).map(|d| Row::Dir(i, d)));
+	/// Puts a new scan and the current game into the table.
+	fn sync(&mut self, cx: &mut Context<Self>) {
+		let model = self.model.read(cx);
+		let games = model.games.clone();
+		let current = model.target.as_ref().map(|t| t.game_dir.clone());
+		let fresh = !self
+			.shown
+			.as_ref()
+			.is_some_and(|shown| Arc::ptr_eq(shown, &games));
+		if fresh {
+			self.selected = None;
+			self.shown = Some(games.clone());
 		}
-		rows
+		self.table.update(cx, |table, cx| {
+			let delegate = table.delegate_mut();
+			delegate.current = current;
+			if fresh {
+				delegate.set_apps(games.apps.clone());
+				table.clear_selection(cx);
+			}
+			cx.notify();
+		});
+		cx.notify();
 	}
 
 	/// The selected app and, if one can be told, its game folder.
 	fn selection(&self, cx: &App) -> Option<(SteamApp, Option<PathBuf>)> {
-		let games = &self.model.read(cx).games;
+		let apps = &self.table.read(cx).delegate().apps;
 		match self.selected? {
 			Row::App(i) => {
-				let app = games.apps.get(i)?.clone();
+				let app = apps.get(i)?.clone();
 				let dir = (app.game_dirs.len() == 1).then(|| app.game_dirs[0].clone());
 				Some((app, dir))
 			}
 			Row::Dir(i, d) => {
-				let app = games.apps.get(i)?.clone();
+				let app = apps.get(i)?.clone();
 				let dir = app.game_dirs.get(d).cloned();
 				Some((app, dir))
 			}
@@ -312,185 +355,6 @@ impl GamesView {
 					})),
 			)
 	}
-
-	fn header_row(&self, cx: &App) -> impl IntoElement {
-		let theme = cx.theme();
-		h_flex()
-			.h(px(28.))
-			.px_3()
-			.gap_3()
-			.text_sm()
-			.text_color(theme.muted_foreground)
-			.border_b_1()
-			.border_color(theme.border)
-			.child(
-				div()
-					.flex_1()
-					.min_w_0()
-					.child(t!("games.col_game").into_owned()),
-			)
-			.child(div().w(px(80.)).child(t!("games.col_id").into_owned()))
-			.child(div().w(px(80.)).child(t!("games.col_build").into_owned()))
-			.child(div().w(px(170.)).child(t!("games.col_proton").into_owned()))
-			.child(div().w(px(90.)).child(t!("games.col_tools").into_owned()))
-			.child(
-				div()
-					.flex_1()
-					.min_w_0()
-					.child(t!("games.col_location").into_owned()),
-			)
-	}
-
-	fn render_rows(
-		&mut self,
-		range: Range<usize>,
-		_: &mut Window,
-		cx: &mut Context<Self>,
-	) -> Vec<AnyElement> {
-		let rows = self.rows(cx);
-		let model = self.model.read(cx);
-		let theme = cx.theme().clone();
-		let current = model.target.as_ref().map(|t| t.game_dir.clone());
-		range
-			.filter_map(|ix| rows.get(ix).map(|row| (ix, *row)))
-			.filter_map(|(ix, row)| {
-				let (i, dir) = match row {
-					Row::App(i) => (i, None),
-					Row::Dir(i, d) => (i, Some(d)),
-				};
-				let app = model.games.apps.get(i)?;
-				let selected = self.selected == Some(row);
-				let missing_tools = app.tools_path.is_none();
-				let text_color = if missing_tools {
-					theme.muted_foreground
-				} else {
-					theme.foreground
-				};
-				let mut cells = h_flex()
-					.id(("game-row", ix))
-					.h(px(ROW_HEIGHT))
-					.px_3()
-					.gap_3()
-					.text_color(text_color)
-					.border_b_1()
-					.border_color(theme.border.opacity(0.5))
-					.when(selected, |r| r.bg(theme.list_active))
-					.hover(|r| r.bg(theme.list_hover))
-					.on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
-						this.select(row, window, cx);
-						if event.click_count() == 2 {
-							this.use_selected(cx);
-						}
-					}));
-				match dir {
-					None => {
-						let windows = app.platform == Platform::Windows;
-						let name = if app.is_mod {
-							t!("games.mod", name = app.name).into_owned()
-						} else {
-							app.name.clone()
-						};
-						let proton = match (&app.proton_path, &app.compat_tool_name) {
-							(Some(_), Some(name)) if !windows => {
-								t!("games.proton_tools", name = name).into_owned()
-							}
-							(Some(_), Some(name)) => name.clone(),
-							(None, _) if windows => t!("games.not_found").into_owned(),
-							_ => String::new(),
-						};
-						let tools = match (&app.tools_path, app.tools_overridden) {
-							(None, _) => t!("games.tools_missing"),
-							(Some(_), true) => t!("games.tools_custom"),
-							(Some(_), false) => t!("games.tools_found"),
-						}
-						.into_owned();
-						let tools_tip = app.tools_path.as_ref().map_or_else(
-							|| t!("games.tools_missing_tip").into_owned(),
-							|p| p.display().to_string(),
-						);
-						let mod_tip = app.is_mod.then(|| match &app.base_name {
-							Some(base) => t!("games.runs_on", name = base).into_owned(),
-							None => t!("games.base_missing", id = app.id).into_owned(),
-						});
-						cells = cells
-							.child(
-								div()
-									.id(("game-name", ix))
-									.flex_1()
-									.min_w_0()
-									.truncate()
-									.font_weight(FontWeight::MEDIUM)
-									.child(name)
-									.when_some(mod_tip, |d, tip| {
-										d.tooltip(move |window, cx| {
-											Tooltip::new(tip.clone()).build(window, cx)
-										})
-									}),
-							)
-							.child(div().w(px(80.)).mono(cx).child(app.id.to_string()))
-							.child(div().w(px(80.)).child(if windows {
-								"Windows".to_owned()
-							} else {
-								"Linux".to_owned()
-							}))
-							.child(div().w(px(170.)).truncate().child(proton))
-							.child(
-								div()
-									.id(("game-tools", ix))
-									.w(px(90.))
-									.child(tools)
-									.tooltip(move |window, cx| {
-										Tooltip::new(tools_tip.clone()).build(window, cx)
-									}),
-							)
-							.child(
-								div()
-									.flex_1()
-									.min_w_0()
-									.truncate()
-									.mono(cx)
-									.text_sm()
-									.child(app.install_path.display().to_string()),
-							);
-					}
-					Some(d) => {
-						let game_dir = app.game_dirs.get(d)?;
-						let is_current = current.as_ref() == Some(game_dir);
-						cells = cells
-							.child(
-								h_flex()
-									.flex_1()
-									.min_w_0()
-									.pl_5()
-									.gap_2()
-									.child(if is_current {
-										Icon::new(IconName::Check).small().text_color(theme.primary)
-									} else {
-										Icon::new(IconName::Folder)
-											.small()
-											.text_color(theme.muted_foreground)
-									})
-									.child(div().truncate().child(file_name(game_dir))),
-							)
-							.child(div().w(px(80.)))
-							.child(div().w(px(80.)))
-							.child(div().w(px(170.)))
-							.child(div().w(px(90.)))
-							.child(
-								div()
-									.flex_1()
-									.min_w_0()
-									.truncate()
-									.mono(cx)
-									.text_sm()
-									.child(game_dir.display().to_string()),
-							);
-					}
-				}
-				Some(cells.into_any_element())
-			})
-			.collect()
-	}
 }
 
 impl Render for GamesView {
@@ -503,7 +367,6 @@ impl Render for GamesView {
 		} else {
 			t!("games.found", n = model.games.apps.len()).into_owned()
 		};
-		let count = self.rows(cx).len();
 		let target = self.target(cx);
 		let has_hammer = target
 			.as_ref()
@@ -520,15 +383,7 @@ impl Render for GamesView {
 				v_flex()
 					.flex_1()
 					.min_h_0()
-					.border_1()
-					.border_color(theme.border)
-					.rounded(theme.radius)
-					.child(self.header_row(cx))
-					.child(
-						uniform_list("games", count, cx.processor(Self::render_rows))
-							.track_scroll(&self.scroll)
-							.flex_1(),
-					),
+					.child(DataTable::new(&self.table).header_row_height(px(32.))),
 			)
 			.child(
 				h_flex()

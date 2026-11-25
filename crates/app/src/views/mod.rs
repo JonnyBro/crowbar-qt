@@ -1,8 +1,13 @@
 pub mod compile;
+mod compile_table;
 pub mod download;
+mod download_table;
 pub mod games;
+mod games_table;
 pub mod pack;
 pub mod packages;
+mod packages_table;
 pub mod settings;
 pub mod view;
 pub mod workshop;
+mod workshop_table;

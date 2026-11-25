@@ -34,18 +34,8 @@ pub struct PackView {
 impl PackView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
 		let prefs = model.read(cx).ui.pack.clone();
-		let folder = widgets::new_input(
-			&prefs.folder,
-			t!("pack.folder_placeholder").into_owned(),
-			window,
-			cx,
-		);
-		let output = widgets::new_input(
-			&prefs.output_folder,
-			t!("pack.output_placeholder").into_owned(),
-			window,
-			cx,
-		);
+		let folder = widgets::new_input("", t!("pack.folder_placeholder").into_owned(), window, cx);
+		let output = widgets::new_input("", t!("pack.output_placeholder").into_owned(), window, cx);
 		let extra = widgets::new_input(
 			&prefs.extra,
 			t!("pack.extra_placeholder").into_owned(),
@@ -65,6 +55,11 @@ impl PackView {
 				},
 			),
 			cx.subscribe(&title, |_, _, _: &InputEvent, cx| cx.notify()),
+			cx.subscribe(&folder, |_, _, event: &InputEvent, cx| {
+				if matches!(event, InputEvent::Change) {
+					cx.notify();
+				}
+			}),
 		];
 		let mut view = Self {
 			model,
@@ -158,12 +153,8 @@ impl PackView {
 	}
 
 	fn store(&mut self, cx: &mut Context<Self>) {
-		let folder = widgets::text(&self.folder, cx);
-		let output = widgets::text(&self.output, cx);
 		let extra = widgets::text(&self.extra, cx);
 		self.model.update(cx, |m, _| {
-			m.ui.pack.folder = folder;
-			m.ui.pack.output_folder = output;
 			m.ui.pack.extra = extra;
 			m.save_ui();
 		});

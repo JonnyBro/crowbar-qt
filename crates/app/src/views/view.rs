@@ -20,8 +20,7 @@ pub struct ViewView {
 impl ViewView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
 		cx.observe(&model, |_, _, cx| cx.notify()).detach();
-		let saved = model.read(cx).ui.view_mdl.clone();
-		let mdl = widgets::new_input(&saved, t!("view.placeholder").into_owned(), window, cx);
+		let mdl = widgets::new_input("", t!("view.placeholder").into_owned(), window, cx);
 		cx.subscribe(&mdl, |_, _, _: &InputEvent, cx| cx.notify())
 			.detach();
 		Self { mdl, model }
@@ -34,11 +33,6 @@ impl ViewView {
 
 	fn open(&mut self, with_model: bool, cx: &mut Context<Self>) {
 		let mdl = widgets::path(&self.mdl, cx);
-		let text = widgets::text(&self.mdl, cx);
-		self.model.update(cx, |m, _| {
-			m.ui.view_mdl = text;
-			m.save_ui();
-		});
 		let model = self.model.read(cx);
 		let Some(target) = model.target.clone() else {
 			return;
