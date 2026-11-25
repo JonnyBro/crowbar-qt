@@ -15,7 +15,8 @@ icon_assets!(
 		Hammer,
 		ListTodo,
 		Package,
-		PackageOpen
+		PackageOpen,
+		RefreshCw
 	]
 );
 

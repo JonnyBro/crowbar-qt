@@ -1,7 +1,9 @@
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Sizable, h_flex, v_flex};
+use gpui_kit::component::notification::Notification;
+use gpui_kit::component::{ActiveTheme, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::launcher;
@@ -91,6 +93,51 @@ impl SettingsView {
 		let settings = self.model.read(cx).settings.clone();
 		crate::theme::apply(&settings, window, cx);
 		window.refresh();
+	}
+
+	fn desktop_buttons(&self, cx: &mut Context<Self>) -> AnyElement {
+		let installed = crate::desktop::is_installed();
+		let run = |install: bool| {
+			move |_: &mut Self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>| {
+				let result = if install {
+					crate::desktop::install()
+				} else {
+					crate::desktop::uninstall()
+				};
+				let note = match result {
+					Ok(()) if install => {
+						Notification::success(t!("set.desktop_added").into_owned())
+					}
+					Ok(()) => Notification::info(t!("set.desktop_removed").into_owned()),
+					Err(e) => Notification::error(e),
+				};
+				window.push_notification(note, cx);
+				cx.notify();
+			}
+		};
+		h_flex()
+			.gap_2()
+			.child(
+				Button::new("desktop-install")
+					.small()
+					.outline()
+					.label(if installed {
+						t!("set.desktop_update")
+					} else {
+						t!("set.desktop_add")
+					})
+					.on_click(cx.listener(run(true))),
+			)
+			.when(installed, |this| {
+				this.child(
+					Button::new("desktop-remove")
+						.small()
+						.ghost()
+						.label(t!("set.desktop_remove"))
+						.on_click(cx.listener(run(false))),
+				)
+			})
+			.into_any_element()
 	}
 
 	/// A card per scheme of one mode, drawn in its own colors.
@@ -316,6 +363,7 @@ impl Render for SettingsView {
 			}),
 		);
 
+		let desktop = self.desktop_buttons(cx);
 		let section = |title: String| div().pt_2().font_weight(FontWeight::SEMIBOLD).child(title);
 		v_flex()
 			.id("settings")
@@ -366,6 +414,22 @@ impl Render for SettingsView {
 				cx,
 			))
 			.child(hint(t!("set.editor_hint"), cx))
+			.child(section(t!("set.app").into_owned()))
+			.child(field(
+				t!("set.updates").into_owned(),
+				Checkbox::new("check-updates")
+					.label(t!("set.check_updates").into_owned())
+					.checked(!settings.skip_update_check)
+					.on_click(cx.listener(|this, checked: &bool, _, cx| {
+						let skip = !*checked;
+						this.model.update(cx, |m, cx| {
+							m.update_settings(|s| s.skip_update_check = skip, cx)
+						});
+					})),
+				cx,
+			))
+			.child(field(t!("set.desktop").into_owned(), desktop, cx))
+			.child(hint(t!("set.desktop_hint"), cx))
 	}
 }
 

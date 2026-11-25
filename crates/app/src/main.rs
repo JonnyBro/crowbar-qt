@@ -1,6 +1,7 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 mod cli;
+mod desktop;
 mod icons;
 mod model;
 mod shell;
@@ -37,9 +38,8 @@ fn run_window(files: Vec<PathBuf>) {
 		single_instance::Start::Forwarded => return,
 		single_instance::Start::First(listener) => listener,
 	};
-	let _socket_cleanup = listener
-		.is_some()
-		.then(|| single_instance::Cleanup::new(&paths));
+	let _socket_cleanup = single_instance::Cleanup;
+	desktop::refresh_if_installed();
 	let (request_tx, request_rx) = smol::channel::unbounded::<Vec<PathBuf>>();
 	if let Some(listener) = listener {
 		single_instance::listen(listener, move |files| {

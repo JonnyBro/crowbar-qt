@@ -665,3 +665,48 @@ notify.done:
 notify.failed:
   en: "Failed"
   ru: "Завершилось с ошибкой"
+set.app:
+  en: "Application"
+  ru: "Приложение"
+set.updates:
+  en: "Updates"
+  ru: "Обновления"
+set.check_updates:
+  en: "Check for a new version at start"
+  ru: "Проверять новую версию при запуске"
+set.desktop:
+  en: "Application menu"
+  ru: "Меню приложений"
+set.desktop_add:
+  en: "Add to Menu"
+  ru: "Добавить в меню"
+set.desktop_update:
+  en: "Update Entry"
+  ru: "Обновить ярлык"
+set.desktop_remove:
+  en: "Remove"
+  ru: "Убрать"
+set.desktop_hint:
+  en: "Adds Prybar with its icon to the application menu and lets the file manager open .qc, .mdl, .vpk and .gma files with it."
+  ru: "Добавляет Prybar с иконкой в меню приложений, и файловый менеджер сможет открывать им файлы .qc, .mdl, .vpk и .gma."
+set.desktop_added:
+  en: "Prybar is in the application menu."
+  ru: "Prybar добавлен в меню приложений."
+set.desktop_removed:
+  en: "Prybar was removed from the application menu."
+  ru: "Prybar убран из меню приложений."
+update.available:
+  en: "Update to %{version}"
+  ru: "Обновить до %{version}"
+update.open_page:
+  en: "Version %{version} is out"
+  ru: "Вышла версия %{version}"
+update.installing:
+  en: "Updating…"
+  ru: "Обновление…"
+update.restart:
+  en: "Restart to Update"
+  ru: "Перезапустить"
+update.restart_failed:
+  en: "Could not start the new version: %{error}"
+  ru: "Не удалось запустить новую версию: %{error}"

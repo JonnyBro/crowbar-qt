@@ -13,11 +13,13 @@ use gpui_kit::component::sidebar::{
 	SidebarMenuItem,
 };
 use gpui_kit::component::{
-	ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex,
+	ActiveTheme, Disableable, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex,
+	v_flex,
 };
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use prybar_core::engine::{TaskSnapshot, TaskState};
+use prybar_core::app_update::Release;
+use prybar_core::engine::{TaskKind, TaskSnapshot, TaskState};
 use prybar_core::{AppPaths, Command, Engine, Event, Settings};
 use rust_i18n::t;
 
@@ -105,6 +107,14 @@ impl Page {
 	}
 }
 
+enum Update {
+	None,
+	Available(Release),
+	Installing(Release),
+	/// The new binary is in place; it runs from the next start.
+	Installed,
+}
+
 pub struct Shell {
 	model: Entity<Model>,
 	page: Page,
@@ -120,6 +130,7 @@ pub struct Shell {
 	/// Tasks that finished while the window was in the background.
 	unseen: Vec<TaskSnapshot>,
 	unseen_long: bool,
+	update: Update,
 	_tasks: Vec<Task<()>>,
 	_subscriptions: Vec<Subscription>,
 }
@@ -202,6 +213,13 @@ impl Shell {
 				&model,
 				window,
 				|this, model, event: &TaskFinished, window, cx| {
+					if event.snapshot.kind == TaskKind::Update
+						&& event.snapshot.state != TaskState::Succeeded
+						&& let Update::Installing(release) =
+							std::mem::replace(&mut this.update, Update::None)
+					{
+						this.update = Update::Available(release);
+					}
 					this.on_task_finished(event, model.read(cx).running(), window, cx);
 				},
 			),
@@ -234,11 +252,15 @@ impl Shell {
 			page,
 			unseen: Vec::new(),
 			unseen_long: false,
+			update: Update::None,
 			_tasks: vec![pump, forwarded],
 			_subscriptions: subscriptions,
 		};
 		if !files.is_empty() {
 			shell.open_paths(files, window, cx);
+		}
+		if !shell.model.read(cx).settings.skip_update_check {
+			shell.model.read(cx).send(Command::CheckUpdate);
 		}
 		shell
 	}
@@ -252,6 +274,16 @@ impl Shell {
 			}
 			Event::SettingsSaveFailed(error) => {
 				window.push_notification(Notification::error(error.clone()), cx);
+			}
+			Event::UpdateAvailable(release) => {
+				if matches!(self.update, Update::None) {
+					self.update = Update::Available(release.clone());
+					cx.notify();
+				}
+			}
+			Event::UpdateInstalled => {
+				self.update = Update::Installed;
+				cx.notify();
 			}
 			_ => {}
 		}
@@ -307,6 +339,72 @@ impl Shell {
 		});
 		self.unseen.clear();
 		self.unseen_long = false;
+	}
+
+	fn install_update(&mut self, cx: &mut Context<Self>) {
+		if let Update::Available(release) = std::mem::replace(&mut self.update, Update::None) {
+			self.model
+				.read(cx)
+				.send(Command::InstallUpdate(release.clone()));
+			self.update = Update::Installing(release);
+			cx.notify();
+		}
+	}
+
+	/// The new process must not find this one's socket, or it would hand its
+	/// start over to the window that is about to close.
+	fn restart(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let bounds = crate::ui_state::SavedBounds::from_window(window.window_bounds());
+		self.model.update(cx, |model, _| {
+			model.ui.window = Some(bounds);
+			model.save_ui();
+		});
+		crate::single_instance::release();
+		let started = prybar_core::app_update::current_exe()
+			.and_then(|exe| std::process::Command::new(exe).spawn());
+		match started {
+			Ok(_) => cx.quit(),
+			Err(e) => {
+				let text = t!("update.restart_failed", error = e);
+				window.push_notification(Notification::error(text.into_owned()), cx);
+			}
+		}
+	}
+
+	/// The footer button for a new release, if there is one.
+	fn update_button(&self, cx: &mut Context<Self>) -> Option<Button> {
+		let button = Button::new("app-update").small().w_full().justify_start();
+		Some(match &self.update {
+			Update::None => return None,
+			Update::Available(release)
+				if release.installable() && prybar_core::app_update::can_replace_self() =>
+			{
+				button
+					.primary()
+					.icon(Icon::from(AppIcon::Download))
+					.label(t!("update.available", version = release.version).into_owned())
+					.on_click(cx.listener(|this, _, _, cx| this.install_update(cx)))
+			}
+			// Installed by a package manager, or nothing to update from.
+			Update::Available(release) => {
+				let url = release.url.clone();
+				button
+					.ghost()
+					.icon(Icon::new(IconName::ExternalLink))
+					.label(t!("update.open_page", version = release.version).into_owned())
+					.on_click(move |_, _, cx| cx.open_url(&url))
+			}
+			Update::Installing(_) => button
+				.ghost()
+				.loading(true)
+				.disabled(true)
+				.label(t!("update.installing").into_owned()),
+			Update::Installed => button
+				.primary()
+				.icon(Icon::new(IconName::RefreshCw))
+				.label(t!("update.restart").into_owned())
+				.on_click(cx.listener(|this, _, window, cx| this.restart(window, cx))),
+		})
 	}
 
 	fn set_page(&mut self, page: Page, cx: &mut Context<Self>) {
@@ -463,6 +561,7 @@ impl Shell {
 					v_flex()
 						.w_full()
 						.gap_1()
+						.children(self.update_button(cx))
 						.child(
 							Button::new("nav-settings")
 								.icon(Icon::from(Page::Settings.icon()))

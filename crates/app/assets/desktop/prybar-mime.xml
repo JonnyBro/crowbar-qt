@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="text/x-source-qc">
+    <comment>Source model QC script</comment>
+    <comment xml:lang="ru">QC-скрипт модели Source</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.qc"/>
+  </mime-type>
+  <mime-type type="model/x-source-mdl">
+    <comment>Source engine model</comment>
+    <comment xml:lang="ru">Модель Source</comment>
+    <magic priority="60">
+      <match type="string" offset="0" value="IDST"/>
+    </magic>
+    <glob pattern="*.mdl"/>
+  </mime-type>
+  <mime-type type="application/x-vpk">
+    <comment>Valve package</comment>
+    <comment xml:lang="ru">Пакет Valve</comment>
+    <glob pattern="*.vpk"/>
+  </mime-type>
+  <mime-type type="application/x-gma">
+    <comment>Garry's Mod addon</comment>
+    <comment xml:lang="ru">Аддон Garry's Mod</comment>
+    <magic priority="60">
+      <match type="string" offset="0" value="GMAD"/>
+    </magic>
+    <glob pattern="*.gma"/>
+  </mime-type>
+</mime-info>

@@ -63,6 +63,9 @@ pub struct Settings {
 	/// Game folders added by hand (a gameinfo.txt folder outside Steam's lists).
 	#[serde(skip_serializing_if = "Vec::is_empty")]
 	pub custom_folders: Vec<PathBuf>,
+	/// Don't ask GitHub for a newer release at start.
+	#[serde(skip_serializing_if = "std::ops::Not::not")]
+	pub skip_update_check: bool,
 	/// Per app id; TOML keys are strings.
 	#[serde(skip_serializing_if = "BTreeMap::is_empty")]
 	pub games: BTreeMap<String, GameSettings>,

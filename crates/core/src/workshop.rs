@@ -386,6 +386,18 @@ impl Client {
 		))
 	}
 
+	/// Like [`Self::fetch_bytes`], with `None` for 404 and the plain reqwest
+	/// error, for hosts other than Steam.
+	pub async fn fetch_optional(&self, url: &str) -> std::result::Result<Option<Vec<u8>>, String> {
+		let response = self.http.get(url).send().await.map_err(|e| e.to_string())?;
+		if response.status() == reqwest::StatusCode::NOT_FOUND {
+			return Ok(None);
+		}
+		let response = response.error_for_status().map_err(|e| e.to_string())?;
+		let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+		Ok(Some(bytes.to_vec()))
+	}
+
 	/// Small downloads kept in memory, e.g. preview images.
 	pub async fn fetch_bytes(&self, url: &str) -> Result<Vec<u8>> {
 		let response = self

@@ -3,6 +3,7 @@
 
 rust_i18n::i18n!("locales", fallback = "en");
 
+pub mod app_update;
 pub mod engine;
 pub mod error;
 mod fsutil;

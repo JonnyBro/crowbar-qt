@@ -5,6 +5,7 @@ mod messages;
 mod packages;
 mod task;
 mod tools;
+mod update;
 mod workshop;
 
 use std::path::{Path, PathBuf};
@@ -294,6 +295,12 @@ async fn run(
 			}
 			Command::FetchImage { request, url } => {
 				tokio::spawn(workshop::fetch_image(context.clone(), request, url));
+			}
+			Command::CheckUpdate => {
+				tokio::spawn(update::check(context.clone()));
+			}
+			Command::InstallUpdate(release) => {
+				tokio::spawn(update::install(context.clone(), release));
 			}
 		}
 	}

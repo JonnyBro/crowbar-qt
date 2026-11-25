@@ -3,8 +3,10 @@
 
 use std::io::{Read, Write};
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use prybar_core::AppPaths;
@@ -14,6 +16,19 @@ pub enum Start {
 	Forwarded,
 	/// This is the only window; requests from later starts arrive here.
 	First(Option<UnixListener>),
+}
+
+/// The socket this process bound, by inode: after a restart the new process
+/// binds its own at the same path, which must survive this one's exit.
+static OURS: OnceLock<(PathBuf, u64)> = OnceLock::new();
+
+/// Stops taking requests from later starts, so a new process can take over.
+pub fn release() {
+	if let Some((path, ino)) = OURS.get()
+		&& std::fs::metadata(path).is_ok_and(|m| m.ino() == *ino)
+	{
+		let _ = std::fs::remove_file(path);
+	}
 }
 
 fn socket_path(paths: &AppPaths) -> PathBuf {
@@ -35,7 +50,12 @@ pub fn start(paths: &AppPaths, files: &[PathBuf]) -> Start {
 	// Nothing answers, so the socket is left over from a crash.
 	let _ = std::fs::remove_file(&socket);
 	match UnixListener::bind(&socket) {
-		Ok(listener) => Start::First(Some(listener)),
+		Ok(listener) => {
+			if let Ok(meta) = std::fs::metadata(&socket) {
+				let _ = OURS.set((socket, meta.ino()));
+			}
+			Start::First(Some(listener))
+		}
 		Err(e) => {
 			tracing::warn!("single instance disabled: {}: {e}", socket.display());
 			Start::First(None)
@@ -86,17 +106,11 @@ pub fn listen(listener: UnixListener, on_request: impl Fn(Vec<PathBuf>) + Send +
 }
 
 /// Removes the socket when the window closes, so the next start does not try it.
-pub struct Cleanup(PathBuf);
-
-impl Cleanup {
-	pub fn new(paths: &AppPaths) -> Self {
-		Self(socket_path(paths))
-	}
-}
+pub struct Cleanup;
 
 impl Drop for Cleanup {
 	fn drop(&mut self) {
-		let _ = std::fs::remove_file(&self.0);
+		release();
 	}
 }
 

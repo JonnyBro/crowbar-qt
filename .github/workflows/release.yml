@@ -49,9 +49,15 @@ jobs:
 
       - name: Pack
         run: |
-          version=${GITHUB_REF_NAME#v}
-          mkdir -p dist
-          tar --zstd -C target/release -cf "dist/prybar-$version-x86_64-linux.tar.zst" prybar
+          name="prybar-$GITHUB_REF_NAME-linux-x86_64"
+          mkdir -p "dist/$name"
+          cp target/release/prybar LICENSE README.md "dist/$name/"
+          cp crates/app/assets/desktop/prybar.desktop crates/app/assets/desktop/prybar.svg \
+            crates/app/assets/desktop/prybar.png crates/app/assets/desktop/prybar-mime.xml \
+            "dist/$name/"
+          # The app updates itself from this archive and expects the binary at <name>/prybar.
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          rm -r "dist/$name"
 
       - uses: actions/upload-artifact@v4
         with:

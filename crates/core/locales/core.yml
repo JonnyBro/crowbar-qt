@@ -266,3 +266,21 @@ task.steamcmd_failed:
 task.saved:
   en: "Saved \"%{path}\"."
   ru: "Сохранено: «%{path}»."
+task.update:
+  en: "Updating Prybar to %{version}"
+  ru: "Обновление Prybar до %{version}"
+update.no_archive:
+  en: "This release has no Linux archive to update from."
+  ru: "В этом релизе нет архива для Linux, обновиться не из чего."
+update.no_sum:
+  en: "SHA256SUMS has no checksum for %{name}."
+  ru: "В SHA256SUMS нет контрольной суммы для %{name}."
+update.bad_sum:
+  en: "The downloaded archive does not match its checksum."
+  ru: "Скачанный архив не совпадает с контрольной суммой."
+update.no_binary:
+  en: "The archive has no prybar binary."
+  ru: "В архиве нет бинарника prybar."
+update.installed:
+  en: "Installed to \"%{path}\". Restart Prybar to use the new version."
+  ru: "Установлено в «%{path}». Перезапустите Prybar, чтобы перейти на новую версию."

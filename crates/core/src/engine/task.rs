@@ -24,6 +24,7 @@ pub enum TaskKind {
 	WorkshopList,
 	Publish,
 	Download,
+	Update,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

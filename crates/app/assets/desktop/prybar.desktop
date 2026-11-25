@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Prybar
+Comment=Compile, view and pack Source engine models and addons
+Comment[ru]=Компиляция, просмотр и упаковка моделей и аддонов Source
+Exec=prybar %F
+Icon=prybar
+Terminal=false
+Categories=Development;
+Keywords=Source;GMod;studiomdl;VPK;GMA;MDL;
+MimeType=text/x-source-qc;model/x-source-mdl;application/x-vpk;application/x-gma;
+StartupWMClass=prybar

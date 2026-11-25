@@ -100,6 +100,10 @@ pub enum Command {
 		request: RequestId,
 		url: String,
 	},
+	/// Answered with [`Event::UpdateAvailable`] when a newer release is out.
+	CheckUpdate,
+	/// Replaces this binary with the release's; a task, then [`Event::UpdateInstalled`].
+	InstallUpdate(crate::app_update::Release),
 	Cancel(TaskId),
 }
 
@@ -144,6 +148,8 @@ pub enum Event {
 		request: RequestId,
 		result: Result<Arc<Vec<u8>>, String>,
 	},
+	UpdateAvailable(crate::app_update::Release),
+	UpdateInstalled,
 }
 
 /// Where compiled models go.
