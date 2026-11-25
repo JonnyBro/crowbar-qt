@@ -4,6 +4,7 @@ mod cli;
 mod icons;
 mod model;
 mod shell;
+mod single_instance;
 mod theme;
 mod ui_state;
 mod views;
@@ -22,16 +23,29 @@ fn main() -> ExitCode {
 	if let Some(command) = args.command {
 		return cli::run(command);
 	}
-	run_window(args.file);
+	run_window(args.files);
 	ExitCode::SUCCESS
 }
 
-fn run_window(file: Option<PathBuf>) {
+fn run_window(files: Vec<PathBuf>) {
 	let paths = match AppPaths::detect().and_then(|p| p.ensure_exist().map(|()| p)) {
 		Ok(paths) => paths,
 		Err(e) => fatal(&e.to_string()),
 	};
 	let _log_guard = init_logging(&paths);
+	let listener = match single_instance::start(&paths, &files) {
+		single_instance::Start::Forwarded => return,
+		single_instance::Start::First(listener) => listener,
+	};
+	let _socket_cleanup = listener
+		.is_some()
+		.then(|| single_instance::Cleanup::new(&paths));
+	let (request_tx, request_rx) = smol::channel::unbounded::<Vec<PathBuf>>();
+	if let Some(listener) = listener {
+		single_instance::listen(listener, move |files| {
+			let _ = request_tx.try_send(files);
+		});
+	}
 	let settings = Settings::load(&paths).unwrap_or_else(|e| {
 		tracing::error!("{e}");
 		Settings::default()
@@ -46,6 +60,8 @@ fn run_window(file: Option<PathBuf>) {
 		.run(move |cx: &mut App| {
 			gpui_kit::init(cx);
 			theme::install(cx);
+			// System notifications are sent under this name.
+			cx.set_app_identity("prybar", "Prybar");
 
 			let options = WindowOptions {
 				window_bounds: Some(saved_window.map(|b| b.to_window()).unwrap_or_else(|| {
@@ -61,9 +77,12 @@ fn run_window(file: Option<PathBuf>) {
 			};
 			let main = gpui_kit::open_window(options, cx, move |window, cx| {
 				theme::apply(&settings, window, cx);
-				cx.new(|cx| shell::Shell::new(paths, settings, file, window, cx))
+				cx.new(|cx| shell::Shell::new(paths, settings, files, request_rx, window, cx))
 			})
 			.expect("open window");
+			cx.on_system_notification_response(move |_, cx| {
+				let _ = main.0.update(cx, |_, window, _| window.activate_window());
+			});
 			// Viewer windows can close on their own; closing the main one ends the app.
 			let main_id = main.0.window_id();
 			cx.on_window_closed(move |cx, closed| {

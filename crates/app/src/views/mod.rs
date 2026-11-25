@@ -1,3 +1,4 @@
+mod columns;
 pub mod compile;
 mod compile_table;
 pub mod download;

@@ -653,3 +653,15 @@ dl.col_id:
 packages.open_window:
   en: "Open in Window"
   ru: "Открыть в окне"
+notify.all_finished:
+  en: "Tasks finished"
+  ru: "Задачи завершены"
+notify.counts:
+  en: "Done: %{done}, failed: %{failed}"
+  ru: "Готово: %{done}, с ошибкой: %{failed}"
+notify.done:
+  en: "Done"
+  ru: "Готово"
+notify.failed:
+  en: "Failed"
+  ru: "Завершилось с ошибкой"

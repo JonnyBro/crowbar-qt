@@ -41,8 +41,10 @@ impl DownloadView {
 				.placeholder(t!("dl.links_placeholder").into_owned())
 		});
 		let output = widgets::new_input("", t!("dl.output_placeholder").into_owned(), window, cx);
-		let table = cx.new(|cx| TableState::new(DownloadTable::default(), window, cx));
+		let (table, widths) =
+			super::columns::new_table(DownloadTable::default(), &model, window, cx);
 		let subscriptions = vec![
+			widths,
 			cx.observe(&table, |_, _, cx| cx.notify()),
 			cx.subscribe(&table, |_, table, event: &TableEvent, cx| {
 				if let TableEvent::DoubleClickedRow(row) = event

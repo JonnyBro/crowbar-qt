@@ -12,6 +12,7 @@ use gpui_kit::*;
 use prybar_core::steam::{App as SteamApp, Platform};
 use rust_i18n::t;
 
+use super::columns::{Remembered, SavedWidths};
 use crate::theme::Mono;
 use crate::widgets::file_name;
 
@@ -30,6 +31,7 @@ pub enum Row {
 
 #[derive(Default)]
 pub struct GamesTable {
+	widths: SavedWidths,
 	pub apps: Vec<SteamApp>,
 	/// The game folder every page works with.
 	pub current: Option<PathBuf>,
@@ -118,6 +120,14 @@ fn compare(a: &SteamApp, b: &SteamApp, col: usize) -> Ordering {
 	}
 }
 
+impl Remembered for GamesTable {
+	const KEY: &'static str = "games";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for GamesTable {
 	fn columns_count(&self, _: &App) -> usize {
 		6
@@ -128,7 +138,7 @@ impl TableDelegate for GamesTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			NAME => Column::new("name", t!("games.col_game"))
 				.width(px(300.))
 				.min_width(px(120.))
@@ -148,7 +158,8 @@ impl TableDelegate for GamesTable {
 			_ => Column::new("location", t!("games.col_location"))
 				.width(px(520.))
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(

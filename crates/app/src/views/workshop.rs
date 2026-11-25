@@ -39,8 +39,10 @@ impl WorkshopView {
 		let content = widgets::new_input("", t!("ws.content_placeholder").into_owned(), window, cx);
 		let icon = widgets::new_input("", t!("ws.icon_placeholder").into_owned(), window, cx);
 		let changes = widgets::new_input("", t!("ws.changes_placeholder").into_owned(), window, cx);
-		let table = cx.new(|cx| TableState::new(WorkshopTable::default(), window, cx));
+		let (table, widths) =
+			super::columns::new_table(WorkshopTable::default(), &model, window, cx);
 		let subscriptions = vec![
+			widths,
 			cx.observe(&model, |_, _, cx| cx.notify()),
 			// Sorting moves rows; the highlight follows the selected item, not its old row.
 			cx.observe(&table, |this, table, cx| {

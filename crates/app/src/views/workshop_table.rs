@@ -12,6 +12,7 @@ use prybar_core::publisher::WorkshopItem;
 use prybar_core::workshop::ItemDetails;
 use rust_i18n::t;
 
+use super::columns::{Remembered, SavedWidths};
 use crate::theme::Mono;
 use crate::widgets::{format_date, format_size, missing_last};
 
@@ -48,6 +49,7 @@ impl Row {
 
 #[derive(Default)]
 pub struct WorkshopTable {
+	widths: SavedWidths,
 	pub rows: Vec<Row>,
 	pub previews: HashMap<u64, Arc<Image>>,
 	sort: Option<(usize, ColumnSort)>,
@@ -117,6 +119,14 @@ impl WorkshopTable {
 	}
 }
 
+impl Remembered for WorkshopTable {
+	const KEY: &'static str = "workshop";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for WorkshopTable {
 	fn columns_count(&self, _: &App) -> usize {
 		5
@@ -127,7 +137,7 @@ impl TableDelegate for WorkshopTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			PREVIEW => Column::new("preview", "").width(px(48.)).resizable(false),
 			TITLE => Column::new("title", t!("ws.col_title"))
 				.width(px(420.))
@@ -143,7 +153,8 @@ impl TableDelegate for WorkshopTable {
 			_ => Column::new("updated", t!("ws.col_updated"))
 				.width(px(120.))
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(

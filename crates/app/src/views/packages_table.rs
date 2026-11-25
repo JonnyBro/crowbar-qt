@@ -13,6 +13,7 @@ use gpui_kit::*;
 use prybar_core::package::Package;
 use rust_i18n::t;
 
+use super::columns::{Remembered, SavedWidths};
 use crate::theme::Mono;
 use crate::widgets::{file_name, format_size};
 
@@ -22,6 +23,7 @@ const SIZE: usize = 2;
 
 #[derive(Default)]
 pub struct EntriesTable {
+	widths: SavedWidths,
 	pub package: Option<Arc<Package>>,
 	/// Checked entries, as indexes into the package's entries.
 	pub checked: BTreeSet<usize>,
@@ -84,6 +86,14 @@ impl EntriesTable {
 	}
 }
 
+impl Remembered for EntriesTable {
+	const KEY: &'static str = "package_entries";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for EntriesTable {
 	fn columns_count(&self, _: &App) -> usize {
 		3
@@ -94,7 +104,7 @@ impl TableDelegate for EntriesTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			CHECK => Column::new("check", "").width(px(40.)).resizable(false),
 			PATH => Column::new("path", t!("packages.col_path"))
 				.width(px(620.))
@@ -104,7 +114,8 @@ impl TableDelegate for EntriesTable {
 				.width(px(100.))
 				.text_right()
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(
@@ -222,6 +233,7 @@ pub struct Match {
 
 #[derive(Default)]
 pub struct ResultsTable {
+	widths: SavedWidths,
 	pub matches: Vec<Match>,
 	rows: Vec<usize>,
 	sort: Option<(usize, ColumnSort)>,
@@ -265,6 +277,14 @@ impl ResultsTable {
 	}
 }
 
+impl Remembered for ResultsTable {
+	const KEY: &'static str = "package_search";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for ResultsTable {
 	fn columns_count(&self, _: &App) -> usize {
 		3
@@ -275,7 +295,7 @@ impl TableDelegate for ResultsTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			R_PACKAGE => Column::new("package", t!("packages.col_package"))
 				.width(px(240.))
 				.sortable(),
@@ -287,7 +307,8 @@ impl TableDelegate for ResultsTable {
 				.width(px(100.))
 				.text_right()
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(

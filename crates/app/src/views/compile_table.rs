@@ -12,6 +12,7 @@ use gpui_kit::*;
 use prybar_core::engine::TaskState;
 use rust_i18n::t;
 
+use super::columns::{Remembered, SavedWidths};
 use crate::model::Model;
 use crate::theme::Mono;
 
@@ -20,6 +21,7 @@ const FILE: usize = 1;
 const STATUS: usize = 2;
 
 pub struct CompileTable {
+	widths: SavedWidths,
 	model: Entity<Model>,
 	pub files: Vec<PathBuf>,
 	pub checked: BTreeSet<PathBuf>,
@@ -44,6 +46,7 @@ enum Status {
 impl CompileTable {
 	pub fn new(model: Entity<Model>) -> Self {
 		Self {
+			widths: SavedWidths::default(),
 			model,
 			files: Vec::new(),
 			checked: BTreeSet::new(),
@@ -131,6 +134,14 @@ fn status_look(status: Status, cx: &App) -> (String, Hsla) {
 	}
 }
 
+impl Remembered for CompileTable {
+	const KEY: &'static str = "compile";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for CompileTable {
 	fn columns_count(&self, _: &App) -> usize {
 		3
@@ -141,7 +152,7 @@ impl TableDelegate for CompileTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			CHECK => Column::new("check", "").width(px(40.)).resizable(false),
 			FILE => Column::new("file", t!("compile.col_file"))
 				.width(px(760.))
@@ -150,7 +161,8 @@ impl TableDelegate for CompileTable {
 			_ => Column::new("status", t!("compile.col_status"))
 				.width(px(140.))
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(

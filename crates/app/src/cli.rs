@@ -15,8 +15,9 @@ use prybar_core::{
 #[derive(Parser)]
 #[command(name = "prybar", version = prybar_core::VERSION, about = "Source engine modding tool")]
 pub struct Cli {
-	/// A .qc, .mdl, .vpk, .gma or folder to open in the window.
-	pub file: Option<PathBuf>,
+	/// .qc, .mdl, .vpk, .gma files or folders to open in the window. When a
+	/// window is already open, they open there.
+	pub files: Vec<PathBuf>,
 
 	#[command(subcommand)]
 	pub command: Option<CliCommand>,
@@ -587,6 +588,14 @@ mod tests {
 	fn bare_file_opens_the_window() {
 		let cli = Cli::try_parse_from(["prybar", "model.qc"]).unwrap();
 		assert!(cli.command.is_none());
-		assert_eq!(cli.file, Some(PathBuf::from("model.qc")));
+		assert_eq!(cli.files, [PathBuf::from("model.qc")]);
+
+		let cli = Cli::try_parse_from(["prybar", "a.qc", "b.vpk"]).unwrap();
+		assert!(cli.command.is_none());
+		assert_eq!(cli.files.len(), 2);
+
+		let cli = Cli::try_parse_from(["prybar", "games"]).unwrap();
+		assert!(matches!(cli.command, Some(CliCommand::Games)));
+		assert!(cli.files.is_empty());
 	}
 }

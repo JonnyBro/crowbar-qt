@@ -36,8 +36,10 @@ pub struct CompileView {
 
 impl CompileView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		let table = cx.new(|cx| TableState::new(CompileTable::new(model.clone()), window, cx));
+		let (table, widths) =
+			super::columns::new_table(CompileTable::new(model.clone()), &model, window, cx);
 		let subscriptions = vec![
+			widths,
 			cx.observe(&model, |this, model, cx| {
 				let model = model.read(cx);
 				// A cancelled compile stops the rest of the queue.

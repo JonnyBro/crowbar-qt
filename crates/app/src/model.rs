@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use gpui_kit::*;
 use prybar_core::engine::{RequestId, TaskId, TaskSnapshot, TaskState};
@@ -119,10 +120,17 @@ pub fn find_link(line: &str) -> Option<Link> {
 pub struct TaskView {
 	pub snapshot: TaskSnapshot,
 	pub log: Vec<LogLine>,
+	started: Instant,
 }
 
 /// An engine event that only the pages know what to do with.
 pub struct EngineEvent(pub Event);
+
+/// A task stopped running.
+pub struct TaskFinished {
+	pub snapshot: TaskSnapshot,
+	pub took: Duration,
+}
 
 pub struct Model {
 	pub engine: Rc<Engine>,
@@ -137,6 +145,7 @@ pub struct Model {
 }
 
 impl EventEmitter<EngineEvent> for Model {}
+impl EventEmitter<TaskFinished> for Model {}
 
 impl Model {
 	pub fn new(engine: Rc<Engine>, paths: AppPaths, settings: Settings) -> Self {
@@ -233,10 +242,21 @@ impl Model {
 			}
 			Event::TaskUpdated(snapshot) => {
 				match self.tasks.iter_mut().find(|t| t.snapshot.id == snapshot.id) {
-					Some(task) => task.snapshot = snapshot,
+					Some(task) => {
+						let finished =
+							!task.snapshot.state.is_finished() && snapshot.state.is_finished();
+						task.snapshot = snapshot;
+						if finished {
+							cx.emit(TaskFinished {
+								snapshot: task.snapshot.clone(),
+								took: task.started.elapsed(),
+							});
+						}
+					}
 					None => self.tasks.push(TaskView {
 						snapshot,
 						log: Vec::new(),
+						started: Instant::now(),
 					}),
 				}
 				cx.notify();

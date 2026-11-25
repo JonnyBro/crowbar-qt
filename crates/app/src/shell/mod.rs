@@ -3,6 +3,7 @@ mod tasks;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
@@ -16,17 +17,22 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::*;
 use gpui_kit::*;
+use prybar_core::engine::{TaskSnapshot, TaskState};
 use prybar_core::{AppPaths, Command, Engine, Event, Settings};
 use rust_i18n::t;
 
 use crate::icons::AppIcon;
-use crate::model::{EngineEvent, Model};
+use crate::model::{EngineEvent, Model, TaskFinished};
 use crate::theme::Mono;
 use crate::views::{
 	compile::CompileView, download::DownloadView, games::GamesView, pack::PackView,
 	packages::PackagesView, settings::SettingsView, view::ViewView, workshop::WorkshopView,
 };
 use tasks::TasksPanel;
+
+/// A batch of tasks that ran at least this long is worth a system notification.
+const NOTIFY_AFTER: Duration = Duration::from_secs(5);
+const NOTIFICATION_TAG: &str = "prybar-tasks";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -111,6 +117,9 @@ pub struct Shell {
 	download: Entity<DownloadView>,
 	settings: Entity<SettingsView>,
 	tasks: Entity<TasksPanel>,
+	/// Tasks that finished while the window was in the background.
+	unseen: Vec<TaskSnapshot>,
+	unseen_long: bool,
 	_tasks: Vec<Task<()>>,
 	_subscriptions: Vec<Subscription>,
 }
@@ -119,7 +128,8 @@ impl Shell {
 	pub fn new(
 		paths: AppPaths,
 		settings: Settings,
-		file: Option<PathBuf>,
+		files: Vec<PathBuf>,
+		requests: smol::channel::Receiver<Vec<PathBuf>>,
 		window: &mut Window,
 		cx: &mut Context<Self>,
 	) -> Self {
@@ -154,6 +164,20 @@ impl Shell {
 			})
 		};
 
+		let forwarded = cx.spawn_in(window, async move |this, cx| {
+			while let Ok(files) = requests.recv().await {
+				let alive = this.update_in(cx, |this, window, cx| {
+					window.activate_window();
+					if !files.is_empty() {
+						this.open_paths(files, window, cx);
+					}
+				});
+				if alive.is_err() {
+					break;
+				}
+			}
+		});
+
 		window.on_window_should_close(cx, {
 			let model = model.downgrade();
 			move |window, cx| {
@@ -174,6 +198,20 @@ impl Shell {
 					this.on_engine_event(&event.0, window, cx);
 				},
 			),
+			cx.subscribe_in(
+				&model,
+				window,
+				|this, model, event: &TaskFinished, window, cx| {
+					this.on_task_finished(event, model.read(cx).running(), window, cx);
+				},
+			),
+			cx.observe_window_activation(window, |this, window, cx| {
+				if window.is_window_active() {
+					this.unseen.clear();
+					this.unseen_long = false;
+					cx.dismiss_system_notification(NOTIFICATION_TAG);
+				}
+			}),
 			cx.observe(&model, |_, _, cx| cx.notify()),
 			cx.observe_window_appearance(window, |this, window, cx| {
 				let settings = this.model.read(cx).settings.clone();
@@ -194,11 +232,13 @@ impl Shell {
 			tasks: cx.new(|cx| TasksPanel::new(model.clone(), cx)),
 			model,
 			page,
-			_tasks: vec![pump],
+			unseen: Vec::new(),
+			unseen_long: false,
+			_tasks: vec![pump, forwarded],
 			_subscriptions: subscriptions,
 		};
-		if let Some(file) = file {
-			shell.open_paths(vec![file], window, cx);
+		if !files.is_empty() {
+			shell.open_paths(files, window, cx);
 		}
 		shell
 	}
@@ -215,6 +255,58 @@ impl Shell {
 			}
 			_ => {}
 		}
+	}
+
+	/// Once the last running task stops while the window is in the background,
+	/// one notification sums up what finished there.
+	fn on_task_finished(
+		&mut self,
+		event: &TaskFinished,
+		running: usize,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		if window.is_window_active() || event.snapshot.state == TaskState::Cancelled {
+			return;
+		}
+		self.unseen.push(event.snapshot.clone());
+		self.unseen_long |= event.took >= NOTIFY_AFTER;
+		if running > 0 || !self.unseen_long {
+			return;
+		}
+		let failed = self
+			.unseen
+			.iter()
+			.filter(|t| t.state == TaskState::Failed)
+			.count();
+		let (title, body) = match self.unseen.as_slice() {
+			[task] => (
+				task.title.clone(),
+				if failed > 0 {
+					t!("notify.failed")
+				} else {
+					t!("notify.done")
+				}
+				.into_owned(),
+			),
+			tasks => (
+				t!("notify.all_finished").into_owned(),
+				t!(
+					"notify.counts",
+					done = tasks.len() - failed,
+					failed = failed
+				)
+				.into_owned(),
+			),
+		};
+		cx.show_system_notification(SystemNotification {
+			tag: NOTIFICATION_TAG.into(),
+			title: title.into(),
+			body: body.into(),
+			actions: Vec::new(),
+		});
+		self.unseen.clear();
+		self.unseen_long = false;
 	}
 
 	fn set_page(&mut self, page: Page, cx: &mut Context<Self>) {

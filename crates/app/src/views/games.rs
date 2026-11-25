@@ -32,8 +32,9 @@ pub struct GamesView {
 
 impl GamesView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-		let table = cx.new(|cx| TableState::new(GamesTable::default(), window, cx));
+		let (table, widths) = super::columns::new_table(GamesTable::default(), &model, window, cx);
 		let subscriptions = vec![
+			widths,
 			cx.observe(&model, |this, _, cx| this.sync(cx)),
 			// Sorting moves rows; the highlight follows the selected game, not its old row.
 			cx.observe(&table, |this, table, cx| {

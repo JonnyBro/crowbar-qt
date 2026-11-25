@@ -87,9 +87,13 @@ impl PackagesView {
 			window,
 			cx,
 		);
-		let entries = cx.new(|cx| TableState::new(EntriesTable::default(), window, cx));
-		let results = cx.new(|cx| TableState::new(ResultsTable::default(), window, cx));
+		let (entries, entry_widths) =
+			super::columns::new_table(EntriesTable::default(), &model, window, cx);
+		let (results, result_widths) =
+			super::columns::new_table(ResultsTable::default(), &model, window, cx);
 		let subscriptions = vec![
+			entry_widths,
+			result_widths,
 			cx.observe(&model, |_, _, cx| cx.notify()),
 			cx.observe(&entries, |this, table, cx| {
 				// Sorting moves rows; the highlight follows the focused entry.

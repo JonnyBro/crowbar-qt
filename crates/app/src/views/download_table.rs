@@ -11,6 +11,7 @@ use gpui_kit::*;
 use prybar_core::engine::FoundItem;
 use rust_i18n::t;
 
+use super::columns::{Remembered, SavedWidths};
 use crate::theme::Mono;
 use crate::widgets::{format_date, format_size, missing_last};
 
@@ -51,6 +52,7 @@ impl Row {
 
 #[derive(Default)]
 pub struct DownloadTable {
+	widths: SavedWidths,
 	pub rows: Vec<Row>,
 	pub previews: HashMap<u64, Arc<Image>>,
 	order: Vec<usize>,
@@ -121,6 +123,14 @@ fn source_look(source: Source, cx: &App) -> (String, Hsla) {
 	}
 }
 
+impl Remembered for DownloadTable {
+	const KEY: &'static str = "download";
+
+	fn widths_mut(&mut self) -> &mut SavedWidths {
+		&mut self.widths
+	}
+}
+
 impl TableDelegate for DownloadTable {
 	fn columns_count(&self, _: &App) -> usize {
 		7
@@ -131,7 +141,7 @@ impl TableDelegate for DownloadTable {
 	}
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
-		match col_ix {
+		let column = match col_ix {
 			PREVIEW => Column::new("preview", "").width(px(48.)).resizable(false),
 			TITLE => Column::new("title", t!("dl.col_title"))
 				.width(px(380.))
@@ -153,7 +163,8 @@ impl TableDelegate for DownloadTable {
 			_ => Column::new("id", t!("dl.col_id"))
 				.width(px(120.))
 				.sortable(),
-		}
+		};
+		self.widths.apply(col_ix, column)
 	}
 
 	fn perform_sort(

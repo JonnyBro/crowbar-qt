@@ -1,6 +1,7 @@
 //! What the pages remember between runs: choices and options, the open page.
 //! Paths are not remembered; every run starts with empty path fields.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use gpui_kit::*;
@@ -17,6 +18,8 @@ pub struct UiState {
 	pub packages: PackagesPrefs,
 	pub pack: PackPrefs,
 	pub download: DownloadPrefs,
+	/// Column widths per table, see `views::columns`.
+	pub columns: BTreeMap<String, Vec<f32>>,
 }
 
 impl Default for UiState {
@@ -29,6 +32,7 @@ impl Default for UiState {
 			packages: PackagesPrefs::default(),
 			pack: PackPrefs::default(),
 			download: DownloadPrefs::default(),
+			columns: BTreeMap::new(),
 		}
 	}
 }
