@@ -12,7 +12,11 @@ permissions:
   contents: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   linux:
+    needs: ci
     # The oldest supported Ubuntu, so the binary's glibc is old enough for most distributions.
     runs-on: ubuntu-22.04
     steps:
@@ -42,10 +46,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build and test
-        run: |
-          cargo test --locked
-          cargo build --release --locked -p prybar
+      - name: Build
+        run: cargo build --release --locked -p prybar
 
       - name: Pack
         run: |
