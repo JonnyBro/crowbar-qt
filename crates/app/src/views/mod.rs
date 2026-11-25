@@ -8,6 +8,7 @@ pub mod pack;
 pub mod packages;
 mod packages_table;
 pub mod settings;
+mod text_window;
 pub mod view;
 pub mod workshop;
 mod workshop_table;

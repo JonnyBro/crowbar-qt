@@ -59,12 +59,19 @@ fn run_window(file: Option<PathBuf>) {
 				app_id: Some("prybar".into()),
 				..Default::default()
 			};
-			gpui_kit::open_window(options, cx, move |window, cx| {
+			let main = gpui_kit::open_window(options, cx, move |window, cx| {
 				theme::apply(&settings, window, cx);
 				cx.new(|cx| shell::Shell::new(paths, settings, file, window, cx))
 			})
 			.expect("open window");
-			cx.on_window_closed(|cx, _| cx.quit()).detach();
+			// Viewer windows can close on their own; closing the main one ends the app.
+			let main_id = main.0.window_id();
+			cx.on_window_closed(move |cx, closed| {
+				if closed == main_id {
+					cx.quit();
+				}
+			})
+			.detach();
 			cx.activate(true);
 		});
 }

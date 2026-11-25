@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::input::{EditorState, Input, InputEvent, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
@@ -16,15 +16,14 @@ use prybar_core::package::Package;
 use rust_i18n::t;
 
 use crate::model::{EngineEvent, Model};
-use crate::theme::Mono;
 use crate::ui_state::OutputMode;
 use crate::widgets::{self, browse_button, choice, field, page_header, path_row};
 
 use super::packages_table::{EntriesTable, Match, ResultsTable};
+use super::text_window::{self, TextWindow};
 
 /// Bigger entries are not read for a preview.
 const MAX_PREVIEW: u64 = 4 * 1024 * 1024;
-const TEXT_PREVIEW_LINES: usize = 2000;
 const TEXT_EXTENSIONS: [&str; 16] = [
 	"txt", "vmt", "qc", "qci", "lua", "json", "cfg", "res", "vdf", "nut", "smd", "fgd", "md",
 	"ini", "rad", "kv",
@@ -39,7 +38,12 @@ enum Scope {
 enum Preview {
 	None,
 	Loading(RequestId),
-	Text(SharedString),
+	/// A read-only editor, with the text and the entry's path for opening it in a window.
+	Text {
+		editor: Entity<EditorState>,
+		text: String,
+		path: String,
+	},
 	Image(Arc<Image>),
 	Unsupported,
 	Error(String),
@@ -215,7 +219,7 @@ impl PackagesView {
 			Event::EntryRead { request, result } => {
 				if matches!(self.preview, Preview::Loading(r) if r == *request) {
 					self.preview = match result {
-						Ok(data) => self.make_preview(data),
+						Ok(data) => self.make_preview(data, window, cx),
 						Err(e) => Preview::Error(e.clone()),
 					};
 					cx.notify();
@@ -246,7 +250,7 @@ impl PackagesView {
 		}
 	}
 
-	fn make_preview(&self, data: &[u8]) -> Preview {
+	fn make_preview(&self, data: &[u8], window: &mut Window, cx: &mut App) -> Preview {
 		let Some(entry) = self.focused_entry() else {
 			return Preview::None;
 		};
@@ -258,13 +262,13 @@ impl PackagesView {
 			return Preview::Image(Arc::new(Image::from_bytes(format, data.to_vec())));
 		}
 		if TEXT_EXTENSIONS.contains(&extension.as_str()) {
-			let text = String::from_utf8_lossy(data);
-			let text: String = text
-				.lines()
-				.take(TEXT_PREVIEW_LINES)
-				.collect::<Vec<_>>()
-				.join("\n");
-			return Preview::Text(text.into());
+			let text = String::from_utf8_lossy(data).into_owned();
+			let language = text_window::language_for(&entry.path);
+			return Preview::Text {
+				editor: text_window::viewer(&text, language, window, cx),
+				text,
+				path: entry.path.clone(),
+			};
 		}
 		Preview::Unsupported
 	}
@@ -428,16 +432,46 @@ impl PackagesView {
 				.justify_center()
 				.child(img(image.clone()).max_w_full().max_h_full())
 				.into_any_element(),
-			Preview::Text(text) => div()
-				.id("text-preview")
-				.size_full()
-				.overflow_scroll()
-				.p_3()
-				.mono(cx)
-				.text_xs()
-				.whitespace_nowrap()
-				.child(text.clone())
-				.into_any_element(),
+			Preview::Text { editor, text, path } => {
+				let text = text.clone();
+				let path = path.clone();
+				v_flex()
+					.size_full()
+					.child(
+						h_flex()
+							.px_2()
+							.py_1()
+							.gap_2()
+							.border_b_1()
+							.border_color(theme.border)
+							.child(
+								div()
+									.flex_1()
+									.min_w_0()
+									.truncate()
+									.text_xs()
+									.text_color(theme.muted_foreground)
+									.child(path.clone()),
+							)
+							.child(
+								Button::new("preview-window")
+									.icon(Icon::new(IconName::ExternalLink))
+									.label(t!("packages.open_window"))
+									.xsmall()
+									.ghost()
+									.on_click(move |_, _, cx| {
+										TextWindow::open(path.clone(), text.clone(), cx);
+									}),
+							),
+					)
+					.child(
+						div()
+							.flex_1()
+							.min_h_0()
+							.child(text_window::editor_element(editor)),
+					)
+					.into_any_element()
+			}
 		}
 	}
 }
@@ -616,7 +650,7 @@ impl Render for PackagesView {
 					.child(v_flex().flex_1().min_w_0().h_full().child(list))
 					.child(
 						v_flex()
-							.w(px(340.))
+							.w(px(460.))
 							.flex_shrink_0()
 							.h_full()
 							.border_1()

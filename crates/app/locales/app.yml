@@ -650,3 +650,6 @@ dl.col_collection:
 dl.col_id:
   en: "ID"
   ru: "ID"
+packages.open_window:
+  en: "Open in Window"
+  ru: "Открыть в окне"

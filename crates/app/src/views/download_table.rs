@@ -85,7 +85,11 @@ impl DownloadTable {
 					return missing_last(ra.size(), rb.size(), sort == ColumnSort::Descending);
 				}
 				(_, UPDATED) => {
-					return missing_last(ra.updated(), rb.updated(), sort == ColumnSort::Descending);
+					return missing_last(
+						ra.updated(),
+						rb.updated(),
+						sort == ColumnSort::Descending,
+					);
 				}
 				(_, SOURCE) => ra.source.cmp(&rb.source),
 				(_, COLLECTION) => {

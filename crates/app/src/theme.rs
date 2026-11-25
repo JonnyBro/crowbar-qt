@@ -141,3 +141,27 @@ pub trait Mono: Styled + Sized {
 }
 
 impl<T: Styled> Mono for T {}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use gpui_kit::component::ThemeSet;
+	// gpui_kit's prelude has a `test` attribute of its own.
+	use ::core::prelude::v1::test;
+
+	/// A theme gpui-component can't read is skipped without a word; a theme
+	/// without highlight colors gives the code editor the default light ones.
+	#[test]
+	fn bundled_themes_parse_with_highlight_colors() {
+		let set: ThemeSet = serde_json::from_str(THEMES).expect("themes.json parses");
+		assert!(!set.themes.is_empty());
+		for theme in &set.themes {
+			let highlight = theme.highlight.as_ref();
+			assert!(
+				highlight.is_some_and(|h| h.editor_background.is_some()),
+				"{} has no editor colors",
+				theme.name
+			);
+		}
+	}
+}

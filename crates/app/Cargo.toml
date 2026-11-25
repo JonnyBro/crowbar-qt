@@ -11,6 +11,8 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock", "s
 clap = { version = "4.6.7", features = ["derive"] }
 directories = "6.0.0"
 gpui-kit = "0.10.0"
+# Only for its Lua grammar: gpui-kit doesn't pass tree-sitter features through.
+gpui-component = { version = "0.10.0", features = ["tree-sitter-lua"] }
 prybar-core = { path = "../core" }
 rfd = "0.18.0"
 rust-i18n = "4.2.4"
