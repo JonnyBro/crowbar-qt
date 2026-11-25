@@ -45,8 +45,9 @@ Ctrl+C stops a running tool together with everything it started under Proton.
   and `prybar run <appid> <game dir> [launch options]` starts the game through Steam with `-game`.
 - `prybar package list <file>` and `prybar package unpack <file> <output dir>` read VPK and GMA packages
   (old LZMA-compressed workshop `.bin` files too) without the game's tools.
-- `prybar package pack <appid> <vpk|gma> <folder> <output file> [--multi] [-- packer options]` packs a folder
-  with the game's `vpk` or `gmad`.
+- `prybar package pack <appid> <vpk|gma> <folder> <output file> [--multi] [-- packer options]` packs a folder.
+  VPK goes through the game's `vpk`. GMA is written by Prybar itself, byte for byte as gmad writes it, so it
+  needs neither gmad nor the game; `-- -warninvalid` leaves out files that are not on gmad's whitelist.
 - `prybar workshop list <appid>` and `prybar workshop publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]`
   work with the Garry's Mod workshop through `gmpublish`; any image works as the icon.
 - `prybar download -o <output dir> <links or IDs...>` saves workshop items and whole collections, from Steam's

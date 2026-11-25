@@ -116,9 +116,10 @@ pub fn publish_command(app: &App, request: &Request, user_env: &str) -> Result<C
 	if let Some(icon) = &request.icon {
 		args.extend(["-icon".to_owned(), path(icon)]);
 	}
-	let changes = request.changes.trim();
-	if !create && !changes.is_empty() {
-		args.extend(["-changes".to_owned(), changes.to_owned()]);
+	// Without -changes gmpublish fills in "None Provided", so an empty note is
+	// passed as it is.
+	if !create {
+		args.extend(["-changes".to_owned(), request.changes.trim().to_owned()]);
 	}
 
 	let mut command = launcher::build(app, &executable, args, Mode::Console, user_env)?;
@@ -390,6 +391,10 @@ mod tests {
 				"fixed something".into()
 			]
 		);
+
+		request.changes = "  ".into();
+		let command = publish_command(&app, &request, "").unwrap();
+		assert_eq!(command.args[command.args.len() - 2..], ["-changes", ""]);
 
 		request.gma = None;
 		assert!(matches!(

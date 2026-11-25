@@ -38,8 +38,9 @@ pub enum Command {
 		options: Vec<String>,
 	},
 	Hammer(Target),
+	/// GMA needs no game: it is packed without gmad.
 	Pack {
-		target: Target,
+		target: Option<Target>,
 		format: packer::Format,
 		folder: PathBuf,
 		output: PathBuf,

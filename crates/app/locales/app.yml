@@ -327,8 +327,8 @@ pack.format:
   en: "Format:"
   ru: "Формат:"
 pack.gma:
-  en: "GMA (gmad)"
-  ru: "GMA (gmad)"
+  en: "GMA"
+  ru: "GMA"
 pack.multi:
   en: "Multi-file VPK (-M)"
   ru: "Многотомный VPK (-M)"
@@ -372,8 +372,8 @@ pack.save_and_pack:
   en: "Save and Pack"
   ru: "Сохранить и упаковать"
 pack.subtitle:
-  en: "Packs a folder with the game's vpk or gmad."
-  ru: "Упаковывает папку через vpk или gmad игры."
+  en: "Packs a folder into a VPK with the game's vpk, or into a GMA on its own."
+  ru: "Упаковывает папку в VPK через vpk игры или в GMA своими силами."
 pack.title_placeholder:
   en: "Title (defaults to the folder name)"
   ru: "Название (по умолчанию имя папки)"
@@ -381,8 +381,8 @@ pack.vpk:
   en: "VPK (vpk)"
   ru: "VPK (vpk)"
 pack.warn_invalid:
-  en: "Skip invalid files (-warninvalid)"
-  ru: "Пропускать недопустимые файлы (-warninvalid)"
+  en: "Skip files not on gmad's whitelist"
+  ru: "Пропускать файлы вне вайтлиста gmad"
 ws.changes:
   en: "Changes:"
   ru: "Изменения:"
@@ -711,8 +711,8 @@ update.restart_failed:
   en: "Could not start the new version: %{error}"
   ru: "Не удалось запустить новую версию: %{error}"
 pack.check_packed:
-  en: "gmad will pack %{n} file(s)."
-  ru: "gmad упакует файлов: %{n}."
+  en: "The addon gets %{n} file(s)."
+  ru: "В аддон попадёт файлов: %{n}."
 pack.check_ignored:
   en: "%{n} left out by the ignore list."
   ru: "По списку ignore пропущено: %{n}."
@@ -735,8 +735,8 @@ pack.invalid_title:
   en: "gmad does not allow some files"
   ru: "gmad не пропустит часть файлов"
 pack.invalid_ask:
-  en: "%{n} file(s) are not on gmad's whitelist, and gmad will refuse to pack the folder. Pack without them?"
-  ru: "Файлов вне вайтлиста gmad: %{n}. С ними gmad откажется паковать папку. Упаковать без них?"
+  en: "%{n} file(s) are not on gmad's whitelist, and an addon can't hold them. Pack without them?"
+  ru: "Файлов вне вайтлиста gmad: %{n}. В аддон их положить нельзя. Упаковать без них?"
 pack.pack_without:
   en: "Pack Without Them"
   ru: "Упаковать без них"

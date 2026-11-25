@@ -145,7 +145,7 @@ pub(super) async fn publish(
 		let files = pack(
 			&context,
 			&pack_task,
-			&target,
+			Some(&target),
 			packer::Format::Gma,
 			&content,
 			&packed,

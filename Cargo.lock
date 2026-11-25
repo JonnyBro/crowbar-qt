@@ -5094,6 +5094,7 @@ dependencies = [
 name = "prybar-core"
 version = "2.0.1"
 dependencies = [
+ "crc32fast",
  "directories",
  "flate2",
  "image",

@@ -76,8 +76,8 @@ const DEFAULT_IGNORES: &[&str] = &["*thumbs.db", "*desktop.ini", ".git*"];
 pub struct Check {
 	/// Paths relative to the folder, with `/`, that gmad refuses.
 	pub invalid: Vec<String>,
-	/// Files that go into the addon.
-	pub packed: usize,
+	/// Paths relative to the folder, with `/`, that go into the addon.
+	pub files: Vec<String>,
 	/// Files left out by the ignore lists.
 	pub ignored: usize,
 }
@@ -144,7 +144,7 @@ pub fn check(folder: &Path) -> std::io::Result<Check> {
 		if ignores.iter().any(|pattern| wildcard(pattern, &file)) {
 			result.ignored += 1;
 		} else if is_allowed(&file) {
-			result.packed += 1;
+			result.files.push(file);
 		} else {
 			result.invalid.push(file);
 		}
@@ -219,7 +219,7 @@ mod tests {
 		std::fs::write(root.join("addon.json"), r#"{"ignore": ["*.psd"]}"#).unwrap();
 		let result = check(root).unwrap();
 		assert_eq!(result.invalid, ["src/car.qc"]);
-		assert_eq!(result.packed, 2);
+		assert_eq!(result.files, ["lua/autorun/a.lua", "materials/a.vmt"]);
 		assert_eq!(result.ignored, 3);
 	}
 }

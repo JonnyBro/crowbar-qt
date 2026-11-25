@@ -9,6 +9,7 @@ pub mod error;
 mod fsutil;
 pub mod games;
 pub mod gma_whitelist;
+pub mod gma_writer;
 pub mod launcher;
 pub mod package;
 pub mod packer;

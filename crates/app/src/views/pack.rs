@@ -285,10 +285,11 @@ impl PackView {
 		};
 		let model = self.model.read(cx);
 		let prefs = model.ui.pack.clone();
-		let Some(target) = model.target.clone() else {
+		let target = model.target.clone();
+		if target.is_none() && !prefs.gma {
 			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
 			return;
-		};
+		}
 		let format = if prefs.gma { Format::Gma } else { Format::Vpk };
 		let output_dir: Option<PathBuf> = match prefs.output {
 			OutputMode::Folder => widgets::path(&self.output, cx),
@@ -309,7 +310,11 @@ impl PackView {
 		let options = packer::Options {
 			multi_chunk: !prefs.gma && prefs.multi,
 			warn_invalid: prefs.gma && (prefs.warn_invalid || skip_invalid),
-			extra: widgets::split_words(&prefs.extra),
+			extra: if prefs.gma {
+				Vec::new()
+			} else {
+				widgets::split_words(&prefs.extra)
+			},
 		};
 		model.send(Command::Pack {
 			target,
@@ -431,6 +436,7 @@ impl Render for PackView {
 		let missing_tool = model
 			.target
 			.as_ref()
+			.filter(|_| !prefs.gma)
 			.filter(|t| launcher::find_tool(&t.app, format.tool_name()).is_none())
 			.map(|t| t.app.name.clone());
 		let has_folder = !widgets::text(&self.folder, cx).is_empty();
@@ -484,7 +490,9 @@ impl Render for PackView {
 						})),
 				)
 			})
-			.child(div().flex_1().child(Input::new(&self.extra).small()));
+			.when(!prefs.gma, |this| {
+				this.child(div().flex_1().child(Input::new(&self.extra).small()))
+			});
 		let output_row = v_flex()
 			.gap_2()
 			.child(
@@ -608,7 +616,7 @@ fn check_report(check: &Result<gma_whitelist::Check, String>, warn_invalid: bool
 		Ok(check) => check,
 		Err(e) => return hint(t!("pack.check_failed", error = e), cx),
 	};
-	let mut summary = t!("pack.check_packed", n = check.packed).into_owned();
+	let mut summary = t!("pack.check_packed", n = check.files.len()).into_owned();
 	if check.ignored > 0 {
 		summary = format!("{summary} {}", t!("pack.check_ignored", n = check.ignored));
 	}

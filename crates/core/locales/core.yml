@@ -284,3 +284,54 @@ update.no_binary:
 update.installed:
   en: "Installed to \"%{path}\". Restart Prybar to use the new version."
   ru: "Установлено в \"%{path}\". Перезапустите Prybar, чтобы перейти на новую версию."
+gma.bad_json:
+  en: "addon.json is not valid JSON: %{error}"
+  ru: "addon.json не читается как JSON: %{error}"
+gma.no_title:
+  en: "addon.json has no title."
+  ru: "В addon.json нет title."
+gma.no_type:
+  en: "addon.json has no type."
+  ru: "В addon.json нет type."
+gma.bad_type:
+  en: "\"%{kind}\" is not an addon type gmad accepts."
+  ru: "gmad не принимает тип аддона «%{kind}»."
+gma.bad_tag:
+  en: "\"%{tag}\" is not a tag gmad accepts."
+  ru: "gmad не принимает тег «%{tag}»."
+gma.too_many_tags:
+  en: "An addon can have two tags at most."
+  ru: "У аддона может быть не больше двух тегов."
+gma.no_files:
+  en: "The folder has no files to pack."
+  ru: "В папке нет файлов для упаковки."
+gma.invalid_files:
+  en: "%{n} file(s) are not on gmad's whitelist, the first is %{first}."
+  ru: "Файлов вне вайтлиста gmad: %{n}, первый: %{first}."
+gma.io:
+  en: "%{path}: %{error}"
+  ru: "%{path}: %{error}"
+gma.cancelled:
+  en: "Cancelled."
+  ru: "Отменено."
+gma.changed:
+  en: "the file changed while packing"
+  ru: "файл изменился во время упаковки"
+gma.packing:
+  en: "Packing \"%{folder}\" into \"%{output}\""
+  ru: "Упаковка «%{folder}» в «%{output}»"
+gma.skipped:
+  en: "WARNING: left out, not on gmad's whitelist: %{path}"
+  ru: "ВНИМАНИЕ: пропущен, нет в вайтлисте gmad: %{path}"
+gma.not_allowed:
+  en: "ERROR: not on gmad's whitelist: %{path}"
+  ru: "ОШИБКА: нет в вайтлисте gmad: %{path}"
+gma.duplicate:
+  en: "WARNING: left out, another file has the same path but for case: %{path}"
+  ru: "ВНИМАНИЕ: пропущен, путь совпадает с другим файлом с точностью до регистра: %{path}"
+gma.saved:
+  en: "Saved \"%{path}\": %{n} file(s), %{size} bytes."
+  ru: "Сохранено: «%{path}», файлов: %{n}, байт: %{size}."
+task.no_game:
+  en: "No game is selected."
+  ru: "Игра не выбрана."

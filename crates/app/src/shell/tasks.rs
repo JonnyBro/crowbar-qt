@@ -4,6 +4,7 @@ use std::ops::Range;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::progress::Progress;
+use gpui_kit::component::scroll::Scrollbar;
 use gpui_kit::component::{
 	ActiveTheme, Disableable, Icon, IconName, Selectable, Sizable, h_flex, v_flex,
 };
@@ -266,7 +267,7 @@ impl TasksPanel {
 
 		let list = uniform_list("task-log", lines, cx.processor(Self::render_lines))
 			.track_scroll(&self.scroll)
-			.flex_1()
+			.size_full()
 			.px_3()
 			.py_1();
 		v_flex()
@@ -274,7 +275,17 @@ impl TasksPanel {
 			.min_w_0()
 			.h_full()
 			.child(toolbar)
-			.child(list)
+			.child(
+				div().relative().flex_1().min_h_0().child(list).child(
+					div()
+						.absolute()
+						.top_0()
+						.right_0()
+						.bottom_0()
+						.w(Scrollbar::width())
+						.child(Scrollbar::vertical(&self.scroll).viewport_from_layout()),
+				),
+			)
 			.into_any_element()
 	}
 

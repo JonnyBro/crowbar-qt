@@ -1,13 +1,13 @@
-//! The files of the open package and the matches of a search over the game's
-//! packages, as sortable tables.
+//! The files of the open package as a folder tree, and the matches of a
+//! search over the game's packages as a sortable table.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::table::{Column, ColumnSort, TableDelegate, TableState};
-use gpui_kit::component::{ActiveTheme, h_flex};
+use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, h_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::package::Package;
@@ -21,69 +21,276 @@ const CHECK: usize = 0;
 const PATH: usize = 1;
 const SIZE: usize = 2;
 
+/// Indent of one tree level.
+const INDENT: f32 = 16.;
+
+type NodeId = usize;
+
+/// A folder or a file of the package. Folders that hold a single folder and
+/// nothing else are merged into one node named "a/b/c".
+struct Node {
+	name: String,
+	/// Full path of the folder or file, for copying.
+	path: String,
+	children: Vec<NodeId>,
+	/// The package entry of a file; `None` for a folder.
+	entry: Option<usize>,
+	size: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Row {
+	node: NodeId,
+	depth: usize,
+}
+
 #[derive(Default)]
 pub struct EntriesTable {
 	widths: SavedWidths,
 	pub package: Option<Arc<Package>>,
 	/// Checked entries, as indexes into the package's entries.
 	pub checked: BTreeSet<usize>,
-	/// Entries the filter lets through, in display order.
-	rows: Vec<usize>,
+	/// Node 0 is the root and is never shown.
+	nodes: Vec<Node>,
+	expanded: HashSet<NodeId>,
+	/// Nodes the filter lets through; `None` without a filter. Every folder
+	/// in it shows expanded.
+	visible: Option<Vec<bool>>,
+	rows: Vec<Row>,
 	sort: Option<(usize, ColumnSort)>,
 }
 
 impl EntriesTable {
 	pub fn set_package(&mut self, package: Option<Arc<Package>>) {
-		self.package = package;
 		self.checked.clear();
-		self.rows.clear();
+		self.expanded.clear();
+		self.visible = None;
+		self.nodes = package
+			.as_deref()
+			.map(|p| build_tree(p.entries.iter().map(|e| (e.path.as_str(), e.size))))
+			.unwrap_or_default();
+		// A package with a single top folder opens it right away.
+		if let Some(root) = self.nodes.first()
+			&& let [only] = root.children[..]
+			&& self.nodes[only].entry.is_none()
+		{
+			self.expanded.insert(only);
+		}
+		self.package = package;
+		self.rebuild_rows();
 	}
 
-	/// Shows the entries whose path contains `needle` (lower case, forward slashes).
+	/// Shows the files whose path contains `needle` (lower case, forward
+	/// slashes) and the folders that lead to them.
 	pub fn set_filter(&mut self, needle: &str) {
-		self.rows = match &self.package {
-			Some(package) => package
-				.entries
-				.iter()
-				.enumerate()
-				.filter(|(_, e)| needle.is_empty() || e.path.to_lowercase().contains(needle))
-				.map(|(i, _)| i)
-				.collect(),
-			None => Vec::new(),
-		};
-		self.apply_sort();
+		self.visible = (!needle.is_empty() && !self.nodes.is_empty()).then(|| {
+			let mut visible = vec![false; self.nodes.len()];
+			mark_visible(&self.nodes, 0, needle, &mut visible);
+			visible
+		});
+		self.rebuild_rows();
 	}
 
+	/// The package entry shown in `row_ix`; `None` for a folder.
 	pub fn entry_index(&self, row_ix: usize) -> Option<usize> {
-		self.rows.get(row_ix).copied()
+		self.nodes[self.rows.get(row_ix)?.node].entry
 	}
 
+	/// The row of a package entry, if it is shown.
 	pub fn row_of(&self, index: usize) -> Option<usize> {
-		self.rows.iter().position(|&i| i == index)
+		self.rows
+			.iter()
+			.position(|row| self.nodes[row.node].entry == Some(index))
 	}
 
-	fn apply_sort(&mut self) {
-		let Some(package) = &self.package else {
+	/// Opens or closes the folder in `row_ix`. Returns the folder's row, which
+	/// stays where it was.
+	pub fn toggle(&mut self, row_ix: usize) -> Option<usize> {
+		let row = *self.rows.get(row_ix)?;
+		if self.nodes[row.node].entry.is_some() || self.visible.is_some() {
+			return None;
+		}
+		if !self.expanded.remove(&row.node) {
+			self.expanded.insert(row.node);
+		}
+		self.rebuild_rows();
+		Some(row_ix)
+	}
+
+	fn is_open(&self, node: NodeId) -> bool {
+		self.visible.is_some() || self.expanded.contains(&node)
+	}
+
+	fn shown(&self, node: NodeId) -> bool {
+		self.visible.as_ref().is_none_or(|v| v[node])
+	}
+
+	/// The entries of the files under `node` that the filter lets through.
+	fn files_under(&self, node: NodeId) -> Vec<usize> {
+		let mut files = Vec::new();
+		let mut stack = vec![node];
+		while let Some(id) = stack.pop() {
+			if !self.shown(id) {
+				continue;
+			}
+			match self.nodes[id].entry {
+				Some(entry) => files.push(entry),
+				None => stack.extend(&self.nodes[id].children),
+			}
+		}
+		files
+	}
+
+	fn rebuild_rows(&mut self) {
+		self.rows.clear();
+		if self.nodes.is_empty() {
 			return;
+		}
+		let mut stack: Vec<Row> = self
+			.sorted_children(0)
+			.into_iter()
+			.rev()
+			.map(|node| Row { node, depth: 0 })
+			.collect();
+		while let Some(row) = stack.pop() {
+			self.rows.push(row);
+			if self.nodes[row.node].entry.is_none() && self.is_open(row.node) {
+				stack.extend(
+					self.sorted_children(row.node)
+						.into_iter()
+						.rev()
+						.map(|node| Row {
+							node,
+							depth: row.depth + 1,
+						}),
+				);
+			}
+		}
+	}
+
+	/// Folders first, then files; each group by the sorted column.
+	fn sorted_children(&self, node: NodeId) -> Vec<NodeId> {
+		let mut children: Vec<NodeId> = self.nodes[node]
+			.children
+			.iter()
+			.copied()
+			.filter(|&child| self.shown(child))
+			.collect();
+		let (col, sort) = match self.sort {
+			Some((col, sort)) if sort != ColumnSort::Default => (col, sort),
+			_ => (PATH, ColumnSort::Ascending),
 		};
-		let (col, sort) = self.sort.unwrap_or((PATH, ColumnSort::Default));
-		let entries = &package.entries;
-		self.rows.sort_by(|&a, &b| {
-			let ordering = match (sort, col) {
-				(ColumnSort::Default, _) => return a.cmp(&b),
-				(_, SIZE) => entries[a].size.cmp(&entries[b].size),
-				_ => entries[a]
-					.path
-					.to_lowercase()
-					.cmp(&entries[b].path.to_lowercase()),
+		children.sort_by(|&a, &b| {
+			let (a, b) = (&self.nodes[a], &self.nodes[b]);
+			let ordering = match col {
+				SIZE => a.size.cmp(&b.size),
+				_ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
 			};
-			if sort == ColumnSort::Descending {
+			let ordering = if sort == ColumnSort::Descending {
 				ordering.reverse()
 			} else {
 				ordering
-			}
+			};
+			a.entry.is_some().cmp(&b.entry.is_some()).then(ordering)
 		});
+		children
 	}
+}
+
+/// `entries` are package paths with forward slashes and sizes, in package order.
+fn build_tree<'a>(entries: impl Iterator<Item = (&'a str, u64)>) -> Vec<Node> {
+	let folder = |name: &str, path: String| Node {
+		name: name.to_owned(),
+		path,
+		children: Vec::new(),
+		entry: None,
+		size: 0,
+	};
+	let mut nodes = vec![folder("", String::new())];
+	let mut folders: HashMap<String, NodeId> = HashMap::new();
+	for (index, (entry_path, entry_size)) in entries.enumerate() {
+		let mut parent = 0;
+		let mut path = String::new();
+		let mut parts = entry_path.split('/').filter(|p| !p.is_empty()).peekable();
+		while let Some(part) = parts.next() {
+			if !path.is_empty() {
+				path.push('/');
+			}
+			path.push_str(part);
+			if parts.peek().is_none() {
+				nodes.push(Node {
+					name: part.to_owned(),
+					path: entry_path.to_owned(),
+					children: Vec::new(),
+					entry: Some(index),
+					size: entry_size,
+				});
+				let id = nodes.len() - 1;
+				nodes[parent].children.push(id);
+				break;
+			}
+			parent = match folders.get(&path) {
+				Some(&id) => id,
+				None => {
+					nodes.push(folder(part, path.clone()));
+					let id = nodes.len() - 1;
+					nodes[parent].children.push(id);
+					folders.insert(path.clone(), id);
+					id
+				}
+			};
+		}
+	}
+	for child in nodes[0].children.clone() {
+		merge_single_folders(&mut nodes, child);
+	}
+	sum_sizes(&mut nodes, 0);
+	nodes
+}
+
+/// "materials" holding only "models" holding only "props" becomes one node.
+fn merge_single_folders(nodes: &mut [Node], id: NodeId) {
+	if nodes[id].entry.is_some() {
+		return;
+	}
+	while let [only] = nodes[id].children[..]
+		&& nodes[only].entry.is_none()
+	{
+		let name = format!("{}/{}", nodes[id].name, nodes[only].name);
+		nodes[id].name = name;
+		nodes[id].path = std::mem::take(&mut nodes[only].path);
+		nodes[id].children = std::mem::take(&mut nodes[only].children);
+	}
+	for child in nodes[id].children.clone() {
+		merge_single_folders(nodes, child);
+	}
+}
+
+fn sum_sizes(nodes: &mut [Node], id: NodeId) -> u64 {
+	if nodes[id].entry.is_some() {
+		return nodes[id].size;
+	}
+	let mut size = 0;
+	for child in nodes[id].children.clone() {
+		size += sum_sizes(nodes, child);
+	}
+	nodes[id].size = size;
+	size
+}
+
+fn mark_visible(nodes: &[Node], id: NodeId, needle: &str, visible: &mut [bool]) -> bool {
+	let shown = match nodes[id].entry {
+		Some(_) => nodes[id].path.to_lowercase().contains(needle),
+		None => {
+			let mut any = false;
+			for &child in &nodes[id].children {
+				any |= mark_visible(nodes, child, needle, visible);
+			}
+			any
+		}
+	};
+	visible[id] = shown;
+	shown
 }
 
 impl Remembered for EntriesTable {
@@ -126,7 +333,7 @@ impl TableDelegate for EntriesTable {
 		cx: &mut Context<TableState<Self>>,
 	) {
 		self.sort = Some((col_ix, sort));
-		self.apply_sort();
+		self.rebuild_rows();
 		cx.notify();
 	}
 
@@ -142,18 +349,23 @@ impl TableDelegate for EntriesTable {
 				.child(self.column(col_ix, cx).name)
 				.into_any_element();
 		}
-		let all = !self.rows.is_empty() && self.rows.iter().all(|i| self.checked.contains(i));
+		let files = if self.nodes.is_empty() {
+			Vec::new()
+		} else {
+			self.files_under(0)
+		};
+		let all = !files.is_empty() && files.iter().all(|i| self.checked.contains(i));
 		h_flex()
 			.child(
 				Checkbox::new("entry-check-all")
 					.checked(all)
-					.on_click(cx.listener(|table, checked: &bool, _, cx| {
-						let delegate = table.delegate_mut();
+					.on_click(cx.listener(move |table, checked: &bool, _, cx| {
+						let checked_entries = &mut table.delegate_mut().checked;
 						if *checked {
-							delegate.checked.extend(delegate.rows.iter().copied());
+							checked_entries.extend(files.iter().copied());
 						} else {
-							for row in &delegate.rows {
-								delegate.checked.remove(row);
+							for file in &files {
+								checked_entries.remove(file);
 							}
 						}
 						cx.stop_propagation();
@@ -170,50 +382,100 @@ impl TableDelegate for EntriesTable {
 		_: &mut Window,
 		cx: &mut Context<TableState<Self>>,
 	) -> impl IntoElement {
-		let Some(index) = self.entry_index(row_ix) else {
+		let Some(row) = self.rows.get(row_ix).copied() else {
 			return div().into_any_element();
 		};
-		let Some(entry) = self.package.as_ref().and_then(|p| p.entries.get(index)) else {
-			return div().into_any_element();
-		};
+		let node = &self.nodes[row.node];
+		let theme = cx.theme().clone();
 		match col_ix {
-			CHECK => Checkbox::new(("entry-check", row_ix))
-				.checked(self.checked.contains(&index))
-				.on_click(cx.listener(move |table, checked: &bool, _, cx| {
-					let checked_entries = &mut table.delegate_mut().checked;
-					if *checked {
-						checked_entries.insert(index);
-					} else {
-						checked_entries.remove(&index);
-					}
-					cx.stop_propagation();
-					cx.notify();
-				}))
-				.into_any_element(),
-			PATH => div()
-				.truncate()
-				.mono(cx)
-				.text_sm()
-				.child(entry.path.clone())
-				.into_any_element(),
+			CHECK => {
+				let files = match node.entry {
+					Some(entry) => vec![entry],
+					None => self.files_under(row.node),
+				};
+				let all = !files.is_empty() && files.iter().all(|i| self.checked.contains(i));
+				Checkbox::new(("entry-check", row_ix))
+					.checked(all)
+					.on_click(cx.listener(move |table, checked: &bool, _, cx| {
+						let checked_entries = &mut table.delegate_mut().checked;
+						for file in &files {
+							if *checked {
+								checked_entries.insert(*file);
+							} else {
+								checked_entries.remove(file);
+							}
+						}
+						cx.stop_propagation();
+						cx.notify();
+					}))
+					.into_any_element()
+			}
+			PATH => {
+				let folder = node.entry.is_none();
+				let open = folder && self.is_open(row.node);
+				let chevron = if open {
+					IconName::ChevronDown
+				} else {
+					IconName::ChevronRight
+				};
+				let icon = match (folder, open) {
+					(false, _) => IconName::File,
+					(true, true) => IconName::FolderOpen,
+					(true, false) => IconName::Folder,
+				};
+				h_flex()
+					.id(("entry-name", row_ix))
+					.w_full()
+					.min_w_0()
+					.gap_1()
+					.pl(px(row.depth as f32 * INDENT))
+					.child(div().w(px(14.)).flex_shrink_0().when(folder, |d| {
+						d.child(
+							Icon::new(chevron)
+								.small()
+								.text_color(theme.muted_foreground),
+						)
+					}))
+					.child(
+						Icon::new(icon)
+							.small()
+							.flex_shrink_0()
+							.text_color(if folder {
+								theme.primary
+							} else {
+								theme.muted_foreground
+							}),
+					)
+					.child(div().truncate().mono(cx).text_sm().child(node.name.clone()))
+					.when(folder, |d| {
+						d.cursor_pointer()
+							.on_click(cx.listener(move |table, _, _, cx| {
+								if let Some(row) = table.delegate_mut().toggle(row_ix) {
+									table.set_selected_row(row, cx);
+								}
+								cx.notify();
+							}))
+					})
+					.into_any_element()
+			}
 			_ => div()
 				.w_full()
 				.text_right()
 				.text_sm()
-				.text_color(cx.theme().muted_foreground)
+				.text_color(theme.muted_foreground)
 				.whitespace_nowrap()
-				.child(format_size(entry.size))
+				.child(format_size(node.size))
 				.into_any_element(),
 		}
 	}
 
 	fn cell_text(&self, row_ix: usize, col_ix: usize, _: &App) -> String {
-		let entry = self
-			.entry_index(row_ix)
-			.and_then(|i| self.package.as_ref()?.entries.get(i));
-		match (col_ix, entry) {
-			(PATH, Some(entry)) => entry.path.clone(),
-			(SIZE, Some(entry)) => format_size(entry.size),
+		let Some(node) = self.rows.get(row_ix).map(|row| &self.nodes[row.node]) else {
+			return String::new();
+		};
+		match col_ix {
+			PATH => node.path.clone(),
+			SIZE => format_size(node.size),
 			_ => String::new(),
 		}
 	}
@@ -367,5 +629,81 @@ impl TableDelegate for ResultsTable {
 			R_PATH => found.path.clone(),
 			_ => format_size(found.size),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	// gpui_kit's prelude has a `test` attribute of its own.
+	use ::core::prelude::v1::test;
+
+	fn table(paths: &[(&str, u64)]) -> EntriesTable {
+		let mut table = EntriesTable {
+			nodes: build_tree(paths.iter().copied()),
+			..EntriesTable::default()
+		};
+		table.rebuild_rows();
+		table
+	}
+
+	fn shown(table: &EntriesTable) -> Vec<String> {
+		table
+			.rows
+			.iter()
+			.map(|row| format!("{}{}", "  ".repeat(row.depth), table.nodes[row.node].name))
+			.collect()
+	}
+
+	#[test]
+	fn builds_a_tree() {
+		let mut t = table(&[
+			("materials/models/props/a.vmt", 10),
+			("materials/models/props/a.vtf", 20),
+			("lua/autorun/x.lua", 1),
+			("lua/y.lua", 2),
+			("addon.txt", 5),
+		]);
+		assert_eq!(shown(&t), ["lua", "materials/models/props", "addon.txt"]);
+		assert_eq!(t.nodes[t.rows[1].node].size, 30);
+
+		let lua = t.toggle(0).unwrap();
+		assert_eq!(lua, 0);
+		assert_eq!(
+			shown(&t),
+			[
+				"lua",
+				"  autorun",
+				"  y.lua",
+				"materials/models/props",
+				"addon.txt"
+			]
+		);
+		assert_eq!(t.entry_index(2), Some(3));
+		assert_eq!(t.row_of(3), Some(2));
+		assert_eq!(t.entry_index(1), None);
+		assert_eq!(t.files_under(t.rows[0].node).len(), 2);
+	}
+
+	#[test]
+	fn filter_opens_the_way() {
+		let mut t = table(&[
+			("lua/autorun/x.lua", 1),
+			("lua/y.lua", 2),
+			("sound/z.wav", 3),
+		]);
+		t.set_filter("x.lua");
+		assert_eq!(shown(&t), ["lua", "  autorun", "    x.lua"]);
+		assert_eq!(t.files_under(0), [0]);
+		t.set_filter("");
+		assert_eq!(shown(&t), ["lua", "sound"]);
+	}
+
+	#[test]
+	fn sorts_within_folders() {
+		let mut t = table(&[("b.txt", 1), ("a.txt", 9), ("dir/c.txt", 5)]);
+		t.sort = Some((SIZE, ColumnSort::Descending));
+		t.rebuild_rows();
+		assert_eq!(shown(&t), ["dir", "a.txt", "b.txt"]);
 	}
 }

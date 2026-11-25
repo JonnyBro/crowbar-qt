@@ -14,7 +14,7 @@ use super::task::{Task, TaskKind, TaskState, new_cancel};
 use crate::games::Target;
 use crate::launcher::Command;
 use crate::process::{self, Exit};
-use crate::{packer, runner, studiomdl};
+use crate::{gma_writer, packer, runner, studiomdl};
 
 fn file_name(path: &Path) -> String {
 	path.file_name()
@@ -231,7 +231,7 @@ pub(super) async fn run_game(context: Context, target: Target, options: Vec<Stri
 
 pub(super) async fn pack_job(
 	context: Context,
-	target: Target,
+	target: Option<Target>,
 	format: packer::Format,
 	folder: PathBuf,
 	output: PathBuf,
@@ -241,19 +241,35 @@ pub(super) async fn pack_job(
 	let task = context
 		.tasks
 		.start(TaskKind::Pack, t!("task.pack", name = title).into_owned());
-	pack(&context, &task, &target, format, &folder, &output, &options).await;
+	pack(
+		&context,
+		&task,
+		target.as_ref(),
+		format,
+		&folder,
+		&output,
+		&options,
+	)
+	.await;
 }
 
 /// Packs and finishes `task`; the package files when it worked.
 pub(super) async fn pack(
 	context: &Context,
 	task: &Task,
-	target: &Target,
+	target: Option<&Target>,
 	format: packer::Format,
 	folder: &Path,
 	output: &Path,
 	options: &packer::Options,
 ) -> Option<Vec<PathBuf>> {
+	if format == packer::Format::Gma {
+		return pack_gma(task, folder, output, options.warn_invalid);
+	}
+	let Some(target) = target else {
+		task.fail(t!("task.no_game"));
+		return None;
+	};
 	let started = SystemTime::now();
 	let command = match packer::pack_command(
 		&target.app,
@@ -288,4 +304,61 @@ pub(super) async fn pack(
 	}
 	task.finish(TaskState::Succeeded);
 	Some(result.files)
+}
+
+/// Packs with our own writer, so neither gmad nor a game is needed.
+fn pack_gma(task: &Task, folder: &Path, output: &Path, skip_invalid: bool) -> Option<Vec<PathBuf>> {
+	task.line(t!(
+		"gma.packing",
+		folder = folder.display(),
+		output = output.display()
+	));
+	// The writer reads files synchronously; this keeps the task borrowed
+	// instead of moving it to a blocking thread.
+	let result = tokio::task::block_in_place(|| {
+		gma_writer::pack(
+			folder,
+			output,
+			skip_invalid,
+			|name, done, total| {
+				task.line(format!("\t{name}"));
+				task.progress(done as f32 / total.max(1) as f32);
+			},
+			|| task.is_cancelled(),
+		)
+	});
+	match result {
+		Ok(packed) => {
+			for file in &packed.skipped {
+				task.line(t!("gma.skipped", path = file));
+			}
+			for file in &packed.duplicates {
+				task.line(t!("gma.duplicate", path = file));
+			}
+			task.line(t!(
+				"gma.saved",
+				path = output.display(),
+				n = packed.files.len(),
+				size = packed.size
+			));
+			task.add_output(output.to_path_buf());
+			task.finish(TaskState::Succeeded);
+			Some(vec![output.to_path_buf()])
+		}
+		Err(gma_writer::Error::Cancelled) => {
+			task.finish(TaskState::Cancelled);
+			None
+		}
+		Err(gma_writer::Error::InvalidFiles(files)) => {
+			for file in &files {
+				task.line(t!("gma.not_allowed", path = file));
+			}
+			task.fail(gma_writer::Error::InvalidFiles(files));
+			None
+		}
+		Err(e) => {
+			task.fail(e);
+			None
+		}
+	}
 }

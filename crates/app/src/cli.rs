@@ -295,16 +295,16 @@ fn pack(
 	multi: bool,
 	packer_options: Vec<String>,
 ) -> CliResult {
-	let context = Context::load()?;
-	let app = context.app(appid)?;
-	let format = match format {
-		PackFormat::Vpk => packer::Format::Vpk,
-		PackFormat::Gma => packer::Format::Gma,
-	};
 	let output = std::path::absolute(output).map_err(|e| e.to_string())?;
 	let (warn_invalid, extra): (Vec<String>, Vec<String>) = packer_options
 		.into_iter()
 		.partition(|o| o == "-warninvalid");
+	if matches!(format, PackFormat::Gma) {
+		return pack_gma(folder, &output, !warn_invalid.is_empty());
+	}
+	let context = Context::load()?;
+	let app = context.app(appid)?;
+	let format = packer::Format::Vpk;
 	let options = packer::Options {
 		multi_chunk: multi,
 		warn_invalid: !warn_invalid.is_empty(),
@@ -333,6 +333,44 @@ fn pack(
 	} else {
 		ExitCode::SUCCESS
 	})
+}
+
+/// Our own writer; the game and gmad are not needed.
+fn pack_gma(folder: &Path, output: &Path, skip_invalid: bool) -> CliResult {
+	let result = prybar_core::gma_writer::pack(
+		folder,
+		output,
+		skip_invalid,
+		|name, _, _| println!("\t{name}"),
+		|| false,
+	);
+	match result {
+		Ok(packed) => {
+			for file in &packed.skipped {
+				println!("left out, not on gmad's whitelist: {file}");
+			}
+			for file in &packed.duplicates {
+				println!("left out, same path as another file but for case: {file}");
+			}
+			println!(
+				"Saved {}: {} file(s), {} bytes",
+				output.display(),
+				packed.files.len(),
+				packed.size
+			);
+			Ok(ExitCode::SUCCESS)
+		}
+		Err(prybar_core::gma_writer::Error::InvalidFiles(files)) => {
+			for file in &files {
+				eprintln!("not on gmad's whitelist: {file}");
+			}
+			Err(format!(
+				"{} file(s) are not on gmad's whitelist; pass -- -warninvalid to leave them out",
+				files.len()
+			))
+		}
+		Err(e) => Err(e.to_string()),
+	}
 }
 
 fn workshop_list(appid: u32) -> CliResult {
