@@ -8,12 +8,14 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
+use prybar_core::gma_whitelist;
 use prybar_core::packer::{self, ADDON_TAGS, ADDON_TYPES, AddonInfo, Format};
 use prybar_core::{Command, launcher};
 use rust_i18n::t;
 
 use crate::icons::AppIcon;
 use crate::model::Model;
+use crate::theme::Mono;
 use crate::ui_state::OutputMode;
 use crate::widgets::{self, browse_button, choice, field, hint, page_header, path_row};
 
@@ -28,8 +30,14 @@ pub struct PackView {
 	/// What the folder's addon.json says, to tell whether the fields differ.
 	loaded: Option<AddonInfo>,
 	addon_note: String,
+	/// What gmad would refuse in the folder; checked whenever the folder changes.
+	check: Option<Result<gma_whitelist::Check, String>>,
+	_check_task: Task<()>,
 	_subscriptions: Vec<Subscription>,
 }
+
+/// So many refused files are listed on the page; the rest are counted.
+const SHOWN_INVALID: usize = 8;
 
 impl PackView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -71,6 +79,8 @@ impl PackView {
 			tags: [None, None],
 			loaded: None,
 			addon_note: String::new(),
+			check: None,
+			_check_task: Task::ready(()),
 			_subscriptions: subscriptions,
 		};
 		view.load_addon_json(window, cx);
@@ -91,6 +101,7 @@ impl PackView {
 			return;
 		};
 		self.loaded = None;
+		self.refresh_check(&folder, cx);
 		if !packer::has_addon_json(&folder) {
 			self.addon_note = t!("pack.addon_missing").into_owned();
 			cx.notify();
@@ -115,6 +126,23 @@ impl PackView {
 			Err(e) => self.addon_note = t!("pack.addon_unreadable", error = e).into_owned(),
 		}
 		cx.notify();
+	}
+
+	fn refresh_check(&mut self, folder: &Path, cx: &mut Context<Self>) {
+		self.check = None;
+		if !self.model.read(cx).ui.pack.gma {
+			self._check_task = Task::ready(());
+			return;
+		}
+		let folder = folder.to_path_buf();
+		let checked = cx.background_spawn(async move { gma_whitelist::check(&folder) });
+		self._check_task = cx.spawn(async move |this, cx| {
+			let result = checked.await.map_err(|e| e.to_string());
+			let _ = this.update(cx, |this, cx| {
+				this.check = Some(result);
+				cx.notify();
+			});
+		});
 	}
 
 	fn fields(&self, folder: &Path, cx: &App) -> AddonInfo {
@@ -214,7 +242,44 @@ impl PackView {
 		});
 	}
 
+	/// gmad fails on the first file it does not allow; asks first instead.
 	fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let prefs = &self.model.read(cx).ui.pack;
+		let (gma, warn_invalid) = (prefs.gma, prefs.warn_invalid);
+		let Some(folder) = widgets::path(&self.folder, cx).filter(|_| gma && !warn_invalid) else {
+			return self.run(false, window, cx);
+		};
+		let invalid = match gma_whitelist::check(&folder) {
+			Ok(check) => {
+				let invalid = check.invalid.len();
+				self.check = Some(Ok(check));
+				cx.notify();
+				invalid
+			}
+			// The folder can't be read; gmad will say why.
+			Err(_) => 0,
+		};
+		if invalid == 0 {
+			return self.run(false, window, cx);
+		}
+		let view = cx.entity().downgrade();
+		window.open_alert_dialog(cx, move |alert, _, _| {
+			let view = view.clone();
+			alert
+				.title(t!("pack.invalid_title").into_owned())
+				.description(t!("pack.invalid_ask", n = invalid).into_owned())
+				.confirm()
+				.ok_text(t!("pack.pack_without").into_owned())
+				.ok_variant(ButtonVariant::Primary)
+				.cancel_text(t!("common.cancel").into_owned())
+				.on_ok(move |_, window, cx| {
+					let _ = view.update(cx, |this, cx| this.run(true, window, cx));
+					true
+				})
+		});
+	}
+
+	fn run(&mut self, skip_invalid: bool, window: &mut Window, cx: &mut Context<Self>) {
 		let Some(folder) = widgets::path(&self.folder, cx) else {
 			return;
 		};
@@ -243,7 +308,7 @@ impl PackView {
 		));
 		let options = packer::Options {
 			multi_chunk: !prefs.gma && prefs.multi,
-			warn_invalid: prefs.gma && prefs.warn_invalid,
+			warn_invalid: prefs.gma && (prefs.warn_invalid || skip_invalid),
 			extra: widgets::split_words(&prefs.extra),
 		};
 		model.send(Command::Pack {
@@ -379,6 +444,7 @@ impl Render for PackView {
 				choice("format-vpk", t!("pack.vpk"), !prefs.gma).on_click(cx.listener(
 					|this, _, _, cx| {
 						this.model.update(cx, |m, _| m.ui.pack.gma = false);
+						this.check = None;
 						cx.notify();
 					},
 				)),
@@ -510,6 +576,16 @@ impl Render for PackView {
 				this.child(field("addon.json".into(), self.addon_fields(cx), cx))
 			})
 			.child(field(t!("pack.options").into_owned(), options, cx))
+			.when_some(
+				self.check.as_ref().filter(|_| prefs.gma && has_folder),
+				|this, check| {
+					this.child(field(
+						String::new(),
+						check_report(check, prefs.warn_invalid, cx),
+						cx,
+					))
+				},
+			)
 			.child(field(t!("pack.output").into_owned(), output_row, cx))
 			.child(
 				h_flex().child(
@@ -523,4 +599,55 @@ impl Render for PackView {
 				),
 			)
 	}
+}
+
+/// What gmad will make of the folder: how many files go in, and which it refuses.
+fn check_report(check: &Result<gma_whitelist::Check, String>, warn_invalid: bool, cx: &App) -> Div {
+	let theme = cx.theme();
+	let check = match check {
+		Ok(check) => check,
+		Err(e) => return hint(t!("pack.check_failed", error = e), cx),
+	};
+	let mut summary = t!("pack.check_packed", n = check.packed).into_owned();
+	if check.ignored > 0 {
+		summary = format!("{summary} {}", t!("pack.check_ignored", n = check.ignored));
+	}
+	if check.invalid.is_empty() {
+		return hint(summary, cx);
+	}
+	let more = check.invalid.len().saturating_sub(SHOWN_INVALID);
+	v_flex()
+		.gap_1()
+		.text_sm()
+		.child(
+			div()
+				.text_color(theme.warning)
+				.child(t!("pack.check_invalid", n = check.invalid.len()).into_owned()),
+		)
+		.children(
+			check
+				.invalid
+				.iter()
+				.take(SHOWN_INVALID)
+				.map(|path| div().pl_3().mono(cx).truncate().child(path.clone())),
+		)
+		.when(more > 0, |this| {
+			this.child(
+				div()
+					.pl_3()
+					.text_color(theme.muted_foreground)
+					.child(t!("pack.check_more", n = more).into_owned()),
+			)
+		})
+		.child(
+			div().text_color(theme.muted_foreground).child(
+				if warn_invalid {
+					t!("pack.check_will_skip")
+				} else {
+					t!("pack.check_will_fail")
+				}
+				.into_owned(),
+			),
+		)
+		.child(div().text_color(theme.muted_foreground).child(summary))
 }

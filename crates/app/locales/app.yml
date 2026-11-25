@@ -710,3 +710,33 @@ update.restart:
 update.restart_failed:
   en: "Could not start the new version: %{error}"
   ru: "Не удалось запустить новую версию: %{error}"
+pack.check_packed:
+  en: "gmad will pack %{n} file(s)."
+  ru: "gmad упакует файлов: %{n}."
+pack.check_ignored:
+  en: "%{n} left out by the ignore list."
+  ru: "По списку ignore пропущено: %{n}."
+pack.check_invalid:
+  en: "Files gmad does not allow (%{n}):"
+  ru: "Файлы, которые gmad не пропустит (%{n}):"
+pack.check_more:
+  en: "…and %{n} more"
+  ru: "…и ещё %{n}"
+pack.check_will_skip:
+  en: "They will be left out."
+  ru: "Они будут пропущены."
+pack.check_will_fail:
+  en: "Remove them, add them to \"ignore\" in addon.json, or turn on skipping invalid files."
+  ru: "Уберите их, добавьте в «ignore» в addon.json или включите пропуск недопустимых файлов."
+pack.check_failed:
+  en: "Could not read the folder: %{error}"
+  ru: "Не удалось прочитать папку: %{error}"
+pack.invalid_title:
+  en: "gmad does not allow some files"
+  ru: "gmad не пропустит часть файлов"
+pack.invalid_ask:
+  en: "%{n} file(s) are not on gmad's whitelist, and gmad will refuse to pack the folder. Pack without them?"
+  ru: "Файлов не из вайтлиста gmad: %{n}. С ними gmad откажется паковать папку. Упаковать без них?"
+pack.pack_without:
+  en: "Pack Without Them"
+  ru: "Упаковать без них"
