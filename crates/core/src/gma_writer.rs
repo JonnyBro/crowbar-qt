@@ -184,6 +184,7 @@ pub fn pack(
 	std::fs::create_dir_all(dir).map_err(|e| Error::Io(dir.to_path_buf(), e))?;
 	let temp = tempfile::Builder::new()
 		.prefix(".prybar-gma")
+		.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o644))
 		.tempfile_in(dir)
 		.map_err(|e| Error::Io(dir.to_path_buf(), e))?;
 	let io_err = |e| Error::Io(output.to_path_buf(), e);

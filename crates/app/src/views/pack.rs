@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState, NumberInput};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
@@ -24,6 +24,7 @@ pub struct PackView {
 	folder: Entity<InputState>,
 	output: Entity<InputState>,
 	extra: Entity<InputState>,
+	chunk_mb: Entity<InputState>,
 	title: Entity<InputState>,
 	kind: String,
 	tags: [Option<String>; 2],
@@ -51,7 +52,23 @@ impl PackView {
 			cx,
 		);
 		let title = widgets::new_input("", t!("pack.title_placeholder").into_owned(), window, cx);
+		let chunk_mb = cx.new(|cx| {
+			InputState::new(window, cx)
+				.default_value(prefs.chunk_mb.to_string())
+				.validate(|text, _| text.chars().all(|c| c.is_ascii_digit()))
+				.step(50.)
+				.min(1.)
+				.max(4095.)
+		});
 		let subscriptions = vec![
+			cx.subscribe(&chunk_mb, |this, input, event: &InputEvent, cx| {
+				if matches!(event, InputEvent::Change)
+					&& let Ok(mb) = input.read(cx).value().parse::<u64>()
+					&& mb > 0
+				{
+					this.model.update(cx, |m, _| m.ui.pack.chunk_mb = mb);
+				}
+			}),
 			cx.observe(&model, |_, _, cx| cx.notify()),
 			cx.subscribe_in(
 				&folder,
@@ -74,6 +91,7 @@ impl PackView {
 			folder,
 			output,
 			extra,
+			chunk_mb,
 			title,
 			kind: "model".into(),
 			tags: [None, None],
@@ -285,9 +303,10 @@ impl PackView {
 		};
 		let model = self.model.read(cx);
 		let prefs = model.ui.pack.clone();
-		let own_gma = prefs.gma && !model.settings.use_gmad;
+		let own = !model.settings.use_game_tools;
+		let own_gma = prefs.gma && own;
 		let target = model.target.clone();
-		if target.is_none() && !own_gma {
+		if target.is_none() && !own {
 			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
 			return;
 		}
@@ -314,7 +333,12 @@ impl PackView {
 			extra: if own_gma {
 				Vec::new()
 			} else {
-				widgets::split_words(&prefs.extra)
+				let mut extra = widgets::split_words(&prefs.extra);
+				// A -c typed among the options wins over the field.
+				if !prefs.gma && prefs.multi && !extra.iter().any(|a| a == "-c") {
+					extra.extend(["-c".to_owned(), prefs.chunk_mb.to_string()]);
+				}
+				extra
 			},
 		};
 		model.send(Command::Pack {
@@ -434,12 +458,13 @@ impl Render for PackView {
 		let model = self.model.read(cx);
 		let prefs = model.ui.pack.clone();
 		let format = if prefs.gma { Format::Gma } else { Format::Vpk };
-		// The game's gmad is used only when the settings ask for it.
-		let own_gma = prefs.gma && !model.settings.use_gmad;
+		// The game's tools are used only when the settings ask for them.
+		let own = !model.settings.use_game_tools;
+		let own_gma = prefs.gma && own;
 		let missing_tool = model
 			.target
 			.as_ref()
-			.filter(|_| !own_gma)
+			.filter(|_| !own)
 			.filter(|t| launcher::find_tool(&t.app, format.tool_name()).is_none())
 			.map(|t| t.app.name.clone());
 		let has_folder = !widgets::text(&self.folder, cx).is_empty();
@@ -478,6 +503,19 @@ impl Render for PackView {
 							this.model.update(cx, |m, _| m.ui.pack.multi = checked);
 							cx.notify();
 						})),
+				)
+			})
+			.when(!prefs.gma && prefs.multi, |this| {
+				this.child(
+					h_flex()
+						.gap_2()
+						.child(t!("pack.chunk_size").into_owned())
+						.child(
+							NumberInput::new(&self.chunk_mb)
+								.small()
+								.w(px(150.))
+								.suffix(t!("pack.megabytes").into_owned()),
+						),
 				)
 			})
 			.when(prefs.gma, |this| {

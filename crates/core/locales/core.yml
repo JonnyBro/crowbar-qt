@@ -335,3 +335,36 @@ gma.saved:
 task.no_game:
   en: "No game is selected."
   ru: "Игра не выбрана."
+vpk.no_files:
+  en: "The folder has no files to pack."
+  ru: "В папке нет файлов для упаковки."
+vpk.io:
+  en: "%{path}: %{error}"
+  ru: "%{path}: %{error}"
+vpk.cancelled:
+  en: "Cancelled."
+  ru: "Отменено."
+vpk.changed:
+  en: "the file changed while packing"
+  ru: "файл изменился во время упаковки"
+vpk.bad_chunk_size:
+  en: "-c needs a chunk size in megabytes."
+  ru: "После -c нужен размер части в мегабайтах."
+vpk.unsupported_option:
+  en: "Prybar's own packer doesn't know \"%{option}\". Turn on packing with the game's tools in Settings to use it."
+  ru: "Собственный упаковщик Prybar не знает «%{option}». Чтобы использовать этот параметр, включите в настройках упаковку утилитами игры."
+vpk.packing:
+  en: "Packing \"%{folder}\" into \"%{output}\""
+  ru: "Упаковка «%{folder}» в «%{output}»"
+vpk.saved:
+  en: "Saved \"%{path}\"."
+  ru: "Сохранено: «%{path}»."
+vpk.summary:
+  en: "%{n} file(s), %{size} bytes of data."
+  ru: "Файлов: %{n}, данных: %{size} байт."
+vpk.skipped:
+  en: "WARNING: left out, hidden or of a refused type: %{path}"
+  ru: "ВНИМАНИЕ: пропущен скрытый файл или файл запрещённого типа: %{path}"
+vpk.too_big:
+  en: "the data is over 4 GB; split it into chunks"
+  ru: "данных больше 4 ГБ, включите разбиение на части"

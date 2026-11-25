@@ -5099,6 +5099,7 @@ dependencies = [
  "flate2",
  "image",
  "lzma-rs",
+ "md-5",
  "reqwest",
  "rust-i18n",
  "rustix",

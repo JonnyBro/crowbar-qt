@@ -14,7 +14,7 @@ use super::task::{Task, TaskKind, TaskState, new_cancel};
 use crate::games::Target;
 use crate::launcher::Command;
 use crate::process::{self, Exit};
-use crate::{gma_writer, packer, runner, studiomdl};
+use crate::{gma_writer, packer, runner, studiomdl, vpk_writer};
 
 fn file_name(path: &Path) -> String {
 	path.file_name()
@@ -263,8 +263,11 @@ pub(super) async fn pack(
 	output: &Path,
 	options: &packer::Options,
 ) -> Option<Vec<PathBuf>> {
-	if format == packer::Format::Gma && !context.settings.use_gmad {
-		return pack_gma(task, folder, output, options.warn_invalid);
+	if !context.settings.use_game_tools {
+		return match format {
+			packer::Format::Gma => pack_gma(task, folder, output, options.warn_invalid),
+			packer::Format::Vpk => pack_vpk(task, folder, output, options),
+		};
 	}
 	let Some(target) = target else {
 		task.fail(t!("task.no_game"));
@@ -304,6 +307,62 @@ pub(super) async fn pack(
 	}
 	task.finish(TaskState::Succeeded);
 	Some(result.files)
+}
+
+/// Packs with our own writer, so neither vpk nor a game is needed.
+fn pack_vpk(
+	task: &Task,
+	folder: &Path,
+	output: &Path,
+	options: &packer::Options,
+) -> Option<Vec<PathBuf>> {
+	let vpk_options = match vpk_writer::Options::from_args(options.multi_chunk, &options.extra) {
+		Ok(vpk_options) => vpk_options,
+		Err(e) => {
+			task.fail(e);
+			return None;
+		}
+	};
+	task.line(t!(
+		"vpk.packing",
+		folder = folder.display(),
+		output = output.display()
+	));
+	// Same as for GMA: the writer is synchronous and keeps the task borrowed.
+	let result = tokio::task::block_in_place(|| {
+		vpk_writer::pack(
+			folder,
+			output,
+			vpk_options,
+			|name, done, total| {
+				task.line(format!("\t{name}"));
+				task.progress(done as f32 / total.max(1) as f32);
+			},
+			|| task.is_cancelled(),
+		)
+	});
+	match result {
+		Ok(packed) => {
+			for path in &packed.skipped {
+				task.line(t!("vpk.skipped", path = path));
+			}
+			for path in &packed.outputs {
+				task.line(t!("vpk.saved", path = path.display()));
+				task.add_output(path.clone());
+			}
+			task.line(t!("vpk.summary", n = packed.files, size = packed.data_size));
+			task.finish(TaskState::Succeeded);
+			Some(packed.outputs)
+		}
+		Err(vpk_writer::Error::Cancelled) => {
+			task.finish(TaskState::Cancelled);
+			None
+		}
+		Err(e) => {
+			task.fail(e);
+			None
+		}
+	}
 }
 
 /// Packs with our own writer, so neither gmad nor a game is needed.

@@ -92,9 +92,9 @@ pub enum PackageCommand {
 		/// Split a VPK into numbered parts.
 		#[arg(long)]
 		multi: bool,
-		/// Pack a GMA with the game's gmad instead of Prybar's own writer.
+		/// Pack with the game's vpk or gmad instead of Prybar's own writers.
 		#[arg(long)]
-		gmad: bool,
+		game_tool: bool,
 		/// Passed to the packer as they are.
 		#[arg(last = true)]
 		packer_options: Vec<String>,
@@ -157,9 +157,17 @@ pub fn run(command: CliCommand) -> ExitCode {
 			folder,
 			output,
 			multi,
-			gmad,
+			game_tool,
 			packer_options,
-		}) => pack(appid, format, &folder, &output, multi, gmad, packer_options),
+		}) => pack(
+			appid,
+			format,
+			&folder,
+			&output,
+			multi,
+			game_tool,
+			packer_options,
+		),
 		CliCommand::Workshop(WorkshopCommand::List { appid }) => workshop_list(appid),
 		CliCommand::Workshop(WorkshopCommand::Publish {
 			appid,
@@ -297,15 +305,18 @@ fn pack(
 	folder: &Path,
 	output: &Path,
 	multi: bool,
-	gmad: bool,
+	game_tool: bool,
 	packer_options: Vec<String>,
 ) -> CliResult {
 	let output = std::path::absolute(output).map_err(|e| e.to_string())?;
 	let (warn_invalid, extra): (Vec<String>, Vec<String>) = packer_options
 		.into_iter()
 		.partition(|o| o == "-warninvalid");
-	if matches!(format, PackFormat::Gma) && !gmad {
-		return pack_gma(folder, &output, !warn_invalid.is_empty());
+	if !game_tool {
+		return match format {
+			PackFormat::Gma => pack_gma(folder, &output, !warn_invalid.is_empty()),
+			PackFormat::Vpk => pack_vpk(folder, &output, multi, &extra),
+		};
 	}
 	let context = Context::load()?;
 	let app = context.app(appid)?;
@@ -341,6 +352,30 @@ fn pack(
 	} else {
 		ExitCode::SUCCESS
 	})
+}
+
+/// Our own writer; the game and vpk are not needed.
+fn pack_vpk(folder: &Path, output: &Path, multi: bool, extra: &[String]) -> CliResult {
+	let options = prybar_core::vpk_writer::Options::from_args(multi, extra)?;
+	let packed = prybar_core::vpk_writer::pack(
+		folder,
+		output,
+		options,
+		|name, _, _| println!("\t{name}"),
+		|| false,
+	)
+	.map_err(|e| e.to_string())?;
+	for path in &packed.skipped {
+		println!("left out, hidden or of a refused type: {path}");
+	}
+	for path in &packed.outputs {
+		println!("Saved {}", path.display());
+	}
+	println!(
+		"{} file(s), {} bytes of data",
+		packed.files, packed.data_size
+	);
+	Ok(ExitCode::SUCCESS)
 }
 
 /// Our own writer; the game and gmad are not needed.

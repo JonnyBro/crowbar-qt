@@ -117,14 +117,29 @@ pub struct PackagesPrefs {
 	pub output: OutputMode,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PackPrefs {
 	pub gma: bool,
 	pub output: OutputMode,
 	pub multi: bool,
+	/// Size of a multi-file VPK's chunk, in megabytes.
+	pub chunk_mb: u64,
 	pub warn_invalid: bool,
 	pub extra: String,
+}
+
+impl Default for PackPrefs {
+	fn default() -> Self {
+		Self {
+			gma: false,
+			output: OutputMode::default(),
+			multi: false,
+			chunk_mb: prybar_core::vpk_writer::DEFAULT_CHUNK_MB,
+			warn_invalid: false,
+			extra: String::new(),
+		}
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
