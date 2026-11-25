@@ -8,8 +8,10 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 use prybar_core::package::Package;
 use prybar_core::steam::{App, Platform};
+use prybar_core::vfs::{self, Vfs};
 use prybar_core::{
-	AppPaths, Games, Settings, launcher, packer, process, publisher, runner, studiomdl, workshop,
+	AppPaths, Games, Settings, Target, launcher, packer, process, publisher, runner, studiomdl,
+	workshop,
 };
 
 #[derive(Parser)]
@@ -83,6 +85,16 @@ pub enum PackageCommand {
 	/// Unpack a package without the game's tools.
 	Unpack { file: PathBuf, output_dir: PathBuf },
 
+	/// Print the game's search paths, from the one that wins to the last.
+	Mounts { appid: u32, game_dir: PathBuf },
+
+	/// Print every place the game has a file, the one it loads first.
+	Which {
+		appid: u32,
+		game_dir: PathBuf,
+		path: String,
+	},
+
 	/// Pack a folder with the game's vpk or gmad.
 	Pack {
 		appid: u32,
@@ -151,6 +163,12 @@ pub fn run(command: CliCommand) -> ExitCode {
 		CliCommand::Package(PackageCommand::Unpack { file, output_dir }) => {
 			unpack(&file, &output_dir)
 		}
+		CliCommand::Package(PackageCommand::Mounts { appid, game_dir }) => mounts(appid, &game_dir),
+		CliCommand::Package(PackageCommand::Which {
+			appid,
+			game_dir,
+			path,
+		}) => which(appid, &game_dir, &path),
 		CliCommand::Package(PackageCommand::Pack {
 			appid,
 			format,
@@ -597,6 +615,57 @@ fn list_package(file: &Path) -> CliResult {
 		let _ = writeln!(out, "{}\t{}", entry.size, entry.path);
 	}
 	print!("{out}");
+	Ok(ExitCode::SUCCESS)
+}
+
+fn vfs_target(appid: u32, game_dir: &Path) -> Result<(Context, Target), String> {
+	let context = Context::load()?;
+	let app = context.app(appid)?.clone();
+	let game_dir = std::path::absolute(game_dir).map_err(|e| e.to_string())?;
+	let game_dir = prybar_core::paths::clean_path(&game_dir);
+	let target = context
+		.games
+		.target(&game_dir)
+		.unwrap_or(Target { app, game_dir });
+	Ok((context, target))
+}
+
+fn mounts(appid: u32, game_dir: &Path) -> CliResult {
+	let (context, target) = vfs_target(appid, game_dir)?;
+	for mount in vfs::mounts(&context.games, &target) {
+		let kind = match mount.kind {
+			vfs::MountKind::Folder => "folder",
+			vfs::MountKind::Package => "package",
+		};
+		println!("{kind}\t{}", mount.path.display());
+	}
+	Ok(ExitCode::SUCCESS)
+}
+
+fn which(appid: u32, game_dir: &Path, path: &str) -> CliResult {
+	let (context, target) = vfs_target(appid, game_dir)?;
+	let mounts = vfs::mounts(&context.games, &target);
+	let Some(vfs) = Vfs::build(mounts, |_| ControlFlow::Continue(())) else {
+		return Ok(ExitCode::FAILURE);
+	};
+	for (file, error) in vfs.failures() {
+		eprintln!("{}: {error}", file.display());
+	}
+	let Some(found) = vfs.find(path) else {
+		println!("{path}: not found");
+		return Ok(ExitCode::FAILURE);
+	};
+	for source in &found.sources {
+		match source.kind {
+			vfs::MountKind::Package => println!(
+				"{}\t{}:{}",
+				source.size,
+				source.mount.display(),
+				source.path
+			),
+			vfs::MountKind::Folder => println!("{}\t{}", source.size, source.file().display()),
+		}
+	}
 	Ok(ExitCode::SUCCESS)
 }
 

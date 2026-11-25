@@ -1,8 +1,7 @@
 //! The files of the open package as a folder tree, and the matches of a
-//! search over the game's packages as a sortable table.
+//! search over the game's files as a sortable table.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui_kit::component::checkbox::Checkbox;
@@ -11,6 +10,7 @@ use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, h_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::package::Package;
+use prybar_core::vfs::{Found, MountKind, Source};
 use rust_i18n::t;
 
 use super::columns::{Remembered, SavedWidths};
@@ -481,22 +481,16 @@ impl TableDelegate for EntriesTable {
 	}
 }
 
-const R_PACKAGE: usize = 0;
-const R_PATH: usize = 1;
-const R_SIZE: usize = 2;
+const R_PATH: usize = 0;
+const R_SOURCE: usize = 1;
+const R_SHADOWED: usize = 2;
+const R_SIZE: usize = 3;
 
-/// A match of a search over the game's packages.
-#[derive(Debug, Clone)]
-pub struct Match {
-	pub package: PathBuf,
-	pub path: String,
-	pub size: u64,
-}
-
+/// Files of the game matching a search, each with every place it comes from.
 #[derive(Default)]
 pub struct ResultsTable {
 	widths: SavedWidths,
-	pub matches: Vec<Match>,
+	pub matches: Vec<Found>,
 	rows: Vec<usize>,
 	sort: Option<(usize, ColumnSort)>,
 }
@@ -507,13 +501,13 @@ impl ResultsTable {
 		self.rows.clear();
 	}
 
-	pub fn extend(&mut self, matches: impl IntoIterator<Item = Match>) {
+	pub fn extend(&mut self, matches: impl IntoIterator<Item = Found>) {
 		self.matches.extend(matches);
 		self.rows = (0..self.matches.len()).collect();
 		self.apply_sort();
 	}
 
-	pub fn get(&self, row_ix: usize) -> Option<&Match> {
+	pub fn get(&self, row_ix: usize) -> Option<&Found> {
 		self.matches.get(*self.rows.get(row_ix)?)
 	}
 
@@ -524,10 +518,11 @@ impl ResultsTable {
 			let (ma, mb) = (&matches[a], &matches[b]);
 			let ordering = match (sort, col) {
 				(ColumnSort::Default, _) => return a.cmp(&b),
-				(_, R_PACKAGE) => file_name(&ma.package)
+				(_, R_SOURCE) => source_label(&ma.sources[0])
 					.to_lowercase()
-					.cmp(&file_name(&mb.package).to_lowercase()),
-				(_, R_SIZE) => ma.size.cmp(&mb.size),
+					.cmp(&source_label(&mb.sources[0]).to_lowercase()),
+				(_, R_SHADOWED) => ma.sources.len().cmp(&mb.sources.len()),
+				(_, R_SIZE) => ma.sources[0].size.cmp(&mb.sources[0].size),
 				_ => ma.path.to_lowercase().cmp(&mb.path.to_lowercase()),
 			};
 			if sort == ColumnSort::Descending {
@@ -539,8 +534,25 @@ impl ResultsTable {
 	}
 }
 
+/// The package's file name, or the folder's with a slash; workshop items,
+/// whose files share names, get their id.
+pub fn source_label(source: &Source) -> String {
+	let name = file_name(&source.mount);
+	match source.kind {
+		MountKind::Folder => format!("{name}/"),
+		MountKind::Package => {
+			let parent = source.mount.parent().map(file_name).unwrap_or_default();
+			if !parent.is_empty() && parent.bytes().all(|b| b.is_ascii_digit()) {
+				format!("{name} ({parent})")
+			} else {
+				name
+			}
+		}
+	}
+}
+
 impl Remembered for ResultsTable {
-	const KEY: &'static str = "package_search";
+	const KEY: &'static str = "game_files";
 
 	fn widths_mut(&mut self) -> &mut SavedWidths {
 		&mut self.widths
@@ -549,7 +561,7 @@ impl Remembered for ResultsTable {
 
 impl TableDelegate for ResultsTable {
 	fn columns_count(&self, _: &App) -> usize {
-		3
+		4
 	}
 
 	fn rows_count(&self, _: &App) -> usize {
@@ -558,12 +570,16 @@ impl TableDelegate for ResultsTable {
 
 	fn column(&self, col_ix: usize, _: &App) -> Column {
 		let column = match col_ix {
-			R_PACKAGE => Column::new("package", t!("packages.col_package"))
-				.width(px(240.))
-				.sortable(),
 			R_PATH => Column::new("path", t!("packages.col_path"))
-				.width(px(520.))
+				.width(px(440.))
 				.min_width(px(160.))
+				.sortable(),
+			R_SOURCE => Column::new("source", t!("packages.col_source"))
+				.width(px(220.))
+				.sortable(),
+			R_SHADOWED => Column::new("shadowed", t!("packages.col_shadowed"))
+				.width(px(90.))
+				.text_right()
 				.sortable(),
 			_ => Column::new("size", t!("packages.col_size"))
 				.width(px(100.))
@@ -595,28 +611,36 @@ impl TableDelegate for ResultsTable {
 		let Some(found) = self.get(row_ix) else {
 			return div().into_any_element();
 		};
-		let muted = cx.theme().muted_foreground;
-		match col_ix {
-			R_PACKAGE => div()
-				.truncate()
+		let theme = cx.theme();
+		let muted = theme.muted_foreground;
+		let right = |text: String, color: Hsla| {
+			div()
+				.w_full()
+				.text_right()
 				.text_sm()
-				.text_color(muted)
-				.child(file_name(&found.package))
-				.into_any_element(),
+				.text_color(color)
+				.whitespace_nowrap()
+				.child(text)
+				.into_any_element()
+		};
+		match col_ix {
 			R_PATH => div()
 				.truncate()
 				.mono(cx)
 				.text_sm()
 				.child(found.path.clone())
 				.into_any_element(),
-			_ => div()
-				.w_full()
-				.text_right()
+			R_SOURCE => div()
+				.truncate()
 				.text_sm()
 				.text_color(muted)
-				.whitespace_nowrap()
-				.child(format_size(found.size))
+				.child(source_label(&found.sources[0]))
 				.into_any_element(),
+			R_SHADOWED => match found.sources.len() - 1 {
+				0 => right(String::new(), muted),
+				n => right(n.to_string(), theme.warning),
+			},
+			_ => right(format_size(found.sources[0].size), muted),
 		}
 	}
 
@@ -625,9 +649,10 @@ impl TableDelegate for ResultsTable {
 			return String::new();
 		};
 		match col_ix {
-			R_PACKAGE => found.package.display().to_string(),
-			R_PATH => found.path.clone(),
-			_ => format_size(found.size),
+			R_SOURCE => found.sources[0].file().display().to_string(),
+			R_SHADOWED => (found.sources.len() - 1).to_string(),
+			R_SIZE => format_size(found.sources[0].size),
+			_ => found.path.clone(),
 		}
 	}
 }

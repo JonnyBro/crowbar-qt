@@ -21,6 +21,7 @@ pub mod settings;
 pub mod steam;
 pub mod studiomdl;
 pub mod vdf;
+pub mod vfs;
 pub mod vpk_writer;
 pub mod vtf;
 pub mod workshop;

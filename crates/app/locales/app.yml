@@ -14,6 +14,9 @@ page.view:
 page.packages:
   en: "Browse Packages"
   ru: "Обзор пакетов"
+page.files:
+  en: "Game Files"
+  ru: "Файлы игры"
 page.pack:
   en: "Pack"
   ru: "Упаковка"
@@ -239,12 +242,45 @@ packages.file_placeholder:
 packages.filter_placeholder:
   en: "File name or path"
   ru: "Имя или путь файла"
-packages.in_game:
-  en: "In all of the game's packages"
-  ru: "Во всех пакетах игры"
-packages.in_package:
-  en: "In this package"
-  ru: "В этом пакете"
+files.subtitle:
+  en: "The game takes files from many places: its own VPKs, addons, the workshop, mounted games. When two places have the same file, the game loads only the first. Find which copy wins and which ones it hides."
+  ru: "Игра берёт файлы из многих мест: своих VPK, аддонов, мастерской, подключённых игр. Если файл с одним путём лежит в двух местах, игра загрузит только первый. Здесь видно, какая копия побеждает и какие она прячет."
+files.placeholder:
+  en: "Part of a file name or path, e.g. props_c17/oildrum or crate.vmt"
+  ru: "Часть имени или пути файла, например props_c17/oildrum или crate.vmt"
+files.search:
+  en: "Search"
+  ru: "Найти"
+files.too_short:
+  en: "Type at least two characters to search."
+  ru: "Для поиска введите хотя бы два символа."
+files.hint:
+  en: "Type part of a name and press Enter. Prybar looks through every place the game loads files from."
+  ru: "Введите часть имени и нажмите Enter. Prybar проверит все места, откуда игра берёт файлы."
+files.searching:
+  en: "Reading the game's files…"
+  ru: "Читаю файлы игры…"
+files.nothing:
+  en: "The game has no file with this in its path."
+  ru: "У игры нет файлов с таким текстом в пути."
+files.sources_hint:
+  en: "Select a file to see every copy the game has and which one it loads."
+  ru: "Выберите файл, чтобы увидеть все его копии и ту, что загрузит игра."
+files.loaded:
+  en: "loaded"
+  ru: "загружается"
+files.shadowed:
+  en: "hidden"
+  ru: "перекрыт"
+files.open_package:
+  en: "Open Package"
+  ru: "Открыть пакет"
+files.show_folder:
+  en: "Show"
+  ru: "Показать"
+packages.need_file:
+  en: "Enter the path to a package or pick one with Browse."
+  ru: "Укажите путь к пакету или выберите его через «Обзор…»."
 packages.need_folder:
   en: "Select an output folder."
   ru: "Выберите папку для распаковки."
@@ -275,12 +311,6 @@ packages.output_placeholder:
 packages.preview_hint:
   en: "Select a file to preview it."
   ru: "Выберите файл для предпросмотра."
-packages.search:
-  en: "Search"
-  ru: "Найти"
-packages.search_hint:
-  en: "Type a name and press Enter. Looks in the game's VPKs, its addons folder and its workshop downloads."
-  ru: "Введите имя и нажмите Enter. Поиск идёт по VPK игры, папке addons и загрузкам из мастерской."
 packages.summary:
   en: "%{format} · %{count} files"
   ru: "%{format} · файлов: %{count}"
@@ -629,9 +659,12 @@ packages.col_path:
 packages.col_size:
   en: "Size"
   ru: "Размер"
-packages.col_package:
-  en: "Package"
-  ru: "Пакет"
+packages.col_source:
+  en: "Loaded from"
+  ru: "Откуда"
+packages.col_shadowed:
+  en: "Shadowed"
+  ru: "Перекрыто"
 dl.col_title:
   en: "Title"
   ru: "Название"

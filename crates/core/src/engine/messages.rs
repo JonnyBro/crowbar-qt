@@ -8,6 +8,7 @@ use crate::packer;
 use crate::publisher::WorkshopItem;
 use crate::settings::Settings;
 use crate::studiomdl;
+use crate::vfs;
 use crate::vtf;
 use crate::workshop::ItemDetails;
 
@@ -135,9 +136,8 @@ pub enum Event {
 	SearchResults {
 		request: RequestId,
 		task: TaskId,
-		package: PathBuf,
-		/// Entry paths and sizes.
-		matches: Vec<(String, u64)>,
+		/// Sorted by path; each lists its sources in the order the game tries them.
+		matches: Vec<vfs::Found>,
 	},
 	WorkshopItems(Vec<WorkshopItem>),
 	/// Details of the items in [`Event::WorkshopItems`], for previews and dates.

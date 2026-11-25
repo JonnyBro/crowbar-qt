@@ -3,6 +3,7 @@ pub mod compile;
 mod compile_table;
 pub mod download;
 mod download_table;
+pub mod game_files;
 pub mod games;
 mod games_table;
 pub mod pack;

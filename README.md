@@ -49,6 +49,12 @@ Ctrl+C stops a running tool together with everything it started under Proton.
   packs a folder. Prybar writes VPK and GMA itself, without the game or its tools. For VPK, `--multi` splits the data into chunks and `-- -c <MB>` sets their
   size; for GMA, `-- -warninvalid` leaves out files that are not on gmad's whitelist. `--game-tool` runs the
   game's vpk or gmad instead (Settings → Tools does the same for the window).
+- `prybar package mounts <appid> <game dir>` prints the folders and packages the game loads files from, in
+  the order it checks them, and `prybar package which <appid> <game dir> <path>` lists every copy of a file
+  the game has, the one it loads first. Source games follow the `game` search paths of `gameinfo.txt`;
+  Garry's Mod follows the order on the Facepunch wiki: legacy addons, workshop addons (minus the ones
+  switched off), the game's own files, mounted games, downloads. The Game Files page does the same in the
+  window.
 - `prybar workshop list <appid>` and `prybar workshop publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]`
   work with the Garry's Mod workshop through `gmpublish`; any image works as the icon.
 - `prybar download -o <output dir> <links or IDs...>` saves workshop items and whole collections, from Steam's

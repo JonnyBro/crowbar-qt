@@ -27,8 +27,9 @@ use crate::icons::AppIcon;
 use crate::model::{EngineEvent, Model, TaskFinished};
 use crate::theme::Mono;
 use crate::views::{
-	compile::CompileView, download::DownloadView, games::GamesView, pack::PackView,
-	packages::PackagesView, settings::SettingsView, view::ViewView, workshop::WorkshopView,
+	compile::CompileView, download::DownloadView, game_files::GameFilesView,
+	game_files::OpenInPackage, games::GamesView, pack::PackView, packages::PackagesView,
+	settings::SettingsView, view::ViewView, workshop::WorkshopView,
 };
 use tasks::TasksPanel;
 
@@ -42,6 +43,7 @@ pub enum Page {
 	Compile,
 	View,
 	Packages,
+	Files,
 	Pack,
 	Workshop,
 	Download,
@@ -49,11 +51,12 @@ pub enum Page {
 }
 
 impl Page {
-	const MAIN: [Self; 7] = [
+	const MAIN: [Self; 8] = [
 		Self::Games,
 		Self::Compile,
 		Self::View,
 		Self::Packages,
+		Self::Files,
 		Self::Pack,
 		Self::Workshop,
 		Self::Download,
@@ -65,6 +68,7 @@ impl Page {
 			Self::Compile => t!("page.compile"),
 			Self::View => t!("page.view"),
 			Self::Packages => t!("page.packages"),
+			Self::Files => t!("page.files"),
 			Self::Pack => t!("page.pack"),
 			Self::Workshop => t!("page.workshop"),
 			Self::Download => t!("page.download"),
@@ -79,6 +83,7 @@ impl Page {
 			Self::Compile => AppIcon::Compile,
 			Self::View => AppIcon::View,
 			Self::Packages => AppIcon::Packages,
+			Self::Files => AppIcon::Files,
 			Self::Pack => AppIcon::Pack,
 			Self::Workshop => AppIcon::Workshop,
 			Self::Download => AppIcon::Download,
@@ -92,6 +97,7 @@ impl Page {
 			Self::Compile => "compile",
 			Self::View => "view",
 			Self::Packages => "packages",
+			Self::Files => "files",
 			Self::Pack => "pack",
 			Self::Workshop => "workshop",
 			Self::Download => "download",
@@ -122,6 +128,7 @@ pub struct Shell {
 	compile: Entity<CompileView>,
 	view: Entity<ViewView>,
 	packages: Entity<PackagesView>,
+	files: Entity<GameFilesView>,
 	pack: Entity<PackView>,
 	workshop: Entity<WorkshopView>,
 	download: Entity<DownloadView>,
@@ -201,7 +208,7 @@ impl Shell {
 			}
 		});
 
-		let subscriptions = vec![
+		let mut subscriptions = vec![
 			cx.subscribe_in(
 				&model,
 				window,
@@ -237,12 +244,25 @@ impl Shell {
 			}),
 		];
 
+		let game_files = cx.new(|cx| GameFilesView::new(model.clone(), window, cx));
+		subscriptions.push(cx.subscribe_in(
+			&game_files,
+			window,
+			|this, _, event: &OpenInPackage, window, cx| {
+				let path = event.path.clone();
+				this.packages
+					.update(cx, |p, cx| p.open_at(&event.package, path, window, cx));
+				this.set_page(Page::Packages, cx);
+			},
+		));
+
 		let page = Page::from_key(&model.read(cx).ui.page).unwrap_or(Page::Games);
 		let mut shell = Self {
 			games: cx.new(|cx| GamesView::new(model.clone(), window, cx)),
 			compile: cx.new(|cx| CompileView::new(model.clone(), window, cx)),
 			view: cx.new(|cx| ViewView::new(model.clone(), window, cx)),
 			packages: cx.new(|cx| PackagesView::new(model.clone(), window, cx)),
+			files: game_files,
 			pack: cx.new(|cx| PackView::new(model.clone(), window, cx)),
 			workshop: cx.new(|cx| WorkshopView::new(model.clone(), window, cx)),
 			download: cx.new(|cx| DownloadView::new(model.clone(), window, cx)),
@@ -604,6 +624,7 @@ impl Render for Shell {
 			Page::Compile => self.compile.clone().into_any_element(),
 			Page::View => self.view.clone().into_any_element(),
 			Page::Packages => self.packages.clone().into_any_element(),
+			Page::Files => self.files.clone().into_any_element(),
 			Page::Pack => self.pack.clone().into_any_element(),
 			Page::Workshop => self.workshop.clone().into_any_element(),
 			Page::Download => self.download.clone().into_any_element(),

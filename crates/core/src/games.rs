@@ -120,39 +120,6 @@ impl Games {
 			.or_else(|| self.apps.iter().find(|app| app.id == app_id))
 	}
 
-	/// Packages the game loads: its VPKs (the `_dir` file of a multi-part set),
-	/// the GMAs in the game folder's addons and its workshop downloads.
-	pub fn packages(&self, target: &Target) -> Vec<PathBuf> {
-		let mut packages = Vec::new();
-		walk_files(&target.app.install_path, true, &mut |path| {
-			let name = path
-				.file_name()
-				.map(|n| n.to_string_lossy().to_ascii_lowercase())
-				.unwrap_or_default();
-			if name.ends_with(".vpk") && !is_numbered_vpk_part(&name) {
-				packages.push(path.to_path_buf());
-			}
-		});
-		let mut add_gmas = |dir: &Path, recursive: bool| {
-			walk_files(dir, recursive, &mut |path| {
-				let is_gma = path
-					.extension()
-					.is_some_and(|e| e.eq_ignore_ascii_case("gma"));
-				if is_gma {
-					packages.push(path.to_path_buf());
-				}
-			});
-		};
-		add_gmas(&target.game_dir.join("addons"), false);
-		for library in &self.libraries {
-			let workshop = library.join(format!("steamapps/workshop/content/{}", target.app.id));
-			add_gmas(&workshop, true);
-		}
-		packages.sort();
-		packages.dedup();
-		packages
-	}
-
 	/// The saved game folder if it is still there, otherwise the first game that
 	/// can run the tools, otherwise the first game.
 	pub fn current(&self, saved: Option<&Path>) -> Option<Target> {
@@ -164,31 +131,11 @@ impl Games {
 }
 
 /// `pak01_003.vpk`: a data part, opened through its `_dir.vpk`.
-fn is_numbered_vpk_part(lower_name: &str) -> bool {
+pub(crate) fn is_numbered_vpk_part(lower_name: &str) -> bool {
 	lower_name
 		.strip_suffix(".vpk")
 		.and_then(|stem| stem.rsplit_once('_'))
 		.is_some_and(|(_, n)| n.len() == 3 && n.bytes().all(|b| b.is_ascii_digit()))
-}
-
-/// Calls `visit` for every file under `dir`, without following symlinked folders.
-fn walk_files(dir: &Path, recursive: bool, visit: &mut dyn FnMut(&Path)) {
-	let Ok(read) = std::fs::read_dir(dir) else {
-		return;
-	};
-	for entry in read.flatten() {
-		let Ok(kind) = entry.file_type() else {
-			continue;
-		};
-		let path = entry.path();
-		if kind.is_dir() {
-			if recursive {
-				walk_files(&path, true, visit);
-			}
-		} else if path.is_file() {
-			visit(&path);
-		}
-	}
 }
 
 #[cfg(test)]
@@ -281,48 +228,6 @@ mod tests {
 		assert_eq!(gmod.proton_path, Some(dir.join("p9")));
 
 		assert_eq!(games.app(440).unwrap().name, "Team Fortress 2");
-	}
-
-	#[test]
-	fn game_packages() {
-		let temp = tempfile::tempdir().unwrap();
-		let dir = temp.path();
-		for file in [
-			"gmod/garrysmod/garrysmod_dir.vpk",
-			"gmod/garrysmod/garrysmod_000.vpk",
-			"gmod/sourceengine/hl2_textures_dir.vpk",
-			"gmod/garrysmod/addons/a.gma",
-			"gmod/garrysmod/addons/nested/b.gma",
-			"gmod/garrysmod/addons/readme.txt",
-			"lib/steamapps/workshop/content/4000/42/c.GMA",
-			"lib/steamapps/workshop/content/440/1/other.gma",
-		] {
-			write(&dir.join(file), "");
-		}
-		let app = App {
-			id: 4000,
-			install_path: dir.join("gmod"),
-			game_dirs: vec![dir.join("gmod/garrysmod")],
-			..App::default()
-		};
-		let games = Games {
-			apps: vec![app.clone()],
-			libraries: vec![dir.join("lib")],
-			..Games::default()
-		};
-		let target = Target {
-			app,
-			game_dir: dir.join("gmod/garrysmod"),
-		};
-		assert_eq!(
-			games.packages(&target),
-			[
-				dir.join("gmod/garrysmod/addons/a.gma"),
-				dir.join("gmod/garrysmod/garrysmod_dir.vpk"),
-				dir.join("gmod/sourceengine/hl2_textures_dir.vpk"),
-				dir.join("lib/steamapps/workshop/content/4000/42/c.GMA"),
-			]
-		);
 	}
 
 	#[test]

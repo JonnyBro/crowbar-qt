@@ -54,6 +54,27 @@ pub fn hint(text: impl Into<SharedString>, cx: &App) -> Div {
 		.child(text.into())
 }
 
+/// A line of muted text in the middle of an empty pane.
+pub fn empty_state(text: impl Into<SharedString>, cx: &App) -> AnyElement {
+	// gpui wraps text only when its width is known; a bare centered child gets
+	// its one-line width and spills over the neighbours.
+	div()
+		.size_full()
+		.flex()
+		.items_center()
+		.justify_center()
+		.p_4()
+		.child(
+			div()
+				.w_full()
+				.text_center()
+				.text_sm()
+				.text_color(cx.theme().muted_foreground)
+				.child(text.into()),
+		)
+		.into_any_element()
+}
+
 /// One button of a group where one is selected.
 pub fn choice(id: impl Into<ElementId>, label: impl Into<SharedString>, selected: bool) -> Button {
 	Button::new(id)

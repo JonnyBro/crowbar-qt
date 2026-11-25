@@ -207,11 +207,11 @@ task.search:
   en: "Search \"%{needle}\" in %{game}"
   ru: "Поиск \"%{needle}\" в %{game}"
 task.search_where:
-  en: "Looking in the game's VPKs, its addons folder and its workshop downloads…"
-  ru: "Поиск в VPK игры, в папке addons и в загрузках из мастерской…"
+  en: "Reading the game's search paths…"
+  ru: "Читаю пути поиска игры…"
 task.search_found:
-  en: "%{found} match(es) in %{total} package(s)."
-  ru: "Совпадений: %{found}, просмотрено пакетов: %{total}."
+  en: "%{found} match(es) among %{files} files from %{mounts} search paths."
+  ru: "Совпадений: %{found}. Всего файлов: %{files}, путей поиска: %{mounts}."
 task.search_limit:
   en: "Stopped at %{limit} matches; narrow the search."
   ru: "Поиск остановлен на %{limit} совпадениях; уточните запрос."

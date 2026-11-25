@@ -11,15 +11,15 @@ use gpui_kit::component::{
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::Command;
-use prybar_core::engine::{Event, RequestId, TaskId};
+use prybar_core::engine::{Event, RequestId};
 use prybar_core::package::Package;
 use rust_i18n::t;
 
 use crate::model::{EngineEvent, Model};
 use crate::ui_state::OutputMode;
-use crate::widgets::{self, browse_button, choice, field, page_header, path_row};
+use crate::widgets::{self, browse_button, choice, empty_state, field, page_header, path_row};
 
-use super::packages_table::{EntriesTable, Match, ResultsTable};
+use super::packages_table::EntriesTable;
 use super::text_window::{self, TextWindow};
 
 /// Bigger entries are not read for a preview.
@@ -30,12 +30,6 @@ const TEXT_EXTENSIONS: [&str; 16] = [
 	"txt", "vmt", "qc", "qci", "lua", "json", "cfg", "res", "vdf", "nut", "smd", "fgd", "md",
 	"ini", "rad", "kv",
 ];
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Scope {
-	Package,
-	Game,
-}
 
 enum Preview {
 	None,
@@ -64,16 +58,11 @@ pub struct PackagesView {
 	opening: Option<RequestId>,
 	open_error: Option<String>,
 	entries: Entity<TableState<EntriesTable>>,
-	results: Entity<TableState<ResultsTable>>,
 	/// The entry clicked last, shown in the preview; the one "Unpack selected"
 	/// takes when none is checked.
 	focused: Option<usize>,
 	preview: Preview,
-	scope: Scope,
-	search: Option<RequestId>,
-	/// The running search, for cancelling it when a new one starts.
-	search_task: Option<TaskId>,
-	/// Shown once the package being opened from a search result is there.
+	/// Put in the filter once the package being opened from the game files page is there.
 	pending_filter: Option<String>,
 	_subscriptions: Vec<Subscription>,
 }
@@ -95,11 +84,8 @@ impl PackagesView {
 		);
 		let (entries, entry_widths) =
 			super::columns::new_table(EntriesTable::default(), &model, window, cx);
-		let (results, result_widths) =
-			super::columns::new_table(ResultsTable::default(), &model, window, cx);
 		let subscriptions = vec![
 			entry_widths,
-			result_widths,
 			cx.observe(&model, |_, _, cx| cx.notify()),
 			cx.observe(&entries, |this, table, cx| {
 				// Sorting moves rows; the highlight follows the focused entry.
@@ -122,35 +108,17 @@ impl PackagesView {
 				}
 			}),
 			cx.subscribe_in(
-				&results,
-				window,
-				|this, table, event: &TableEvent, window, cx| {
-					if let TableEvent::SelectRow(row) = event
-						&& let Some(found) = table.read(cx).delegate().get(*row).cloned()
-					{
-						this.pending_filter = Some(found.path);
-						this.open_file(&found.package, window, cx);
-					}
-				},
-			),
-			cx.subscribe_in(
 				&model,
 				window,
 				|this, _, event: &EngineEvent, window, cx| {
 					this.on_event(&event.0, window, cx);
 				},
 			),
-			cx.subscribe_in(
-				&filter,
-				window,
-				|this, _, event: &InputEvent, window, cx| match event {
-					InputEvent::Change if this.scope == Scope::Package => this.apply_filter(cx),
-					InputEvent::PressEnter { .. } if this.scope == Scope::Game => {
-						this.search(window, cx)
-					}
-					_ => {}
-				},
-			),
+			cx.subscribe_in(&filter, window, |this, _, event: &InputEvent, _, cx| {
+				if matches!(event, InputEvent::Change) {
+					this.apply_filter(cx);
+				}
+			}),
 			cx.subscribe_in(&file, window, |this, _, event: &InputEvent, window, cx| {
 				if matches!(event, InputEvent::PressEnter { .. }) {
 					this.open(window, cx);
@@ -166,15 +134,23 @@ impl PackagesView {
 			opening: None,
 			open_error: None,
 			entries,
-			results,
 			focused: None,
 			preview: Preview::None,
-			scope: Scope::Package,
-			search: None,
-			search_task: None,
 			pending_filter: None,
 			_subscriptions: subscriptions,
 		}
+	}
+
+	/// Opens `package` with the filter set to `path`.
+	pub fn open_at(
+		&mut self,
+		package: &Path,
+		path: String,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		self.pending_filter = Some(path);
+		self.open_file(package, window, cx);
 	}
 
 	pub fn open_file(&mut self, path: &Path, window: &mut Window, cx: &mut Context<Self>) {
@@ -182,8 +158,12 @@ impl PackagesView {
 		self.open(window, cx);
 	}
 
-	fn open(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+	fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
 		let Some(path) = widgets::path(&self.file, cx) else {
+			window.push_notification(
+				Notification::warning(t!("packages.need_file").into_owned()),
+				cx,
+			);
 			return;
 		};
 		let request = self.model.update(cx, |m, _| m.request_id());
@@ -211,7 +191,6 @@ impl PackagesView {
 						});
 						self.open_error = None;
 						if let Some(filter) = self.pending_filter.take() {
-							self.scope = Scope::Package;
 							widgets::set_text(&self.filter, filter, window, cx);
 						}
 					}
@@ -242,27 +221,6 @@ impl PackagesView {
 					};
 					cx.notify();
 				}
-			}
-			Event::SearchResults {
-				request,
-				task,
-				package,
-				matches,
-			} if Some(*request) == self.search => {
-				self.search_task = Some(*task);
-				let found: Vec<Match> = matches
-					.iter()
-					.map(|(path, size)| Match {
-						package: package.clone(),
-						path: path.clone(),
-						size: *size,
-					})
-					.collect();
-				self.results.update(cx, |table, cx| {
-					table.delegate_mut().extend(found);
-					cx.notify();
-				});
-				cx.notify();
 			}
 			_ => {}
 		}
@@ -306,42 +264,6 @@ impl PackagesView {
 			table.delegate_mut().set_filter(&needle);
 			cx.notify();
 		});
-		cx.notify();
-	}
-
-	fn set_scope(&mut self, scope: Scope, cx: &mut Context<Self>) {
-		self.scope = scope;
-		if scope == Scope::Package {
-			self.apply_filter(cx);
-		}
-		cx.notify();
-	}
-
-	fn search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-		let needle = widgets::text(&self.filter, cx);
-		if needle.chars().count() < 2 {
-			return;
-		}
-		let model = self.model.read(cx);
-		let Some(target) = model.target.clone() else {
-			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
-			return;
-		};
-		if let Some(task) = self.search_task {
-			model.send(Command::Cancel(task));
-		}
-		let request = self.model.update(cx, |m, _| m.request_id());
-		self.model.read(cx).send(Command::SearchPackages {
-			request,
-			target,
-			needle,
-		});
-		self.results.update(cx, |table, cx| {
-			table.delegate_mut().clear();
-			table.clear_selection(cx);
-			cx.notify();
-		});
-		self.search = Some(request);
 		cx.notify();
 	}
 
@@ -433,18 +355,7 @@ impl PackagesView {
 
 	fn preview(&self, cx: &App) -> AnyElement {
 		let theme = cx.theme();
-		let centered = |text: String| {
-			div()
-				.size_full()
-				.flex()
-				.items_center()
-				.justify_center()
-				.p_4()
-				.text_sm()
-				.text_color(theme.muted_foreground)
-				.child(text)
-				.into_any_element()
-		};
+		let centered = |text: String| empty_state(text, cx);
 		match &self.preview {
 			Preview::None => centered(t!("packages.preview_hint").into_owned()),
 			Preview::Loading(_) => centered("…".into()),
@@ -523,7 +434,6 @@ impl Render for PackagesView {
 		let prefs = self.model.read(cx).ui.packages.clone();
 		let file = self.file.clone();
 		let output = self.output.clone();
-		let searching = self.scope == Scope::Game;
 		let picked = self.picked(cx).len();
 
 		let summary = match (&self.package, &self.open_error, self.opening) {
@@ -544,26 +454,7 @@ impl Render for PackagesView {
 			(None, None, None) => t!("packages.none").into_owned(),
 		};
 
-		let list: AnyElement = if searching {
-			if self.results.read(cx).delegate().matches.is_empty() {
-				div()
-					.flex_1()
-					.flex()
-					.items_center()
-					.justify_center()
-					.text_color(theme.muted_foreground)
-					.child(t!("packages.search_hint").into_owned())
-					.into_any_element()
-			} else {
-				DataTable::new(&self.results)
-					.header_row_height(px(32.))
-					.into_any_element()
-			}
-		} else {
-			DataTable::new(&self.entries)
-				.header_row_height(px(32.))
-				.into_any_element()
-		};
+		let list = DataTable::new(&self.entries).header_row_height(px(32.));
 
 		let output_row = v_flex()
 			.gap_2()
@@ -652,36 +543,9 @@ impl Render for PackagesView {
 					),
 			)
 			.child(
-				h_flex()
-					.gap_2()
-					.child(
-						div().flex_1().child(
-							Input::new(&self.filter)
-								.small()
-								.prefix(Icon::new(IconName::Search).small()),
-						),
-					)
-					.child(
-						choice("scope-package", t!("packages.in_package"), !searching).on_click(
-							cx.listener(|this, _, _, cx| this.set_scope(Scope::Package, cx)),
-						),
-					)
-					.child(
-						choice("scope-game", t!("packages.in_game"), searching).on_click(
-							cx.listener(|this, _, _, cx| this.set_scope(Scope::Game, cx)),
-						),
-					)
-					.when(searching, |this| {
-						this.child(
-							Button::new("search-go")
-								.label(t!("packages.search"))
-								.small()
-								.outline()
-								.on_click(
-									cx.listener(|this, _, window, cx| this.search(window, cx)),
-								),
-						)
-					}),
+				Input::new(&self.filter)
+					.small()
+					.prefix(Icon::new(IconName::Search).small()),
 			)
 			.child(
 				h_flex()

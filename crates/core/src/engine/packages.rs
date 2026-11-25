@@ -11,6 +11,7 @@ use super::messages::{Event, RequestId, TEXTURE_PREVIEW_SIDE};
 use super::task::{TaskKind, TaskState};
 use crate::games::Target;
 use crate::package::Package;
+use crate::vfs::{self, Vfs};
 use crate::vtf;
 
 /// More would only bury what the user is after.
@@ -132,7 +133,7 @@ pub(super) fn unpack(
 }
 
 pub(super) fn search(context: &Context, request: RequestId, target: Target, needle: &str) {
-	let needle = needle.trim().to_lowercase().replace('\\', "/");
+	let needle = vfs::normalize(needle);
 	let task = context.tasks.start(
 		TaskKind::Search,
 		t!("task.search", needle = needle, game = target.app.name).into_owned(),
@@ -142,44 +143,41 @@ pub(super) fn search(context: &Context, request: RequestId, target: Target, need
 	tokio::task::spawn_blocking(move || {
 		task.line(t!("task.search_where"));
 		task.progress(0.0);
-		let packages = games.packages(&target);
-		let mut found = 0;
-		for (i, file) in packages.iter().enumerate() {
-			if task.is_cancelled() || found >= MAX_SEARCH_RESULTS {
-				break;
+		let mounts = vfs::mounts(&games, &target);
+		let built = Vfs::build(mounts, |done| {
+			task.progress(done * 0.9);
+			if task.is_cancelled() {
+				ControlFlow::Break(())
+			} else {
+				ControlFlow::Continue(())
 			}
-			if let Ok(package) = Package::open(file) {
-				let matches: Vec<(String, u64)> = package
-					.entries
-					.iter()
-					.filter(|entry| entry.path.to_lowercase().contains(&needle))
-					.take(MAX_SEARCH_RESULTS - found)
-					.map(|entry| (entry.path.clone(), entry.size))
-					.collect();
-				if !matches.is_empty() {
-					found += matches.len();
-					sink.emit(Event::SearchResults {
-						request,
-						task: task.id(),
-						package: file.clone(),
-						matches,
-					});
-				}
-			}
-			task.progress((i + 1) as f32 / packages.len() as f32);
+		});
+		let Some(vfs) = built else {
+			task.finish(TaskState::Cancelled);
+			return;
+		};
+		for (file, error) in vfs.failures() {
+			task.line(t!(
+				"task.warning",
+				error = format!("{}: {error}", file.display())
+			));
 		}
+		let matches = vfs.search(&needle, MAX_SEARCH_RESULTS);
 		task.line(t!(
 			"task.search_found",
-			found = found,
-			total = packages.len()
+			found = matches.len(),
+			mounts = vfs.mounts.len(),
+			files = vfs.file_count()
 		));
-		if found >= MAX_SEARCH_RESULTS {
+		if matches.len() >= MAX_SEARCH_RESULTS {
 			task.line(t!("task.search_limit", limit = MAX_SEARCH_RESULTS));
 		}
-		task.finish(if task.is_cancelled() {
-			TaskState::Cancelled
-		} else {
-			TaskState::Succeeded
+		sink.emit(Event::SearchResults {
+			request,
+			task: task.id(),
+			matches,
 		});
+		task.progress(1.0);
+		task.finish(TaskState::Succeeded);
 	});
 }

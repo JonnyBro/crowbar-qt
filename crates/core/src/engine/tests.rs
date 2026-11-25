@@ -272,13 +272,14 @@ fn open_read_and_unpack_a_package() {
 }
 
 #[test]
-fn search_finds_entries_in_the_games_packages() {
+fn search_finds_files_the_game_loads() {
 	let mut h = Harness::new();
 	let target = h.target(&[]);
 	write(
 		&target.game_dir.join("addons/one.gma"),
 		&gma(&[("models/Crate.mdl", b"x"), ("lua/init.lua", b"y")]),
 	);
+	write(&target.game_dir.join("models/crate.mdl"), b"loose");
 	write(
 		&target.game_dir.join("addons/two.gma"),
 		&gma(&[("sound/a.wav", b"z")]),
@@ -289,14 +290,20 @@ fn search_finds_entries_in_the_games_packages() {
 		target: target.clone(),
 		needle: "MODELS\\crate".into(),
 	});
-	let (package, matches) = h.wait(|e| match e {
-		Event::SearchResults {
-			package, matches, ..
-		} => Some((package.clone(), matches.clone())),
+	let matches = h.wait(|e| match e {
+		Event::SearchResults { matches, .. } => Some(matches.clone()),
 		_ => None,
 	});
-	assert_eq!(package, target.game_dir.join("addons/one.gma"));
-	assert_eq!(matches, [("models/Crate.mdl".to_owned(), 1)]);
+	assert_eq!(matches.len(), 1);
+	assert_eq!(matches[0].path, "models/Crate.mdl");
+	let files: Vec<_> = matches[0].sources.iter().map(|s| s.file()).collect();
+	assert_eq!(
+		files,
+		[
+			target.game_dir.join("addons/one.gma"),
+			target.game_dir.join("models/crate.mdl"),
+		]
+	);
 	assert_eq!(h.finished(TaskKind::Search).state, TaskState::Succeeded);
 }
 
