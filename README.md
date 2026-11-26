@@ -1,27 +1,20 @@
 # Prybar
 
-Native Linux tool for Source engine modding, inspired by [Crowbar](https://github.com/ZeqMacaw/Crowbar).
-Works with games installed natively and through Proton.
+Native Linux tool for Source engine modding, inspired by [Crowbar](https://github.com/ZeqMacaw/Crowbar). Works with native games and with games under Proton.
 
-> Prybar is being rewritten in Rust with [gpui](https://www.gpui.rs/). The core and the command line are
-> ported; the window is still a skeleton.
-> The last C++/Qt version (crowbar-qt 1.2.1) lives on the `backup-qt` branch.
+> Written in Rust with [gpui](https://www.gpui.rs/).\
+> The last C++/Qt version (crowbar-qt 1.2.1) is on the `backup-qt` branch.
 
 ## Installing
 
-Download `prybar-vX.Y.Z-linux-x86_64.tar.gz` from the releases page and unpack it to a folder you own, such as
-`~/Apps/prybar`. Settings → Application → Add to Menu adds Prybar and its icon to the application menu and
-registers `.qc`, `.mdl`, `.vpk` and `.gma`, so the file manager can open them in Prybar. If the window is
-already open, the files open there.
+Unpack `prybar-vX.Y.Z-linux-x86_64.tar.gz` from the releases page into a folder you own, such as `~/Apps/prybar`. Settings > Application > Add to Menu adds Prybar to the application menu and opens `.qc`, `.mdl`, `.vpk` and `.gma` files from the file manager in Prybar.
 
-At start Prybar asks GitHub for a newer release; Settings can turn this off. The update button in the sidebar
-downloads the release archive, checks it against `SHA256SUMS` and replaces the binary. Restart Prybar from the
-same button to run the new version.
+Prybar checks GitHub for updates at start (this can be turned off in the settings).\
+If an update is available, the sidebar shows a button that downloads the release, verifies its checksum and replaces the binary.
 
 ## Building
 
-Requires Rust 1.95 or newer, clang and mold (see `.cargo/config.toml`), and the usual gpui dependencies:
-fontconfig, freetype, wayland, xkbcommon, xcb and Vulkan headers.
+Needs Rust 1.95+, clang, mold and the gpui dependencies: fontconfig, freetype, wayland, xkbcommon, xcb and Vulkan headers.
 
 ```bash
 cargo build --release
@@ -31,51 +24,37 @@ cargo build --release
 cargo test
 ```
 
-Run `target/release/prybar` for the window, or `target/release/prybar --help` for the command-line modes.
-
 ## Command line
 
-The command-line modes use the same games, chosen tools folders and Proton as the window, and print English.
-Ctrl+C stops a running tool together with everything it started under Proton.
+Uses the same games, tools folders and Proton as the GUI. You can use Ctrl+C to stop any tool.
 
-- `prybar games` prints the detected Source games, libraries and Proton builds.
-- `prybar compile <appid> <game dir> <qc file> [output dir]` compiles a model; with an output dir, the
-  compiled files are moved there from the game's `models` folder.
-- `prybar view <appid> <game dir> [mdl file]` opens HLMV, `prybar hammer <appid> <game dir>` opens Hammer,
-  and `prybar run <appid> <game dir> [launch options]` starts the game through Steam with `-game`.
-- `prybar package list <file>` and `prybar package unpack <file> <output dir>` read VPK and GMA packages
-  (old LZMA-compressed workshop `.bin` files too) without the game's tools.
-- `prybar package pack <appid> <vpk|gma> <folder> <output file> [--multi] [--game-tool] [-- packer options]`
-  packs a folder. Prybar writes VPK and GMA itself, without the game or its tools. For VPK, `--multi` splits the data into chunks and `-- -c <MB>` sets their
-  size; for GMA, `-- -warninvalid` leaves out files that are not on gmad's whitelist. `--game-tool` runs the
-  game's vpk or gmad instead (Settings → Tools does the same for the window).
-- `prybar package mounts <appid> <game dir>` prints the folders and packages the game loads files from, in
-  the order it checks them, and `prybar package which <appid> <game dir> <path>` lists every copy of a file
-  the game has, the one it loads first. Source games follow the `game` search paths of `gameinfo.txt`;
-  Garry's Mod follows the order on the Facepunch wiki: legacy addons, workshop addons (minus the ones
-  switched off), the game's own files, mounted games, downloads. The Game Files page does the same in the
-  window.
-- `prybar workshop list <appid>` and `prybar workshop publish <appid> [--id N] [--addon file.gma] [--icon image] [--changes text]`
-  work with the Garry's Mod workshop through `gmpublish`; any image works as the icon.
-- `prybar download -o <output dir> <links or IDs...>` saves workshop items and whole collections, from Steam's
-  cache if you are subscribed, otherwise from their direct link (old items only).
+- `prybar games`: detected games, libraries and Proton builds.
+- `prybar compile <appid> <game dir> <qc> [output dir]`: compiles a model, then moves it to the output dir.
+- `prybar view <appid> <game dir> [mdl]`, `prybar hammer <appid> <game dir>`: open HLMV or Hammer.
+- `prybar run <appid> <game dir> [options]`: starts the game through Steam with `-game`.
+- `prybar inspect <appid> <game dir> <model>`: checks a model's `.vvd`/`.vtx`/`.phy` checksums, materials, textures and `$includemodel` files the way the game finds them. The model is a file or a game path such as `models/props_c17/oildrum001.mdl`.
+- `prybar package list|unpack <file> [output dir]`: reads VPK, GMA and old workshop `.bin` files.
+- `prybar package pack <appid> <vpk|gma> <folder> <output> [--multi] [--game-tool] [-- options]`: packs without the game's tools.
+  - `--multi`: split the VPK into chunks, `-- -c <MB>` sets their size;
+  - `-- -warninvalid`: skip files that are not on `gmad`'s whitelist (GMA only);
+  - `--game-tool`: use the game's `vpk` or `gmad` instead.
+- `prybar package mounts <appid> <game dir>`: the game's search paths, first to last.
+- `prybar package which <appid> <game dir> <path>`: every copy of a file the game has, the loaded one first. Garry's Mod follows the order on the Facepunch wiki, other games their `gameinfo.txt`.
+- `prybar workshop list|publish <appid> ...`: the Garry's Mod workshop through `gmpublish`.
+- `prybar download -o <output dir> <links or IDs...>`: workshop items and collections, from Steam's cache or their direct link.
 
 ## Layout
 
-- `crates/core` (`prybar-core`): everything without a window: Steam and games, packages, the game's tools.
-- `crates/app` (`prybar`): the gpui window and the command line.
+- `crates/core`: everything without a window: Steam, games, packages, models, the game's tools.
+- `crates/app`: the gpui window and the command line.
 
-Interface strings live in `crates/*/locales/*.yml` (English and Russian). The command-line modes always print English.
+Interface strings are in `crates/*/locales/*.yml`.
 
 ## Releases
 
-Every push and pull request runs `.github/workflows/ci.yml` (format, clippy, tests). Pushing a tag `vX.Y.Z`
-that matches the workspace version in `Cargo.toml` runs `.github/workflows/release.yml`, which builds the Linux
-archive (binary, desktop entry, icon, MIME types) and publishes a GitHub release with notes written by git-cliff
-from the Conventional Commits since the previous tag.
+CI (`.github/workflows/ci.yml`) runs fmt, clippy and tests. A `vX.Y.Z` tag matching the version in `Cargo.toml` builds the Linux archive and publishes a release with git-cliff notes.
 
 ## License
 
-Prybar is free software under the GNU General Public License v3 or later; see [LICENSE](LICENSE).
-
-It is a separate program written from scratch and shares no code with [Crowbar](https://github.com/ZeqMacaw/Crowbar).
+GPL v3 or later; see [LICENSE](LICENSE).\
+Written from scratch, shares no code with Crowbar.

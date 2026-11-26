@@ -24,7 +24,7 @@ use super::text_window::{self, TextWindow};
 
 /// Bigger entries are not read for a preview.
 const MAX_PREVIEW: u64 = 4 * 1024 * 1024;
-/// Textures keep their largest mipmap at the end, so the whole file is read.
+/// The largest mipmap is at the end, so whole textures are read.
 const MAX_TEXTURE_PREVIEW: u64 = 160 * 1024 * 1024;
 const TEXT_EXTENSIONS: [&str; 16] = [
 	"txt", "vmt", "qc", "qci", "lua", "json", "cfg", "res", "vdf", "nut", "smd", "fgd", "md",
@@ -62,7 +62,7 @@ pub struct PackagesView {
 	/// takes when none is checked.
 	focused: Option<usize>,
 	preview: Preview,
-	/// Put in the filter once the package being opened from the game files page is there.
+	/// Applied once the package opened from Game Files is loaded.
 	pending_filter: Option<String>,
 	_subscriptions: Vec<Subscription>,
 }

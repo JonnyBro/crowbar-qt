@@ -100,10 +100,10 @@ pack.io:
   ru: "%{path}: %{error}"
 pack.invalid_json:
   en: "addon.json is not valid JSON: %{error}"
-  ru: "addon.json — некорректный JSON: %{error}"
+  ru: "addon.json - некорректный JSON: %{error}"
 pack.invalid_json_kept:
   en: "addon.json is not valid JSON, so it was left as is: %{error}"
-  ru: "addon.json — некорректный JSON, поэтому оставлен как есть: %{error}"
+  ru: "addon.json - некорректный JSON, поэтому оставлен как есть: %{error}"
 pack.unsafe_update:
   en: "addon.json could not be updated safely, so it was left as is."
   ru: "addon.json не удалось безопасно обновить, поэтому он оставлен как есть."

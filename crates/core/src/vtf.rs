@@ -139,7 +139,7 @@ impl Format {
 		name.to_owned()
 	}
 
-	/// Bytes in one `width`×`height` image, or `None` for formats with no known layout.
+	/// `None` for unknown layouts.
 	fn image_size(self, width: u32, height: u32) -> Option<usize> {
 		use Format::*;
 		let (w, h) = (width as usize, height as usize);
@@ -184,19 +184,19 @@ pub struct Texture {
 
 struct Header {
 	info: Info,
-	/// Where the mipmap chain starts, smallest mipmap first.
+	/// Mipmaps are stored smallest first.
 	data_start: usize,
 }
 
 impl Texture {
-	/// Fast to write rather than small: previews are thrown away right after.
+	/// Fast rather than small: previews are short-lived.
 	pub fn to_png(&self) -> Vec<u8> {
 		use image::ImageEncoder;
 		use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 		let mut png = Vec::new();
 		let encoder =
 			PngEncoder::new_with_quality(&mut png, CompressionType::Fast, FilterType::NoFilter);
-		// Writing into a Vec only fails on a size mismatch, which decode rules out.
+		// Only fails on a size mismatch, which decode rules out.
 		let _ = encoder.write_image(
 			&self.rgba,
 			self.width,
@@ -211,8 +211,7 @@ pub fn info(data: &[u8]) -> Result<Info> {
 	Ok(header(data)?.info)
 }
 
-/// The first frame and face of the largest mipmap no wider or taller than
-/// `max_side`, or the smallest one if none is.
+/// Largest mipmap within `max_side`, else the smallest; first frame and face.
 pub fn decode(data: &[u8], max_side: u32) -> Result<(Info, Texture)> {
 	let header = header(data)?;
 	let info = &header.info;
@@ -240,8 +239,7 @@ pub fn decode(data: &[u8], max_side: u32) -> Result<(Info, Texture)> {
 		.and_then(|end| data.get(offset..end))
 		.ok_or(Error::Truncated)?;
 	let mut rgba = to_rgba(info.format, image, width, height).ok_or_else(unsupported)?;
-	// HDR cubemaps and masks kept in alpha often have it zero everywhere,
-	// which would leave nothing to look at.
+	// HDR cubemaps and alpha masks often have all-zero alpha.
 	if rgba.iter().skip(3).step_by(4).all(|&a| a == 0) {
 		rgba.iter_mut().skip(3).step_by(4).for_each(|a| *a = 255);
 	}
@@ -327,8 +325,7 @@ fn header(data: &[u8]) -> Result<Header> {
 		mipmaps,
 	};
 	if flags & FLAG_ENVMAP != 0 {
-		// Before 7.5, cubemaps may carry a seventh face, the sphere map; the
-		// spec says start_frame tells, but writers disagree, so the file size decides.
+		// Pre-7.5 cubemaps may have a 7th sphere-map face; writers disagree on start_frame, so size decides.
 		let with_sphere = (1..5).contains(&minor) && start_frame != 0xffff;
 		info.faces = if with_sphere { 7 } else { 6 };
 		if with_sphere && chain_size(&info).is_some_and(|s| data_start + s > data.len()) {
@@ -494,7 +491,7 @@ fn bluescreen(r: u8, g: u8, b: u8) -> [u8; 4] {
 	}
 }
 
-/// Du/dv maps store signed bytes; shifted, zero lands in the middle gray.
+/// Signed bytes; shifted so zero is mid-gray.
 fn signed(v: u8) -> u8 {
 	v ^ 0x80
 }
@@ -528,8 +525,7 @@ fn unit(v: f32) -> u8 {
 	(v.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
-/// HDR texels are linear light; clamped and gamma-corrected they look about
-/// like the game shows them at default exposure.
+/// Linear HDR, clamped and gamma-corrected: roughly default exposure.
 fn tone(v: f32) -> u8 {
 	unit(v.max(0.0).powf(1.0 / 2.2))
 }
@@ -595,8 +591,7 @@ fn color_block(block: &[u8], one_bit_alpha: bool, texels: &mut [[u8; 4]; 16]) {
 		let m = |i: usize| ((u16::from(a[i]) * wa + u16::from(b[i]) * wb) / div) as u8;
 		[m(0), m(1), m(2), 255]
 	};
-	// DXT3 and DXT5 always use four colors; only DXT1 has the
-	// three-colors-and-transparent mode.
+	// Only DXT1 has the three-colors-and-transparent mode.
 	let palette = if c0 > c1 || !one_bit_alpha {
 		[
 			[a[0], a[1], a[2], 255],

@@ -10,6 +10,7 @@ use super::Context;
 use super::messages::{Event, RequestId, TEXTURE_PREVIEW_SIDE};
 use super::task::{TaskKind, TaskState};
 use crate::games::Target;
+use crate::inspect::{self, ModelSource};
 use crate::package::Package;
 use crate::vfs::{self, Vfs};
 use crate::vtf;
@@ -129,6 +130,23 @@ pub(super) fn unpack(
 		} else {
 			TaskState::Succeeded
 		});
+	});
+}
+
+pub(super) fn inspect_model(
+	context: &Context,
+	request: RequestId,
+	target: Target,
+	source: ModelSource,
+) {
+	let games = context.games.clone();
+	let sink = context.sink.clone();
+	tokio::task::spawn_blocking(move || {
+		let mounts = vfs::mounts(&games, &target);
+		let vfs = Vfs::build(mounts, |_| ControlFlow::Continue(()))
+			.expect("building is only stopped by the callback");
+		let result = inspect::inspect(&vfs, &source).map(Arc::new);
+		sink.emit(Event::ModelInspected { request, result });
 	});
 }
 

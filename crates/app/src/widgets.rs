@@ -54,10 +54,8 @@ pub fn hint(text: impl Into<SharedString>, cx: &App) -> Div {
 		.child(text.into())
 }
 
-/// A line of muted text in the middle of an empty pane.
 pub fn empty_state(text: impl Into<SharedString>, cx: &App) -> AnyElement {
-	// gpui wraps text only when its width is known; a bare centered child gets
-	// its one-line width and spills over the neighbours.
+	// gpui wraps text only at a known width; without w_full it spills over its neighbours.
 	div()
 		.size_full()
 		.flex()

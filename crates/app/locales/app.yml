@@ -9,8 +9,8 @@ page.compile:
   en: "Compile"
   ru: "Компиляция"
 page.view:
-  en: "View"
-  ru: "Просмотр"
+  en: "Model"
+  ru: "Модель"
 page.packages:
   en: "Browse Packages"
   ru: "Обзор пакетов"
@@ -218,24 +218,132 @@ compile.view_after:
 compile.view_after_hint:
   en: "When a single model was compiled."
   ru: "Если скомпилирована одна модель."
+view.check:
+  en: "Check"
+  ru: "Проверить"
+view.need_model:
+  en: "Enter a model first."
+  ru: "Сначала укажите модель."
+view.no_file:
+  en: "No such file."
+  ru: "Такого файла нет."
+view.hint:
+  en: "Enter a model and press Check to see what the game can't find."
+  ru: "Укажите модель и нажмите «Проверить»: Prybar покажет, чего игра не найдёт."
+view.checking:
+  en: "Reading the game's files…"
+  ru: "Читаю файлы игры…"
+view.no_problems:
+  en: "No problems found"
+  ru: "Проблем не найдено"
+view.problems:
+  en: "Problems: %{n}"
+  ru: "Проблем: %{n}"
+view.game_path:
+  en: "In the game: %{path}"
+  ru: "В игре: %{path}"
+view.game_copy:
+  en: "The game loads another copy: %{place}"
+  ru: "Игра загрузит другую копию: %{place}"
+view.version:
+  en: "version %{version}"
+  ru: "версия %{version}"
+view.bones:
+  en: "bones: %{n}"
+  ru: "костей: %{n}"
+view.sequences:
+  en: "sequences: %{n}"
+  ru: "анимаций: %{n}"
+view.attachments:
+  en: "attachments: %{n}"
+  ru: "точек крепления: %{n}"
+view.flexes:
+  en: "flexes: %{n}"
+  ru: "флексов: %{n}"
+view.files:
+  en: "Model files"
+  ru: "Файлы модели"
+view.ok:
+  en: "found"
+  ru: "найден"
+view.missing:
+  en: "missing"
+  ru: "не найден"
+view.optional_none:
+  en: "none, not required"
+  ru: "нет, необязателен"
+view.checksum:
+  en: "checksum differs: the game won't use it"
+  ru: "контрольная сумма не совпадает, игра его не примет"
+view.unreadable:
+  en: "unreadable"
+  ru: "не читается"
+view.materials:
+  en: "Materials"
+  ru: "Материалы"
+view.unused:
+  en: "no mesh uses it"
+  ru: "не используется ни одной сеткой"
+view.has_problems:
+  en: "has problems"
+  ru: "есть проблемы"
+view.tried:
+  en: "Looked for: %{paths}"
+  ru: "Искал: %{paths}"
+view.vmt_unreadable:
+  en: "Can't read the material: %{error}"
+  ru: "Не удалось прочитать материал: %{error}"
+view.vmt_broken:
+  en: "The material is damaged: %{error}"
+  ru: "Материал повреждён: %{error}"
+view.world_shader:
+  en: "%{shader} is for map brushes; models need VertexLitGeneric or another model shader."
+  ru: "%{shader} рассчитан на браши карты; модели нужен VertexLitGeneric или другой шейдер для моделей."
+view.include_missing:
+  en: "Includes %{path}, which the game doesn't have."
+  ru: "Подключает %{path}, а такого файла у игры нет."
+view.structure:
+  en: "Structure"
+  ru: "Устройство"
+view.vertices:
+  en: "%{name} (%{n} vertices)"
+  ru: "%{name} (вершин: %{n})"
+view.bodygroup:
+  en: "Bodygroup %{name}"
+  ru: "Bodygroup %{name}"
+view.skin:
+  en: "Skin %{n}"
+  ru: "Скин %{n}"
+view.sequence_names:
+  en: "Sequences"
+  ru: "Анимации"
+view.attachment_names:
+  en: "Attachments"
+  ru: "Точки крепления"
+view.bone_names:
+  en: "Bones"
+  ru: "Кости"
+files.inspect:
+  en: "Check Model"
+  ru: "Проверить модель"
 view.mdl:
-  en: "MDL file:"
-  ru: "Файл MDL:"
+  en: "Model:"
+  ru: "Модель:"
 view.no_hlmv:
   en: "%{name} has no hlmv. Set a tools folder on the Games page."
   ru: "У %{name} нет hlmv. Укажите папку утилит на странице \"Игры\"."
 view.open:
-  en: "Open Viewer"
-  ru: "Открыть просмотр"
+  en: "Open in HLMV"
+  ru: "Открыть в HLMV"
 view.open_empty:
-  en: "Open Without a Model"
-  ru: "Открыть без модели"
+  en: "HLMV Without a Model"
+  ru: "HLMV без модели"
 view.placeholder:
-  en: "Path to a .mdl file"
-  ru: "Путь к файлу .mdl"
+  en: "A .mdl file, or a path in the game such as models/props_c17/oildrum001.mdl"
+  ru: "Файл .mdl или путь в игре, например models/props_c17/oildrum001.mdl"
 view.subtitle:
-  en: "Opens models in the game's HLMV."
-  ru: "Открывает модели в HLMV игры."
+  en: "Checks a model's files, materials and textures the way the game finds them, and opens it in HLMV."
+  ru: "Проверяет файлы, материалы и текстуры модели так, как их находит игра, и открывает её в HLMV."
 packages.file_placeholder:
   en: "Path to a .vpk, .gma or workshop .bin file"
   ru: "Путь к файлу .vpk, .gma или .bin из мастерской"
@@ -243,8 +351,8 @@ packages.filter_placeholder:
   en: "File name or path"
   ru: "Имя или путь файла"
 files.subtitle:
-  en: "The game takes files from many places: its own VPKs, addons, the workshop, mounted games. When two places have the same file, the game loads only the first. Find which copy wins and which ones it hides."
-  ru: "Игра берёт файлы из многих мест: своих VPK, аддонов, мастерской, подключённых игр. Если файл с одним путём лежит в двух местах, игра загрузит только первый. Здесь видно, какая копия побеждает и какие она прячет."
+  en: "The game takes files from its VPKs, addons, the workshop and mounted games, and loads only the first copy of each. Here you see which one."
+  ru: "Игра собирает файлы из своих VPK, аддонов, мастерской и подключённых игр и загружает только первую копию каждого. Здесь видно, какую."
 files.placeholder:
   en: "Part of a file name or path, e.g. props_c17/oildrum or crate.vmt"
   ru: "Часть имени или пути файла, например props_c17/oildrum или crate.vmt"
@@ -255,8 +363,8 @@ files.too_short:
   en: "Type at least two characters to search."
   ru: "Для поиска введите хотя бы два символа."
 files.hint:
-  en: "Type part of a name and press Enter. Prybar looks through every place the game loads files from."
-  ru: "Введите часть имени и нажмите Enter. Prybar проверит все места, откуда игра берёт файлы."
+  en: "Type part of a name and press Enter."
+  ru: "Введите часть имени и нажмите Enter."
 files.searching:
   en: "Reading the game's files…"
   ru: "Читаю файлы игры…"
@@ -451,7 +559,7 @@ ws.icon_placeholder:
   ru: "Любое изображение; при необходимости преобразуется в JPEG 512×512"
 ws.id_placeholder:
   en: "Empty creates a new item"
-  ru: "Пусто — будет создан новый предмет"
+  ru: "Пусто - будет создан новый предмет"
 ws.item_id:
   en: "Item ID:"
   ru: "ID предмета:"
@@ -541,10 +649,10 @@ set.editor_default:
   ru: "Программа по умолчанию (без номера строки)"
 set.editor_hint:
   en: "Opens files linked from the task log: %f is the file, %l the line. Pick a preset or type a command."
-  ru: "Открывает файлы по ссылкам из журнала задач: %f — файл, %l — строка. Выберите вариант или введите команду."
+  ru: "Открывает файлы по ссылкам из журнала задач: %f - файл, %l - строка. Выберите вариант или введите команду."
 set.editor_placeholder:
   en: "Command, with %f for the file and %l for the line"
-  ru: "Команда, %f — файл, %l — строка"
+  ru: "Команда, %f - файл, %l - строка"
 set.editor_presets:
   en: "Presets"
   ru: "Варианты"

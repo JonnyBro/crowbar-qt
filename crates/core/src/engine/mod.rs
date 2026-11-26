@@ -257,6 +257,11 @@ async fn run(
 			} => {
 				packages::search(&context, request, target, &needle);
 			}
+			Command::InspectModel {
+				request,
+				target,
+				source,
+			} => packages::inspect_model(&context, request, target, source),
 			Command::WorkshopList(target) => {
 				tokio::spawn(workshop::list(context.clone(), target));
 			}

@@ -55,7 +55,7 @@ impl TextWindow {
 			))),
 			window_min_size: Some(size(px(400.), px(300.))),
 			titlebar: Some(TitlebarOptions {
-				title: Some(format!("{title} — Prybar").into()),
+				title: Some(format!("{title} - Prybar").into()),
 				..Default::default()
 			}),
 			app_id: Some("prybar".into()),

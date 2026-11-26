@@ -20,7 +20,7 @@ use crate::widgets::{self, empty_state, page_header};
 
 use super::packages_table::{ResultsTable, source_label};
 
-/// Asks the shell to show a package on the package page, filtered to one file.
+/// Opens the package on the package page, filtered to `path`.
 pub struct OpenInPackage {
 	pub package: PathBuf,
 	pub path: String,
@@ -37,14 +37,16 @@ pub struct GameFilesView {
 	query: Entity<InputState>,
 	results: Entity<TableState<ResultsTable>>,
 	state: State,
-	/// The running search, for cancelling it when a new one starts.
+	/// Cancelled when a new search starts.
 	task: Option<TaskId>,
-	/// The result whose copies are shown on the right.
 	found: Option<Found>,
 	_subscriptions: Vec<Subscription>,
 }
 
+pub struct InspectModel(pub String);
+
 impl EventEmitter<OpenInPackage> for GameFilesView {}
+impl EventEmitter<InspectModel> for GameFilesView {}
 
 impl GameFilesView {
 	pub fn new(model: Entity<Model>, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -146,7 +148,6 @@ impl GameFilesView {
 		empty_state(text.into_owned(), cx)
 	}
 
-	/// Every copy of the selected file, the one the game loads first.
 	fn sources(&self, cx: &mut Context<Self>) -> AnyElement {
 		let theme = cx.theme().clone();
 		let Some(found) = &self.found else {
@@ -223,18 +224,35 @@ impl GameFilesView {
 				)
 				.child(action)
 		});
+		let model = found.path.to_ascii_lowercase().ends_with(".mdl").then(|| {
+			let path = found.path.clone();
+			Button::new("inspect-model")
+				.label(t!("files.inspect"))
+				.xsmall()
+				.outline()
+				.on_click(cx.listener(move |_, _, _, cx| {
+					cx.emit(InspectModel(path.clone()));
+				}))
+		});
 		v_flex()
 			.size_full()
 			.child(
-				div()
+				h_flex()
 					.px_3()
 					.py_2()
+					.gap_2()
 					.border_b_1()
 					.border_color(theme.border)
-					.truncate()
-					.text_xs()
-					.mono(cx)
-					.child(found.path.clone()),
+					.child(
+						div()
+							.flex_1()
+							.min_w_0()
+							.truncate()
+							.text_xs()
+							.mono(cx)
+							.child(found.path.clone()),
+					)
+					.children(model),
 			)
 			.child(
 				v_flex()

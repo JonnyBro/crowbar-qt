@@ -308,6 +308,46 @@ fn search_finds_files_the_game_loads() {
 }
 
 #[test]
+fn inspects_a_model_with_the_games_files() {
+	let mut h = Harness::new();
+	let target = h.target(&[]);
+	let model = crate::mdl::tests::build(&crate::mdl::tests::Spec {
+		materials: &["crate"],
+		folders: &["models/"],
+		skins: &[&[0]],
+		body_parts: &[("body", &[("ref", 3, &[0])])],
+		..Default::default()
+	});
+	write(&target.game_dir.join("models/crate.mdl"), &model);
+
+	h.engine.send(Command::InspectModel {
+		request: 7,
+		target: target.clone(),
+		source: crate::inspect::ModelSource::Game("models/crate.mdl".into()),
+	});
+	let (request, result) = h.wait(|e| match e {
+		Event::ModelInspected { request, result } => Some((*request, result.clone())),
+		_ => None,
+	});
+	assert_eq!(request, 7);
+	let report = result.unwrap();
+	assert_eq!(report.materials[0].tried, ["materials/models/crate.vmt"]);
+	// No .vvd, no .vtx, no material.
+	assert_eq!(report.problem_count(), 3);
+
+	h.engine.send(Command::InspectModel {
+		request: 8,
+		target,
+		source: crate::inspect::ModelSource::Game("models/none.mdl".into()),
+	});
+	let result = h.wait(|e| match e {
+		Event::ModelInspected { request: 8, result } => Some(result.clone()),
+		_ => None,
+	});
+	assert!(result.is_err());
+}
+
+#[test]
 fn errors_fail_the_task_with_a_message() {
 	let mut h = Harness::new();
 	let target = h.target(&[]);

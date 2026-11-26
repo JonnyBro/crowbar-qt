@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::task::{TaskId, TaskSnapshot};
 use crate::games::{Games, Target};
+use crate::inspect::{Inspection, ModelSource};
 use crate::package::Package;
 use crate::packer;
 use crate::publisher::WorkshopItem;
@@ -55,8 +56,8 @@ pub enum Command {
 		request: RequestId,
 		path: PathBuf,
 	},
-	/// An entry's data for a preview; answered with [`Event::EntryRead`].
-	/// VTF textures arrive decoded, as a PNG of at most [`TEXTURE_PREVIEW_SIDE`] pixels a side.
+	/// Answered with [`Event::EntryRead`]; VTF arrives as a PNG of at most
+	/// [`TEXTURE_PREVIEW_SIDE`] pixels a side.
 	ReadEntry {
 		request: RequestId,
 		package: Arc<Package>,
@@ -69,12 +70,17 @@ pub enum Command {
 		indexes: Vec<usize>,
 		output_dir: PathBuf,
 	},
-	/// Looks for `needle` in the paths of every package the game loads;
-	/// matches arrive as [`Event::SearchResults`].
+	/// Searches the game's files; answered with [`Event::SearchResults`].
 	SearchPackages {
 		request: RequestId,
 		target: Target,
 		needle: String,
+	},
+	/// Answered with [`Event::ModelInspected`].
+	InspectModel {
+		request: RequestId,
+		target: Target,
+		source: ModelSource,
 	},
 	/// gmpublish's list of your items, then their details from Steam.
 	WorkshopList(Target),
@@ -133,10 +139,14 @@ pub enum Event {
 		/// Set when `result` is a texture converted to PNG.
 		texture: Option<vtf::Info>,
 	},
+	ModelInspected {
+		request: RequestId,
+		result: Result<Arc<Inspection>, String>,
+	},
 	SearchResults {
 		request: RequestId,
 		task: TaskId,
-		/// Sorted by path; each lists its sources in the order the game tries them.
+		/// Sorted by path.
 		matches: Vec<vfs::Found>,
 	},
 	WorkshopItems(Vec<WorkshopItem>),

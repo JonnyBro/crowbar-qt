@@ -1,5 +1,4 @@
-//! The files of the open package as a folder tree, and the matches of a
-//! search over the game's files as a sortable table.
+//! The open package as a folder tree, and game file search results.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
@@ -486,7 +485,6 @@ const R_SOURCE: usize = 1;
 const R_SHADOWED: usize = 2;
 const R_SIZE: usize = 3;
 
-/// Files of the game matching a search, each with every place it comes from.
 #[derive(Default)]
 pub struct ResultsTable {
 	widths: SavedWidths,
@@ -534,8 +532,7 @@ impl ResultsTable {
 	}
 }
 
-/// The package's file name, or the folder's with a slash; workshop items,
-/// whose files share names, get their id.
+/// Workshop items share file names, so they get their id.
 pub fn source_label(source: &Source) -> String {
 	let name = file_name(&source.mount);
 	match source.kind {

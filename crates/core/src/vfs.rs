@@ -1,9 +1,5 @@
-//! The game's view of its files: every search path in the order the engine
-//! mounts it, and which of them a file is loaded from when several have it.
-//!
-//! Source games take their order from the `game` search paths of gameinfo.txt.
-//! Garry's Mod ignores most of that file; its order follows the GAME path on
-//! wiki.facepunch.com/gmod/Filesystem.
+//! The game's search paths in mount order and which copy of a file it loads.
+//! GMod ignores most of gameinfo.txt; its order is from wiki.facepunch.com/gmod/Filesystem.
 
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
@@ -16,7 +12,7 @@ use crate::steam::{entries, find_file};
 use crate::vdf::{self, ParseOptions};
 
 const GMOD_APP_ID: u32 = 4000;
-/// sourceengine VPKs in the order gmod's gameinfo.txt lists them; the others follow.
+/// In gmod's gameinfo.txt order; other VPKs follow.
 const GMOD_ENGINE_VPKS: [&str; 4] = [
 	"hl2_textures_dir.vpk",
 	"hl2_sound_vo_english_dir.vpk",
@@ -36,19 +32,16 @@ pub struct Mount {
 	pub kind: MountKind,
 }
 
-/// One place a file can be loaded from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
-	/// The package or folder.
 	pub mount: PathBuf,
 	pub kind: MountKind,
-	/// The path inside it, in its own letter case.
+	/// Original letter case.
 	pub path: String,
 	pub size: u64,
 }
 
 impl Source {
-	/// The package, or the loose file itself.
 	pub fn file(&self) -> PathBuf {
 		match self.kind {
 			MountKind::Package => self.mount.clone(),
@@ -57,7 +50,7 @@ impl Source {
 	}
 }
 
-/// A file and everywhere the game has it; the first source is the one it loads.
+/// The first source is the one the game loads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Found {
 	pub path: String,
@@ -73,7 +66,6 @@ struct Hit {
 #[derive(Debug)]
 enum Content {
 	Package(Arc<Package>),
-	/// Paths relative to the folder, in their own letter case, and sizes.
 	Folder(Vec<(String, u64)>),
 	Failed(String),
 }
@@ -86,7 +78,14 @@ pub struct Vfs {
 	files: HashMap<String, Vec<Hit>>,
 }
 
-/// The search paths of `target`, first to last.
+pub fn read_file(path: &Path, max_size: u64) -> Result<Vec<u8>, String> {
+	let size = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
+	if size > max_size {
+		return Err(format!("{} is too large", path.display()));
+	}
+	std::fs::read(path).map_err(|e| e.to_string())
+}
+
 pub fn mounts(games: &Games, target: &Target) -> Vec<Mount> {
 	let mut plan = Plan::default();
 	if target.app.id == GMOD_APP_ID {
@@ -98,8 +97,7 @@ pub fn mounts(games: &Games, target: &Target) -> Vec<Mount> {
 }
 
 impl Vfs {
-	/// Opens every package and lists every folder; `progress` gets the share
-	/// done and can stop the work.
+	/// `progress` gets the share done and can stop the build.
 	pub fn build(
 		mounts: Vec<Mount>,
 		mut progress: impl FnMut(f32) -> ControlFlow<()>,
@@ -123,7 +121,7 @@ impl Vfs {
 			};
 			let mut add = |path: &str, entry: usize| {
 				let hits = files.entry(normalize(path)).or_default();
-				// A package can hold one path twice; the first copy is the one read.
+				// A package can list a path twice; the first wins.
 				if hits.last().is_none_or(|hit| hit.mount as usize != index) {
 					hits.push(Hit {
 						mount: index as u32,
@@ -154,7 +152,6 @@ impl Vfs {
 		})
 	}
 
-	/// Packages that could not be opened, with the reason.
 	pub fn failures(&self) -> impl Iterator<Item = (&Path, &str)> {
 		self.mounts
 			.iter()
@@ -175,7 +172,20 @@ impl Vfs {
 		Some(self.found(hits))
 	}
 
-	/// Files whose path contains `needle`, sorted by path; at most `limit` of them.
+	/// Reads the copy the game loads.
+	pub fn read(&self, path: &str, max_size: u64) -> Option<(Source, Result<Vec<u8>, String>)> {
+		let hit = *self.files.get(&normalize(path))?.first()?;
+		let source = self.source(hit);
+		let data = match &self.contents[hit.mount as usize] {
+			Content::Package(package) => package
+				.read(&package.entries[hit.entry as usize], max_size)
+				.map_err(|e| e.to_string()),
+			_ => read_file(&source.file(), max_size),
+		};
+		Some((source, data))
+	}
+
+	/// Sorted by path.
 	pub fn search(&self, needle: &str, limit: usize) -> Vec<Found> {
 		let needle = normalize(needle);
 		let mut keys: Vec<&String> = self
@@ -250,7 +260,7 @@ impl Plan {
 		}
 	}
 
-	/// Every `_dir` (or single-file) VPK in `dir`, in name order.
+	/// `_dir` and single-file VPKs, by name.
 	fn vpks_in(&mut self, dir: &Path) {
 		for entry in sorted_entries(dir) {
 			if !entry.is_dir && entry.lower.ends_with(".vpk") && !is_numbered_vpk_part(&entry.lower)
@@ -261,8 +271,7 @@ impl Plan {
 	}
 }
 
-/// Where gameinfo.txt's relative paths and `|all_source_engine_paths|` point:
-/// the folder with the game's executable, or the base game's for a mod.
+/// Root for relative gameinfo paths: the game's folder, or the base game's for a mod.
 fn base_dir(games: &Games, target: &Target) -> PathBuf {
 	if target.app.is_mod
 		&& let Some(base) = games.app(target.app.id).filter(|app| !app.is_mod)
@@ -391,6 +400,12 @@ fn gmod_mounts(games: &Games, target: &Target, plan: &mut Plan) {
 	plan.folder(resolve_ci(game, "overrides"));
 	plan.package(find_file(game, "garrysmod_dir.vpk"));
 	plan.folder(Some(game.clone()));
+	// GMod mounts every gamemode's content, not only the active one; the spot after garrysmod/ is a guess.
+	for gamemode in sorted_entries(&game.join("gamemodes")) {
+		if gamemode.is_dir {
+			plan.folder(resolve_ci(&gamemode.path, "content"));
+		}
+	}
 
 	let engine = resolve_ci(base, "sourceengine");
 	if let Some(engine) = &engine {
@@ -484,8 +499,8 @@ fn strip_prefix_ci<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
 		.then(|| &text[prefix.len()..])
 }
 
-/// `relative` under `root`, matching each part in any letter case, as Windows would.
-fn resolve_ci(root: &Path, relative: &str) -> Option<PathBuf> {
+/// Case-insensitive, as on Windows.
+pub(crate) fn resolve_ci(root: &Path, relative: &str) -> Option<PathBuf> {
 	let mut path = root.to_path_buf();
 	for part in relative.split('/') {
 		match part {
@@ -513,7 +528,7 @@ fn sorted_entries(dir: &Path) -> Vec<crate::steam::DirEntry> {
 	list
 }
 
-/// Every file under `dir`, without following symlinked folders.
+/// Doesn't follow symlinked folders.
 fn list_folder(dir: &Path, prefix: &str, out: &mut Vec<(String, u64)>) {
 	let Ok(read) = std::fs::read_dir(dir) else {
 		return;

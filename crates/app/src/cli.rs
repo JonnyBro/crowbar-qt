@@ -46,6 +46,14 @@ pub enum CliCommand {
 		mdl: Option<PathBuf>,
 	},
 
+	/// Check a model's files, materials and textures as the game finds them.
+	/// The model is a file or a game path such as models/props_c17/oildrum001.mdl.
+	Inspect {
+		appid: u32,
+		game_dir: PathBuf,
+		model: String,
+	},
+
 	/// Start the game through Steam with -game.
 	Run {
 		appid: u32,
@@ -85,10 +93,10 @@ pub enum PackageCommand {
 	/// Unpack a package without the game's tools.
 	Unpack { file: PathBuf, output_dir: PathBuf },
 
-	/// Print the game's search paths, from the one that wins to the last.
+	/// Print the game's search paths, first to last.
 	Mounts { appid: u32, game_dir: PathBuf },
 
-	/// Print every place the game has a file, the one it loads first.
+	/// Print every copy of a file the game has, the loaded one first.
 	Which {
 		appid: u32,
 		game_dir: PathBuf,
@@ -159,6 +167,11 @@ pub fn run(command: CliCommand) -> ExitCode {
 			options,
 		} => run_game(appid, &game_dir, &options),
 		CliCommand::Hammer { appid, game_dir } => hammer(appid, &game_dir),
+		CliCommand::Inspect {
+			appid,
+			game_dir,
+			model,
+		} => inspect_model(appid, &game_dir, &model),
 		CliCommand::Package(PackageCommand::List { file }) => list_package(&file),
 		CliCommand::Package(PackageCommand::Unpack { file, output_dir }) => {
 			unpack(&file, &output_dir)
@@ -667,6 +680,140 @@ fn which(appid: u32, game_dir: &Path, path: &str) -> CliResult {
 		}
 	}
 	Ok(ExitCode::SUCCESS)
+}
+
+fn inspect_model(appid: u32, game_dir: &Path, model: &str) -> CliResult {
+	use prybar_core::inspect::{self, CompanionState, MaterialProblem, ModelSource};
+
+	let (context, target) = vfs_target(appid, game_dir)?;
+	let source = if Path::new(model).is_file() {
+		ModelSource::File(std::path::absolute(model).map_err(|e| e.to_string())?)
+	} else {
+		ModelSource::Game(model.to_owned())
+	};
+	let mounts = vfs::mounts(&context.games, &target);
+	let Some(vfs) = Vfs::build(mounts, |_| ControlFlow::Continue(())) else {
+		return Ok(ExitCode::FAILURE);
+	};
+	let report = inspect::inspect(&vfs, &source)?;
+	let m = &report.model;
+	let place = |s: &vfs::Source| match s.kind {
+		vfs::MountKind::Package => format!("{}:{}", s.mount.display(), s.path),
+		vfs::MountKind::Folder => s.file().display().to_string(),
+	};
+
+	println!("model:     {}", place(&report.file));
+	if let Some(path) = &report.game_path {
+		println!("in game:   {path}");
+	}
+	if let Some(copy) = &report.game_copy {
+		println!("! the game loads another copy: {}", place(copy));
+	}
+	println!(
+		"header:    \"{}\", version {}, checksum {:08x}{}",
+		m.name,
+		m.version,
+		m.checksum,
+		if m.is_static_prop() {
+			", $staticprop"
+		} else {
+			""
+		}
+	);
+	println!(
+		"contents:  {} bones, {} sequences, {} attachments, {} flexes, surfaceprop \"{}\"",
+		m.bones.len(),
+		m.sequences.len(),
+		m.attachments.len(),
+		m.flex_count,
+		m.surface_prop
+	);
+	println!();
+	for c in &report.companions {
+		let line = match &c.state {
+			CompanionState::Missing if c.required => "MISSING".to_owned(),
+			CompanionState::Missing => "none".to_owned(),
+			CompanionState::Found { source, matches } => format!(
+				"{}{}",
+				place(source),
+				if *matches { "" } else { "  CHECKSUM DIFFERS" }
+			),
+			CompanionState::Unreadable { source, error } => {
+				format!("{}  UNREADABLE: {error}", place(source))
+			}
+		};
+		println!(".{:<10}{line}", c.extension);
+	}
+	for include in &report.includes {
+		let place = include
+			.found
+			.as_ref()
+			.map_or("MISSING".to_owned(), |f| place(&f.sources[0]));
+		println!("include    {}  {place}", include.path);
+	}
+	println!();
+	println!("$cdmaterials: {:?}", m.material_folders);
+	for material in &report.materials {
+		match &material.vmt {
+			Some(found) => println!(
+				"{}  ->  {}  [{}]  {}",
+				material.name,
+				found.path,
+				material.shader.as_deref().unwrap_or("?"),
+				place(&found.sources[0])
+			),
+			None => println!("{}  ->  MISSING, tried {:?}", material.name, material.tried),
+		}
+		for problem in &material.problems {
+			match problem {
+				MaterialProblem::Missing => {}
+				MaterialProblem::Unreadable(e) => println!("    ! unreadable: {e}"),
+				MaterialProblem::Broken(e) => println!("    ! broken: {e}"),
+				MaterialProblem::WorldShader(s) => println!("    ! {s} is a shader for brushes"),
+				MaterialProblem::IncludeMissing(p) => println!("    ! includes {p}, missing"),
+			}
+		}
+		for texture in &material.textures {
+			let place = texture
+				.found
+				.as_ref()
+				.map_or("MISSING".to_owned(), |f| place(&f.sources[0]));
+			println!("    {} {}  {place}", texture.param, texture.name);
+		}
+	}
+	if m.skins.len() > 1 {
+		println!();
+		for (i, row) in m.skins.iter().enumerate() {
+			let names: Vec<&str> = row
+				.iter()
+				.map(|&t| m.materials.get(t as usize).map_or("?", String::as_str))
+				.collect();
+			println!("skin {i}: {}", names.join(", "));
+		}
+	}
+	println!();
+	for part in &m.body_parts {
+		let models: Vec<String> = part
+			.models
+			.iter()
+			.map(|s| {
+				if s.name.is_empty() {
+					"blank".to_owned()
+				} else {
+					format!("{} ({} vertices)", s.name, s.vertices)
+				}
+			})
+			.collect();
+		println!("bodygroup {}: {}", part.name, models.join(", "));
+	}
+	let problems = report.problem_count();
+	println!();
+	println!("{problems} problem(s)");
+	Ok(if problems == 0 {
+		ExitCode::SUCCESS
+	} else {
+		ExitCode::FAILURE
+	})
 }
 
 fn unpack(file: &Path, output_dir: &Path) -> CliResult {

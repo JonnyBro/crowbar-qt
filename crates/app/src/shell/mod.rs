@@ -28,8 +28,8 @@ use crate::model::{EngineEvent, Model, TaskFinished};
 use crate::theme::Mono;
 use crate::views::{
 	compile::CompileView, download::DownloadView, game_files::GameFilesView,
-	game_files::OpenInPackage, games::GamesView, pack::PackView, packages::PackagesView,
-	settings::SettingsView, view::ViewView, workshop::WorkshopView,
+	game_files::InspectModel, game_files::OpenInPackage, games::GamesView, pack::PackView,
+	packages::PackagesView, settings::SettingsView, view::ViewView, workshop::WorkshopView,
 };
 use tasks::TasksPanel;
 
@@ -253,6 +253,17 @@ impl Shell {
 				this.packages
 					.update(cx, |p, cx| p.open_at(&event.package, path, window, cx));
 				this.set_page(Page::Packages, cx);
+			},
+		));
+
+		subscriptions.push(cx.subscribe_in(
+			&game_files,
+			window,
+			|this, _, event: &InspectModel, window, cx| {
+				let path = event.0.clone();
+				this.view
+					.update(cx, |v, cx| v.set_game_model(path, window, cx));
+				this.set_page(Page::View, cx);
 			},
 		));
 
