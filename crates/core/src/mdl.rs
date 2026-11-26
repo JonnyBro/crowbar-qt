@@ -3,6 +3,7 @@
 use std::fmt;
 
 pub mod anim;
+pub mod flex;
 pub mod phy;
 pub mod vtx;
 pub mod vvd;

@@ -106,6 +106,7 @@ pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, 
 	let mut used = HashSet::new();
 	let mut body_parts = Vec::new();
 	let mut lods = String::new();
+	let mut flex_blocks = HashMap::new();
 	if model.has_geometry() {
 		let (Some(vvd), Some(vtx)) = (input.vvd, input.vtx) else {
 			return Err("the model needs its .vvd and .vtx".into());
@@ -119,6 +120,8 @@ pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, 
 			files: &mut files,
 		};
 		lods = geometry(model, vvd, vtx, stem, &mut out)?;
+		let flexes = mdl::flex::parse(input.mdl).map_err(|e| format!("flexes: {e}"))?;
+		flex_blocks = flex::blocks(model, &flexes, vvd, &body_parts, &mut files);
 	}
 	let anims = mdl::anim::parse(input.mdl, model.version).map_err(|e| e.to_string())?;
 	let animation = if anims.descs.is_empty() {
@@ -147,7 +150,14 @@ pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, 
 	};
 	files.push(File {
 		path: format!("{stem}.qc"),
-		text: qc(model, &body_parts, &lods, &animation, &collision),
+		text: qc(
+			model,
+			&body_parts,
+			&flex_blocks,
+			&lods,
+			&animation,
+			&collision,
+		),
 	});
 	Ok(files)
 }
@@ -515,6 +525,7 @@ fn idle_smd(model: &Model) -> String {
 fn qc(
 	model: &Model,
 	body_parts: &[(String, Vec<Option<String>>)],
+	flex_blocks: &HashMap<usize, String>,
 	lods: &str,
 	animation: &str,
 	collision: &str,
@@ -527,8 +538,17 @@ fn qc(
 	}
 	q.push('\n');
 
-	for (name, choices) in body_parts {
+	for (p, (name, choices)) in body_parts.iter().enumerate() {
 		match choices.as_slice() {
+			[Some(smd)] if flex_blocks.contains_key(&p) => {
+				let _ = writeln!(
+					q,
+					"$model {} {} {{\n{}}}",
+					quote(name),
+					quote(smd),
+					flex_blocks[&p]
+				);
+			}
 			[Some(smd)] => {
 				let _ = writeln!(q, "$body {} {}", quote(name), quote(smd));
 			}
@@ -776,6 +796,7 @@ fn matrix_angles(m: [[f32; 4]; 3]) -> [f32; 3] {
 }
 
 mod animation;
+mod flex;
 mod physics;
 
 #[cfg(test)]

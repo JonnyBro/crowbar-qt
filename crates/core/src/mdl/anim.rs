@@ -364,7 +364,7 @@ fn ik_lock(r: Reader, at: usize) -> Result<IkLock> {
 }
 
 /// A count at `at` and an offset after it, relative to `base`.
-fn table_at<T>(
+pub(super) fn table_at<T>(
 	r: Reader,
 	base: usize,
 	at: usize,
@@ -628,7 +628,7 @@ fn quaternion64(b: [u8; 8]) -> [f32; 4] {
 	[x, y, z, if bits >> 63 != 0 { -w } else { w }]
 }
 
-fn half(h: u16) -> f32 {
+pub(super) fn half(h: u16) -> f32 {
 	let sign = if h & 0x8000 != 0 { -1.0 } else { 1.0 };
 	let exponent = ((h >> 10) & 0x1f) as i32;
 	let mantissa = (h & 0x3ff) as f32;

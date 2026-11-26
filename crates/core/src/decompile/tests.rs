@@ -626,3 +626,63 @@ fn angles_stay_near_the_previous_frame() {
 			.all(|(a, b)| (a - b).abs() < 1e-5)
 	);
 }
+
+#[test]
+fn flex_rules_as_expressions() {
+	use crate::mdl::flex::{self as f, Controller, Flexes, Op};
+	let controller = |name: &str| Controller {
+		kind: "default".into(),
+		name: name.into(),
+		min: 0.0,
+		max: 1.0,
+	};
+	let flexes = Flexes {
+		descs: vec!["suppressor".into()],
+		controllers: vec![controller("a"), controller("b")],
+		..Flexes::default()
+	};
+	let op = |op: i32, value: i32| Op { op, value };
+	let constant = |v: f32| Op {
+		op: f::OP_CONST,
+		value: v.to_bits() as i32,
+	};
+	// a * (1 - b) * (1 / 6) * %suppressor
+	let ops = [
+		op(f::OP_FETCH1, 0),
+		constant(1.0),
+		op(f::OP_FETCH1, 1),
+		op(f::OP_SUB, 0),
+		op(10, 0),
+		op(f::OP_MUL, 0),
+		constant(1.0),
+		constant(6.0),
+		op(f::OP_DIV, 0),
+		op(f::OP_MUL, 0),
+		op(f::OP_FETCH2, 0),
+		op(f::OP_MUL, 0),
+	];
+	assert_eq!(
+		flex::expression(&ops, &flexes).as_deref(),
+		Some("a * (1 - b) * (1 / 6) * %suppressor")
+	);
+	let ops = [
+		op(f::OP_FETCH1, 0),
+		constant(0.5),
+		op(f::OP_MIN, 0),
+		op(f::OP_NEG, 0),
+	];
+	assert_eq!(
+		flex::expression(&ops, &flexes).as_deref(),
+		Some("-min(a, 0.5)")
+	);
+	// An operation QC has no word for.
+	assert_eq!(flex::expression(&[op(18, 2)], &flexes), None);
+}
+
+#[test]
+fn smooth_step_inverse() {
+	for y in [0.1, 0.5, 0.8] {
+		let t = flex::inverse_smooth_step(y);
+		assert!((3.0 * t * t - 2.0 * t * t * t - y).abs() < 1e-5);
+	}
+}

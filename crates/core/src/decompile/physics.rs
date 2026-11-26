@@ -253,7 +253,7 @@ fn most_common<'a>(values: impl Iterator<Item = &'a str>) -> Option<&'a str> {
 }
 
 /// A rigid 3×4 matrix's inverse.
-fn invert(m: [[f32; 4]; 3]) -> [[f32; 4]; 3] {
+pub(super) fn invert(m: [[f32; 4]; 3]) -> [[f32; 4]; 3] {
 	let mut out = [[0.0; 4]; 3];
 	for r in 0..3 {
 		for c in 0..3 {
@@ -264,7 +264,7 @@ fn invert(m: [[f32; 4]; 3]) -> [[f32; 4]; 3] {
 	out
 }
 
-fn transform(m: [[f32; 4]; 3], p: [f32; 3]) -> [f32; 3] {
+pub(super) fn transform(m: [[f32; 4]; 3], p: [f32; 3]) -> [f32; 3] {
 	[0, 1, 2].map(|r| m[r][0] * p[0] + m[r][1] * p[1] + m[r][2] * p[2] + m[r][3])
 }
 
