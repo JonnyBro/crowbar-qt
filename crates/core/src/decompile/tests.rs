@@ -33,6 +33,7 @@ fn vtx_of(checksum: i32, meshes_per_part: &[&[Vec<[u16; 3]>]]) -> Vtx {
 					.collect()
 			})
 			.collect(),
+		material_replacements: Vec::new(),
 	}
 }
 
@@ -490,4 +491,93 @@ fn collision_joints_for_a_ragdoll() {
 		q.contains("\t$jointcollide \"thigh\" \"pelvis\"\n\t$jointcollide \"pelvis\" \"thigh\"\n")
 	);
 	assert!(q.contains("\t$animatedfriction 1 2 3 5 4\n"));
+}
+
+fn lod(switch_point: f32, triangles: Vec<[u16; 3]>) -> Lod {
+	Lod {
+		switch_point,
+		meshes: vec![vtx::Mesh { triangles }],
+	}
+}
+
+#[test]
+fn lods_replace_remove_and_merge_bones() {
+	let model = mdl::parse(&build(&Spec {
+		checksum: 1,
+		// The shadow LOD flag.
+		flags: 0x40,
+		bones: &["root", "hand", "finger"],
+		materials: &["skin", "skin_lod"],
+		skins: &[&[0]],
+		body_parts: &[("body", &[("body", 4, &[0])]), ("hat", &[("hat", 3, &[0])])],
+		..Spec::default()
+	}))
+	.unwrap();
+	let weighted = |position: [f32; 3], bone: u8| Vertex {
+		bones: [bone, 0, 0],
+		..vertex(position, [0.0; 2])
+	};
+	// 0-3 are LOD 0, with the last on the finger; 4 is that corner in LOD 1, on the hand.
+	let vvd = Vvd {
+		checksum: 1,
+		vertices: vec![
+			weighted([0.0, 0.0, 0.0], 0),
+			weighted([1.0, 0.0, 0.0], 1),
+			weighted([0.0, 1.0, 0.0], 1),
+			weighted([1.0, 1.0, 0.0], 2),
+			weighted([1.0, 1.0, 0.1], 1),
+		],
+	};
+	let full = vec![[0, 1, 2], [1, 3, 2]];
+	let body = vtx::Model {
+		lods: vec![
+			lod(0.0, full.clone()),
+			lod(12.0, vec![[0, 1, 2], [1, 4, 2]]),
+			lod(-1.0, vec![[0, 1, 2]]),
+		],
+	};
+	let brim = vec![[0, 1, 2]];
+	let hat = vtx::Model {
+		lods: vec![lod(0.0, brim.clone()), lod(12.0, brim), lod(-1.0, vec![])],
+	};
+	let vtx = Vtx {
+		checksum: 1,
+		body_parts: vec![vec![body], vec![hat]],
+		material_replacements: vec![vec![], vec![(0, "skin_lod".into())], vec![]],
+	};
+	let files = decompile(&model, &vvd, &vtx, None, "guy").unwrap();
+	let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+	assert!(paths.contains(&"body_lod1.smd"));
+	assert!(paths.contains(&"body_shadowlod.smd"));
+	// The hat's LOD 1 is its LOD 0 again, so it gets no file of its own.
+	assert!(!paths.iter().any(|p| p.starts_with("hat_lod")));
+	let qc = file(&files, "guy.qc");
+	assert!(qc.contains(
+		"$lod 12.000000\n{\n\treplacemodel \"body.smd\" \"body_lod1.smd\"\n\treplacebone \"finger\" \"hand\"\n\treplacematerial \"skin\" \"skin_lod\"\n}\n"
+	));
+	assert!(qc.contains(
+		"$shadowlod\n{\n\treplacemodel \"body.smd\" \"body_shadowlod.smd\"\n\tremovemodel \"hat.smd\"\n"
+	));
+}
+
+#[test]
+fn vtx_material_replacements_point_backwards() {
+	let mut d = vtx_file(&[0, 1, 2], &[0, 1, 2], 1, false);
+	d[20..24].copy_from_slice(&2i32.to_le_bytes());
+	let name = d.len();
+	d.extend_from_slice(b"skin_lod\0");
+	let entry = d.len();
+	d.extend_from_slice(&3u16.to_le_bytes());
+	d.extend_from_slice(&((name as i32) - (entry as i32)).to_le_bytes());
+	let list = d.len();
+	d[24..28].copy_from_slice(&(list as i32).to_le_bytes());
+	d.extend_from_slice(&0i32.to_le_bytes());
+	d.extend_from_slice(&0i32.to_le_bytes());
+	d.extend_from_slice(&1i32.to_le_bytes());
+	d.extend_from_slice(&((entry as i32) - (list as i32 + 8)).to_le_bytes());
+	let vtx = vtx::parse(&d).unwrap();
+	assert_eq!(
+		vtx.material_replacements,
+		[vec![], vec![(3, "skin_lod".to_owned())]]
+	);
 }

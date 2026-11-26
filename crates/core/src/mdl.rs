@@ -409,7 +409,7 @@ impl Reader<'_> {
 		self.string(start)
 	}
 
-	fn string(&self, at: usize) -> Result<String> {
+	pub(crate) fn string(&self, at: usize) -> Result<String> {
 		let rest = self.0.get(at..).ok_or(Error::Truncated)?;
 		let end = rest.iter().position(|&b| b == 0).ok_or(Error::Truncated)?;
 		Ok(String::from_utf8_lossy(&rest[..end]).into_owned())

@@ -7,6 +7,8 @@ pub struct Vtx {
 	pub checksum: i32,
 	/// Body part, then submodel, as in the .mdl.
 	pub body_parts: Vec<Vec<Model>>,
+	/// Per LOD: the material index and the material drawn instead.
+	pub material_replacements: Vec<Vec<(u16, String)>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,12 +66,38 @@ pub fn parse(data: &[u8]) -> Result<Vtx> {
 				return Ok(Vtx {
 					checksum: r.i32(16)?,
 					body_parts,
+					material_replacements: replacements(r)?,
 				});
 			}
 			Err(e) => last = e,
 		}
 	}
 	Err(last)
+}
+
+fn replacements(r: Reader) -> Result<Vec<Vec<(u16, String)>>> {
+	let lods = r.count(20)?;
+	let start = r.offset(24)?;
+	if start == 0 {
+		return Ok(Vec::new());
+	}
+	// Offsets here point backwards: the names and entries come before the list.
+	let signed = |base: usize, at: usize| {
+		base.checked_add_signed(r.i32(at)? as isize)
+			.ok_or(Error::Truncated)
+	};
+	(0..lods)
+		.map(|lod| {
+			let list = start + lod * 8;
+			let first = signed(list, list + 4)?;
+			(0..r.count(list)?)
+				.map(|i| {
+					let at = first + i * 6;
+					Ok((r.u16(at)?, r.string(signed(at, at + 2)?)?))
+				})
+				.collect()
+		})
+		.collect()
 }
 
 fn read(r: Reader, layout: Layout) -> Result<Vec<Vec<Model>>> {
