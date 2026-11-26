@@ -218,6 +218,12 @@ compile.view_after:
 compile.view_after_hint:
   en: "When a single model was compiled."
   ru: "Если скомпилирована одна модель."
+compile.watch:
+  en: "Rebuild on changes"
+  ru: "Пересобирать при изменениях"
+compile.watch_hint:
+  en: "Watches the QCs in the list and the SMD, QCI and other files they use."
+  ru: "Следит за QC из списка и за SMD, QCI и другими файлами, которые они подключают."
 compile.no_compiled_model:
   en: "The compiled model was not found. Compile it first."
   ru: "Скомпилированная модель не найдена. Сначала скомпилируйте её."

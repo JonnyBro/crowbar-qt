@@ -96,6 +96,8 @@ pub struct CompilePrefs {
 	pub verbose: bool,
 	pub view_after: bool,
 	pub extra: String,
+	/// Rebuild QCs from the list when their files change.
+	pub watch: bool,
 }
 
 impl Default for CompilePrefs {
@@ -107,6 +109,7 @@ impl Default for CompilePrefs {
 			verbose: false,
 			view_after: false,
 			extra: String::new(),
+			watch: false,
 		}
 	}
 }

@@ -1,10 +1,13 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
+use gpui_kit::component::switch::Switch;
 use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
 	ActiveTheme, Disableable, Icon, IconName, Sizable, WindowExt, h_flex, v_flex,
@@ -12,6 +15,7 @@ use gpui_kit::component::{
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::engine::{CompileOutput, TaskKind, TaskState};
+use prybar_core::watch::Watcher;
 use prybar_core::{Command, launcher, studiomdl};
 use rust_i18n::t;
 
@@ -31,7 +35,19 @@ pub struct CompileView {
 	subfolder: Entity<InputState>,
 	folder: Entity<InputState>,
 	extra: Entity<InputState>,
+	watcher: Arc<Mutex<Watcher>>,
+	/// Polls the watcher while watching is on.
+	watching: Option<Task<()>>,
 	_subscriptions: Vec<Subscription>,
+}
+
+/// How often the QCs' files are looked at; a change is built on the second look.
+const WATCH_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Why a compile could not start.
+enum Blocked {
+	NoFolder,
+	NoGame,
 }
 
 impl CompileView {
@@ -105,7 +121,7 @@ impl CompileView {
 			),
 		];
 		let prefs = model.read(cx).ui.compile.clone();
-		Self {
+		let mut view = Self {
 			subfolder: widgets::new_input(&prefs.subfolder, "compiled".into(), window, cx),
 			folder: widgets::new_input(
 				"",
@@ -122,7 +138,75 @@ impl CompileView {
 			model,
 			table,
 			current: None,
+			watcher: Arc::default(),
+			watching: None,
 			_subscriptions: subscriptions,
+		};
+		if prefs.watch {
+			view.watching = Some(view.watch(window, cx));
+		}
+		view
+	}
+
+	fn set_watch(&mut self, on: bool, window: &mut Window, cx: &mut Context<Self>) {
+		self.model.update(cx, |m, _| {
+			m.ui.compile.watch = on;
+			m.save_ui();
+		});
+		self.watching = on.then(|| self.watch(window, cx));
+		cx.notify();
+	}
+
+	fn watch(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Task<()> {
+		// Starting fresh: what is on disk now counts as built.
+		*self.watcher.lock().unwrap() = Watcher::default();
+		let watcher = self.watcher.clone();
+		cx.spawn_in(window, async move |this, cx| {
+			loop {
+				cx.background_executor().timer(WATCH_INTERVAL).await;
+				let Ok(files) =
+					this.update(cx, |this, cx| this.table.read(cx).delegate().files.clone())
+				else {
+					return;
+				};
+				let poll = watcher.clone();
+				let changed = cx
+					.background_executor()
+					.spawn(async move { poll.lock().unwrap().poll(&files) })
+					.await;
+				if changed.is_empty() {
+					continue;
+				}
+				if this
+					.update(cx, |this, cx| this.rebuild(changed, cx))
+					.is_err()
+				{
+					return;
+				}
+			}
+		})
+	}
+
+	/// Changed QCs that are not compiling already; the rest are picked up on a later look.
+	fn rebuild(&mut self, changed: Vec<PathBuf>, cx: &mut Context<Self>) {
+		let model = self.model.read(cx);
+		let idle: Vec<PathBuf> = changed
+			.into_iter()
+			.filter(|qc| {
+				model
+					.task_for(qc)
+					.is_none_or(|t| t.snapshot.state.is_finished())
+			})
+			.collect();
+		if idle.is_empty() {
+			return;
+		}
+		// A missing game or folder would come up on every look; the next manual compile says why.
+		if self.send(idle.clone(), false, cx).is_err() {
+			let mut watcher = self.watcher.lock().unwrap();
+			for qc in &idle {
+				watcher.built(qc);
+			}
 		}
 	}
 
@@ -206,18 +290,6 @@ impl CompileView {
 	}
 
 	fn compile(&mut self, selected_only: bool, window: &mut Window, cx: &mut Context<Self>) {
-		let Some(output) = self.store(cx) else {
-			window.push_notification(
-				Notification::warning(t!("compile.need_folder").into_owned()),
-				cx,
-			);
-			return;
-		};
-		let model = self.model.read(cx);
-		let Some(target) = model.target.clone() else {
-			window.push_notification(Notification::warning(t!("game.none").into_owned()), cx);
-			return;
-		};
 		let files = if selected_only {
 			self.picked(cx)
 		} else {
@@ -226,13 +298,36 @@ impl CompileView {
 		if files.is_empty() {
 			return;
 		}
+		let view_after = self.model.read(cx).ui.compile.view_after;
+		let warning = match self.send(files, view_after, cx) {
+			Ok(()) => return,
+			Err(Blocked::NoFolder) => t!("compile.need_folder"),
+			Err(Blocked::NoGame) => t!("game.none"),
+		};
+		window.push_notification(Notification::warning(warning.into_owned()), cx);
+	}
+
+	fn send(
+		&mut self,
+		files: Vec<PathBuf>,
+		view_after: bool,
+		cx: &mut Context<Self>,
+	) -> Result<(), Blocked> {
+		let output = self.store(cx).ok_or(Blocked::NoFolder)?;
+		let model = self.model.read(cx);
+		let target = model.target.clone().ok_or(Blocked::NoGame)?;
 		let prefs = &model.ui.compile;
 		let options = studiomdl::Options {
 			no_p4: prefs.no_p4,
 			verbose: prefs.verbose,
 			extra: widgets::split_words(&prefs.extra),
 		};
-		let view_after = prefs.view_after;
+		{
+			let mut watcher = self.watcher.lock().unwrap();
+			for qc in &files {
+				watcher.built(qc);
+			}
+		}
 		let queued = files.clone();
 		model.send(Command::Compile {
 			target,
@@ -246,6 +341,7 @@ impl CompileView {
 			cx.notify();
 		});
 		cx.notify();
+		Ok(())
 	}
 
 	fn cancel(&mut self, cx: &mut Context<Self>) {
@@ -513,6 +609,21 @@ impl Render for CompileView {
 							})),
 					)
 					.child(hint(t!("compile.view_after_hint"), cx)),
+				cx,
+			))
+			.child(field(
+				String::new(),
+				h_flex()
+					.gap_2()
+					.child(
+						Switch::new("watch")
+							.label(t!("compile.watch").into_owned())
+							.checked(prefs.watch)
+							.on_click(cx.listener(|this, checked: &bool, window, cx| {
+								this.set_watch(*checked, window, cx);
+							})),
+					)
+					.child(hint(t!("compile.watch_hint"), cx)),
 				cx,
 			))
 			.child(

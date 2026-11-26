@@ -27,6 +27,7 @@ pub mod vdf;
 pub mod vfs;
 pub mod vpk_writer;
 pub mod vtf;
+pub mod watch;
 pub mod workshop;
 
 pub use engine::{Command, Engine, Event};
