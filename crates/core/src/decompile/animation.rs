@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use super::{File, num, quote, smd_name, unique, vec3};
 use crate::mdl::Model;
-use crate::mdl::anim::{self, AnimDesc, Animations, Movement, Pose, SequenceDesc};
+use crate::mdl::anim::{self, AnimDesc, Animations, IkRule, Movement, Pose, SequenceDesc};
 
 const LAYER_SPLINE: u32 = 0x40;
 const LAYER_XFADE: u32 = 0x80;
@@ -40,7 +40,13 @@ pub(super) fn animations(
 		})
 		.collect();
 	let mut paths = Vec::with_capacity(anims.descs.len());
+	let mut rules = Vec::with_capacity(anims.descs.len());
 	for desc in &anims.descs {
+		rules.push(
+			anims
+				.ik_rules(desc, mdl, ani)
+				.map_err(|e| format!("IK rules of \"{}\": {e}", desc.name))?,
+		);
 		if desc.flags & anim::STUDIO_OVERRIDE != 0 {
 			paths.push(String::new());
 			continue;
@@ -144,17 +150,25 @@ pub(super) fn animations(
 		}
 		q.push_str("}\n");
 	}
-	if anims.descs.iter().any(|d| d.ik_rules > 0) {
-		q.push_str("// IK rules are not decompiled yet.\n");
-	}
 	if let Some((name, path)) = &zero {
-		let _ = writeln!(q, "$animation {} {} {{\n}}", quote(name), quote(path));
+		let noautoik = if anims.ik_chains.is_empty() {
+			""
+		} else {
+			"\tnoautoik\n"
+		};
+		let _ = writeln!(
+			q,
+			"$animation {} {} {{\n{noautoik}}}",
+			quote(name),
+			quote(path)
+		);
 	}
 	if !q.is_empty() {
 		q.push('\n');
 	}
 
-	for (desc, path) in anims.descs.iter().zip(&paths) {
+	let chain_names: Vec<&str> = anims.ik_chains.iter().map(|c| c.name.as_str()).collect();
+	for ((desc, path), rules) in anims.descs.iter().zip(&paths).zip(&rules) {
 		if desc.name.starts_with('@') {
 			continue;
 		}
@@ -169,6 +183,7 @@ pub(super) fn animations(
 			desc.flags & anim::STUDIO_LOOPING != 0,
 			subtract,
 		);
+		ik_rules(&mut q, model, desc, rules, &chain_names);
 		q.push_str("}\n");
 	}
 	if anims.descs.iter().any(|d| !d.name.starts_with('@')) {
@@ -200,8 +215,14 @@ pub(super) fn animations(
 			};
 			let _ = writeln!(q, "\t{}", quote(name));
 		}
-		if let Some(implied) = used_anims.iter().find(|d| d.name.starts_with('@')) {
-			anim_options(&mut q, implied, false, subtract);
+		let implied = seq
+			.anims
+			.iter()
+			.copied()
+			.find(|&a| anims.descs.get(a).is_some_and(|d| d.name.starts_with('@')));
+		if let Some(a) = implied {
+			anim_options(&mut q, &anims.descs[a], false, subtract);
+			ik_rules(&mut q, model, &anims.descs[a], &rules[a], &chain_names);
 		}
 		sequence_options(&mut q, anims, seq, used_anims[0], &weight_lists);
 		q.push_str("}\n");
@@ -229,6 +250,85 @@ fn anim_options(q: &mut String, desc: &AnimDesc, looping: bool, zero: Option<&st
 			let _ = writeln!(q, "\twalkframe {} {}", m.end_frame, flags.join(" "));
 		}
 	}
+}
+
+fn ik_rules(q: &mut String, model: &Model, desc: &AnimDesc, rules: &[IkRule], chains: &[&str]) {
+	// Otherwise studiomdl adds a release rule for each chain the animation leaves out.
+	if !chains.is_empty() {
+		q.push_str("\tnoautoik\n");
+	}
+	let last_frame = desc.frames.saturating_sub(1) as f32;
+	let frame = |cycle: f32| num(frame_value(cycle, last_frame));
+	for rule in rules {
+		let chain = usize::try_from(rule.chain)
+			.ok()
+			.and_then(|i| chains.get(i))
+			.copied()
+			.unwrap_or("");
+		let kind = match rule.kind {
+			anim::IK_SELF => {
+				let bone = usize::try_from(rule.bone)
+					.ok()
+					.and_then(|b| model.bones.get(b))
+					.map_or("", |b| b.name.as_str());
+				format!("touch {}", quote(bone))
+			}
+			anim::IK_GROUND => "footstep".into(),
+			anim::IK_RELEASE => "release".into(),
+			anim::IK_ATTACHMENT => format!("attachment {}", quote(&rule.attachment)),
+			anim::IK_UNLATCH => "unlatch".into(),
+			other => {
+				let _ = writeln!(
+					q,
+					"\t// ikrule {} of type {other} has no QC form",
+					quote(chain)
+				);
+				continue;
+			}
+		};
+		let mut range =
+			[rule.start, rule.peak, rule.tail, rule.end].map(|c| frame_value(c, last_frame));
+		// Only a looping animation may wrap round; studiomdl refuses it in the others.
+		if desc.flags & anim::STUDIO_LOOPING == 0 {
+			for i in 1..4 {
+				range[i] = range[i].max(range[i - 1]);
+			}
+		}
+		let _ = write!(
+			q,
+			"\tikrule {} {kind} height {} radius {} floor {} target {} range {} {} {} {} contact {}",
+			quote(chain),
+			num(rule.height),
+			num(rule.radius),
+			num(rule.floor),
+			rule.slot,
+			num(range[0]),
+			num(range[1]),
+			num(range[2]),
+			num(range[3]),
+			frame(rule.contact),
+		);
+		// studiomdl works the rest out itself for the other kinds.
+		if matches!(rule.kind, anim::IK_SELF | anim::IK_ATTACHMENT) {
+			let [roll, pitch, yaw] = anim::quaternion_angles(rule.rotation).map(f32::to_degrees);
+			let _ = write!(
+				q,
+				" fakeorigin {} fakerotate {}",
+				vec3(rule.position),
+				vec3([pitch, yaw, roll])
+			);
+		}
+		q.push('\n');
+	}
+}
+
+/// Cycles can be a little past the end when studiomdl dropped a frame; well past it they wrap.
+fn frame_value(cycle: f32, last_frame: f32) -> f32 {
+	let mut f = (cycle * last_frame * 1000.0).round() / 1000.0;
+	while last_frame > 0.0 && f > last_frame + 1.0 {
+		f -= last_frame;
+	}
+	f.clamp(0.0, last_frame)
 }
 
 fn delta(q: &mut String, flags: u32) {
@@ -358,7 +458,7 @@ fn sequence_options(
 			if l.flags & LAYER_POSE != 0 {
 				num(v)
 			} else {
-				num(v * last_frame)
+				num(frame_value(v, last_frame))
 			}
 		};
 		let _ = write!(

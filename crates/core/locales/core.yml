@@ -198,8 +198,8 @@ task.decompiled:
   en: "Wrote %{count} file(s)."
   ru: "Записано файлов: %{count}."
 task.decompile_note:
-  en: "Flexes, eyes and IK rules are not decompiled yet."
-  ru: "Флексы, глаза и IK-правила пока не декомпилируются."
+  en: "Flexes and eyes are not decompiled yet."
+  ru: "Флексы и глаза пока не декомпилируются."
 task.unpack:
   en: "Unpack %{name}"
   ru: "Распаковка %{name}"

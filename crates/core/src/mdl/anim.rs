@@ -33,6 +33,7 @@ const IK_LOCK_SIZE: usize = 32;
 const IK_CHAIN_SIZE: usize = 16;
 const IK_LINK_SIZE: usize = 28;
 const POSE_PARAMETER_SIZE: usize = 20;
+const IK_RULE_SIZE: usize = 152;
 /// Events with a name instead of a number.
 const NEW_EVENT_STYLE: i32 = 1 << 10;
 
@@ -63,6 +64,8 @@ pub struct AnimDesc {
 	at: usize,
 	block: i32,
 	index: i32,
+	ik_rule_index: i32,
+	ik_rule_block_index: i32,
 	/// Block and offset of each section.
 	sections: Vec<(i32, i32)>,
 }
@@ -77,6 +80,33 @@ pub struct Movement {
 	pub angle: f32,
 	pub vector: [f32; 3],
 	pub position: [f32; 3],
+}
+
+pub const IK_SELF: i32 = 1;
+pub const IK_WORLD: i32 = 2;
+pub const IK_GROUND: i32 = 3;
+pub const IK_RELEASE: i32 = 4;
+pub const IK_ATTACHMENT: i32 = 5;
+pub const IK_UNLATCH: i32 = 6;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IkRule {
+	pub kind: i32,
+	pub chain: i32,
+	pub bone: i32,
+	pub slot: i32,
+	pub height: f32,
+	pub radius: f32,
+	pub floor: f32,
+	pub position: [f32; 3],
+	pub rotation: [f32; 4],
+	/// Cycles, 0 to 1.
+	pub start: f32,
+	pub peak: f32,
+	pub tail: f32,
+	pub end: f32,
+	pub contact: f32,
+	pub attachment: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -194,6 +224,8 @@ pub fn parse(data: &[u8], version: i32) -> Result<Animations> {
 			at,
 			block: r.i32(at + 52)?,
 			index: r.i32(at + 56)?,
+			ik_rule_index: r.i32(at + 64)?,
+			ik_rule_block_index: r.i32(at + 68)?,
 			sections,
 		})
 	})?;
@@ -377,6 +409,55 @@ impl Animations {
 			frames.push(pose);
 		}
 		Ok(frames)
+	}
+
+	/// The rules are in the .mdl, or in the .ani block the animation is in.
+	pub fn ik_rules(&self, desc: &AnimDesc, mdl: &[u8], ani: Option<&[u8]>) -> Result<Vec<IkRule>> {
+		if desc.ik_rules == 0 {
+			return Ok(Vec::new());
+		}
+		let (data, start) = if desc.ik_rule_index != 0 {
+			(mdl, desc.at as i64 + desc.ik_rule_index as i64)
+		} else if desc.block > 0 {
+			// Often right at the start of the block, at offset 0.
+			let (block, _) = *self
+				.blocks
+				.get(desc.block as usize)
+				.ok_or(Error::Truncated)?;
+			(
+				ani.ok_or(Error::MissingAni)?,
+				block as i64 + desc.ik_rule_block_index as i64,
+			)
+		} else if desc.ik_rule_block_index != 0 {
+			(mdl, desc.at as i64 + desc.ik_rule_block_index as i64)
+		} else {
+			return Ok(Vec::new());
+		};
+		let r = Reader(data);
+		let start = usize::try_from(start).map_err(|_| Error::Truncated)?;
+		(0..desc.ik_rules)
+			.map(|i| {
+				let at = start + i * IK_RULE_SIZE;
+				let f = |o: usize| r.f32(at + o);
+				Ok(IkRule {
+					kind: r.i32(at + 4)?,
+					chain: r.i32(at + 8)?,
+					bone: r.i32(at + 12)?,
+					slot: r.i32(at + 16)?,
+					height: f(20)?,
+					radius: f(24)?,
+					floor: f(28)?,
+					position: [f(32)?, f(36)?, f(40)?],
+					rotation: [f(44)?, f(48)?, f(52)?, f(56)?],
+					start: f(76)?,
+					peak: f(80)?,
+					tail: f(84)?,
+					end: f(88)?,
+					contact: f(96)?,
+					attachment: r.name_at(at, at + 120)?,
+				})
+			})
+			.collect()
 	}
 
 	/// The data the frame is in, where its first bone record is, and the frame within it.

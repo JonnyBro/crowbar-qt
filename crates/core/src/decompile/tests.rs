@@ -598,9 +598,13 @@ fn animations_and_sequences() {
 	let files = decompile(&model, &input, "guy").unwrap();
 	let qc = file(&files, "guy.qc");
 	assert!(qc.contains(
-		"$sequence \"run\" {\n\t\"guy_anims/run.smd\"\n\tfps 30.000000\n\twalkframe 2 LX\n\
+		"$sequence \"run\" {\n\t\"guy_anims/run.smd\"\n\tfps 30.000000\n\twalkframe 2 LX\n\tnoautoik\n\
+		\tikrule \"foot\" attachment \"hand\" height 0.000000 radius 10.000000 floor 0.000000 target 2 \
+		range 0.000000 1.000000 1.000000 2.000000 contact 1.000000 \
+		fakeorigin 1.000000 2.000000 3.000000 fakerotate 0.000000 0.000000 0.000000\n\
 		\tactivity \"ACT_RUN\" 1\n\tloop\n\tfadeout 0.300000\n\t{ event 7 1 }\n}\n"
 	));
+	assert!(qc.contains("$ikchain \"foot\" \"child\" knee 0.700000 0.000000 0.000000\n"));
 	let smd = file(&files, "guy_anims/run.smd");
 	// Half of the movement is back on the root, then the root is turned for studiomdl.
 	assert!(smd.contains("time 1\n0 2.000000 -5.500000 3.000000 0.000000 0.000000 -1.570796\n"));

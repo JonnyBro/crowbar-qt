@@ -52,6 +52,8 @@ const DESC: usize = BONES + 2 * BONE_SIZE;
 const RECORDS: usize = DESC + ANIM_DESC_SIZE;
 const SEQUENCE: usize = 1300;
 const MOVEMENT: usize = 1700;
+const CHAIN: usize = 1760;
+const RULE: usize = 1840;
 
 /// Two bones; the root moves along X over three frames, the child is raw data.
 pub(crate) fn sample() -> Vec<u8> {
@@ -104,6 +106,27 @@ pub(crate) fn sample() -> Vec<u8> {
 	b.u16(child + 12, 0xc000);
 	b.u16(child + 14, 0x3800);
 
+	// A chain ending at the child, and an attachment rule over the whole animation.
+	b.i32(284, 1);
+	b.i32(288, CHAIN as i32);
+	b.name(CHAIN, CHAIN, "foot");
+	b.i32(CHAIN + 8, 1);
+	b.i32(CHAIN + 12, 16);
+	b.i32(CHAIN + 16, 1);
+	b.f32(CHAIN + 20, 0.7);
+	b.i32(DESC + 60, 1);
+	b.i32(DESC + 64, (RULE - DESC) as i32);
+	b.i32(RULE + 4, IK_ATTACHMENT);
+	b.i32(RULE + 16, 2);
+	b.f32(RULE + 24, 10.0);
+	for (i, v) in [1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0].iter().enumerate() {
+		b.f32(RULE + 32 + i * 4, *v);
+	}
+	for (o, v) in [(80, 0.5), (84, 0.5), (88, 1.0), (96, 0.5)] {
+		b.f32(RULE + o, v);
+	}
+	b.name(RULE, RULE + 120, "hand");
+
 	b.i32(188, 1);
 	b.i32(192, SEQUENCE as i32);
 	b.name(SEQUENCE, SEQUENCE + 4, "run");
@@ -154,6 +177,19 @@ fn reads_descs_and_sequences() {
 	assert_eq!(seq.events[0].cycle, 0.5);
 	assert_eq!(seq.events[0].event, 7);
 	assert_eq!(seq.fade_out, 0.3);
+}
+
+#[test]
+fn ik_chains_and_rules() {
+	let data = sample();
+	let a = parse(&data, 48).unwrap();
+	assert_eq!(a.ik_chains[0].name, "foot");
+	assert_eq!(a.ik_chains[0].bones, [1]);
+	let rules = a.ik_rules(&a.descs[0], &data, None).unwrap();
+	assert_eq!(rules.len(), 1);
+	assert_eq!((rules[0].kind, rules[0].slot), (IK_ATTACHMENT, 2));
+	assert_eq!(rules[0].attachment, "hand");
+	assert_eq!([rules[0].peak, rules[0].end], [0.5, 1.0]);
 }
 
 #[test]
