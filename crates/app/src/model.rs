@@ -312,7 +312,7 @@ mod tests {
 		assert_eq!(link.line, Some(3));
 		assert_eq!(&line[link.range], format!("{d}/B.SMD(3)"));
 
-		let line = format!("Unpacking 1 file(s) to «{d}/b.smd»…");
+		let line = format!("Unpacking 1 file(s) to \"{d}/b.smd\"…");
 		let link = find_link(&line).unwrap();
 		assert_eq!(&line[link.range], format!("{d}/b.smd"));
 

@@ -33,7 +33,7 @@ Uses the same games, tools folders and Proton as the GUI. You can use Ctrl+C to 
 - `prybar view <appid> <game dir> [mdl]`, `prybar hammer <appid> <game dir>`: open HLMV or Hammer.
 - `prybar run <appid> <game dir> [options]`: starts the game through Steam with `-game`.
 - `prybar inspect <appid> <game dir> <model>`: checks a model's `.vvd`/`.vtx`/`.phy` checksums, materials, textures and `$includemodel` files the way the game finds them. The model is a file or a game path such as `models/props_c17/oildrum001.mdl`.
-- `prybar decompile <model> <output dir> [--appid N --game-dir D]`: writes a QC and SMD files: meshes, skeleton, materials, skins, bodygroups, attachments, hitboxes, collision and LODs. A game path needs `--appid` and `--game-dir`.
+- `prybar decompile <model> <output dir> [--appid N --game-dir D]`: writes a QC and SMD files: meshes, skeleton, materials, skins, bodygroups, attachments, hitboxes, collision, LODs, animations and sequences. A game path needs `--appid` and `--game-dir`.
 - `prybar package list|unpack <file> [output dir]`: reads VPK, GMA and old workshop `.bin` files.
 - `prybar package pack <appid> <vpk|gma> <folder> <output> [--multi] [--game-tool] [-- options]`: packs without the game's tools.
   - `--multi`: split the VPK into chunks, `-- -c <MB>` sets their size;

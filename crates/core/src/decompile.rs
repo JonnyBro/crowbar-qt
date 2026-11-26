@@ -1,4 +1,4 @@
-//! Turns a compiled model back into a QC and SMDs; animations come out as the bind pose.
+//! Turns a compiled model back into a QC and SMDs.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -48,9 +48,6 @@ pub fn run(
 ) -> Result<Vec<PathBuf>, String> {
 	let (file, data) = read_model(vfs, source)?;
 	let model = mdl::parse(&data).map_err(|e| e.to_string())?;
-	if !model.has_geometry() {
-		return Err("the model has no geometry, only animations".into());
-	}
 	let companion = |extensions: &[&str]| {
 		extensions
 			.iter()
@@ -58,8 +55,14 @@ pub fn run(
 			.ok_or_else(|| format!("no .{} next to the model", extensions[0]))
 			.and_then(|(_, data)| data)
 	};
-	let vvd = mdl::vvd::parse(&companion(&["vvd"])?).map_err(|e| format!(".vvd: {e}"))?;
-	let vtx = mdl::vtx::parse(&companion(&VTX_EXTENSIONS)?).map_err(|e| format!(".vtx: {e}"))?;
+	let (vvd, vtx) = if model.has_geometry() {
+		let vvd = mdl::vvd::parse(&companion(&["vvd"])?).map_err(|e| format!(".vvd: {e}"))?;
+		let vtx =
+			mdl::vtx::parse(&companion(&VTX_EXTENSIONS)?).map_err(|e| format!(".vtx: {e}"))?;
+		(Some(vvd), Some(vtx))
+	} else {
+		(None, None)
+	};
 	let stem = Path::new(&file.path)
 		.file_stem()
 		.map(|s| smd_name(&s.to_string_lossy(), "model"))
@@ -68,7 +71,15 @@ pub fn run(
 	let phy = read_companion(vfs, source, "phy")
 		.and_then(|(_, data)| data.ok())
 		.and_then(|data| mdl::phy::parse(&data).ok());
-	let files = decompile(&model, &vvd, &vtx, phy.as_ref(), &stem)?;
+	let ani = read_companion(vfs, source, "ani").and_then(|(_, data)| data.ok());
+	let input = Input {
+		mdl: &data,
+		ani: ani.as_deref(),
+		vvd: vvd.as_ref(),
+		vtx: vtx.as_ref(),
+		phy: phy.as_ref(),
+	};
+	let files = decompile(&model, &input, &stem)?;
 	let mut written = Vec::with_capacity(files.len());
 	for f in files {
 		let path = output_dir.join(&f.path);
@@ -81,19 +92,85 @@ pub fn run(
 	Ok(written)
 }
 
-pub fn decompile(
-	model: &Model,
-	vvd: &Vvd,
-	vtx: &Vtx,
-	phy: Option<&Phy>,
-	stem: &str,
-) -> Result<Vec<File>, String> {
-	if vvd.checksum != model.checksum || vtx.checksum != model.checksum {
-		return Err("the .vvd or .vtx belongs to another build of the model".into());
-	}
+/// The model's files; the .vvd and .vtx are only needed with geometry.
+pub struct Input<'a> {
+	pub mdl: &'a [u8],
+	pub ani: Option<&'a [u8]>,
+	pub vvd: Option<&'a Vvd>,
+	pub vtx: Option<&'a Vtx>,
+	pub phy: Option<&'a Phy>,
+}
+
+pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, String> {
 	let mut files = Vec::new();
 	let mut used = HashSet::new();
 	let mut body_parts = Vec::new();
+	let mut lods = String::new();
+	if model.has_geometry() {
+		let (Some(vvd), Some(vtx)) = (input.vvd, input.vtx) else {
+			return Err("the model needs its .vvd and .vtx".into());
+		};
+		if vvd.checksum != model.checksum || vtx.checksum != model.checksum {
+			return Err("the .vvd or .vtx belongs to another build of the model".into());
+		}
+		let mut out = Output {
+			used: &mut used,
+			body_parts: &mut body_parts,
+			files: &mut files,
+		};
+		lods = geometry(model, vvd, vtx, stem, &mut out)?;
+	}
+	let anims = mdl::anim::parse(input.mdl, model.version).map_err(|e| e.to_string())?;
+	let animation = if anims.descs.is_empty() {
+		let idle = format!("{stem}_anims/idle.smd");
+		files.push(File {
+			path: idle.clone(),
+			text: idle_smd(model),
+		});
+		let name = model.sequences.first().map_or("idle", |s| s.name.as_str());
+		format!("$sequence {} {}\n", quote(name), quote(&idle))
+	} else {
+		animation::animations(
+			model, &anims, input.mdl, input.ani, stem, &mut used, &mut files,
+		)?
+	};
+	let collision = match input.phy {
+		Some(phy) if phy.checksum != model.checksum => {
+			"// The .phy belongs to another build of the model; collision is left out.\n".into()
+		}
+		Some(phy) if !phy.solids.is_empty() => {
+			let (smd, block) = physics::physics(model, phy, stem);
+			files.push(smd);
+			block
+		}
+		_ => String::new(),
+	};
+	files.push(File {
+		path: format!("{stem}.qc"),
+		text: qc(model, &body_parts, &lods, &animation, &collision),
+	});
+	Ok(files)
+}
+
+struct Output<'a> {
+	used: &'a mut HashSet<String>,
+	body_parts: &'a mut Vec<(String, Vec<Option<String>>)>,
+	files: &'a mut Vec<File>,
+}
+
+/// Reference and LOD SMDs; returns the `$lod` blocks.
+fn geometry(
+	model: &Model,
+	vvd: &Vvd,
+	vtx: &Vtx,
+	stem: &str,
+	out: &mut Output,
+) -> Result<String, String> {
+	let Output {
+		used,
+		body_parts,
+		files,
+	} = out;
 	// Each submodel with an SMD: its name, the .mdl submodel and the .vtx LODs.
 	let mut written: Vec<(String, &mdl::SubModel, &[mdl::vtx::Lod])> = Vec::new();
 	for (p, part) in model.body_parts.iter().enumerate() {
@@ -110,7 +187,7 @@ pub fn decompile(
 				choices.push(None);
 				continue;
 			}
-			let name = unique(&mut used, &smd_name(&sub.name, stem));
+			let name = unique(used, &smd_name(&sub.name, stem));
 			let text = reference_smd(model, vvd, sub, meshes)?;
 			files.push(File {
 				path: name.clone(),
@@ -122,28 +199,7 @@ pub fn decompile(
 		}
 		body_parts.push((part.name.clone(), choices));
 	}
-	let lods = lods(model, vvd, vtx, &written, &mut used, &mut files)?;
-	let idle = format!("{stem}_anims/idle.smd");
-	files.push(File {
-		path: idle.clone(),
-		text: idle_smd(model),
-	});
-	let collision = match phy {
-		Some(phy) if phy.checksum != model.checksum => {
-			"// The .phy belongs to another build of the model; collision is left out.\n".into()
-		}
-		Some(phy) if !phy.solids.is_empty() => {
-			let (smd, block) = physics::physics(model, phy, stem);
-			files.push(smd);
-			block
-		}
-		_ => String::new(),
-	};
-	files.push(File {
-		path: format!("{stem}.qc"),
-		text: qc(model, &body_parts, &lods, &idle, &collision),
-	});
-	Ok(files)
+	lods(model, vvd, vtx, &written, used, files)
 }
 
 /// `$lod` and `$shadowlod`, with an SMD for each submodel that differs from LOD 0.
@@ -355,8 +411,9 @@ fn unique(used: &mut HashSet<String>, base: &str) -> String {
 	name
 }
 
-/// Six decimals, without a minus sign on zero.
+/// Six decimals, without a minus sign on zero; NaN and infinity become zero.
 fn num(v: f32) -> String {
+	let v = if v.is_finite() { v } else { 0.0 };
 	let text = format!("{v:.6}");
 	if text
 		.trim_start_matches('-')
@@ -459,7 +516,7 @@ fn qc(
 	model: &Model,
 	body_parts: &[(String, Vec<Option<String>>)],
 	lods: &str,
-	idle: &str,
+	animation: &str,
 	collision: &str,
 ) -> String {
 	let mut q = String::new();
@@ -638,15 +695,7 @@ fn qc(
 		let _ = writeln!(q, "{collision}");
 	}
 
-	let sequence = model.sequences.first().map_or("idle", |s| s.name.as_str());
-	let _ = writeln!(q, "$sequence {} {}", quote(sequence), quote(idle));
-	if model.sequences.len() > 1 {
-		let _ = writeln!(
-			q,
-			"// {} more sequences; animations are not decompiled yet.",
-			model.sequences.len() - 1
-		);
-	}
+	q.push_str(animation);
 	q
 }
 
@@ -726,6 +775,7 @@ fn matrix_angles(m: [[f32; 4]; 3]) -> [f32; 3] {
 	[pitch.to_degrees(), yaw.to_degrees(), roll.to_degrees()]
 }
 
+mod animation;
 mod physics;
 
 #[cfg(test)]

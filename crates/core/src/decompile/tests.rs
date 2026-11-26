@@ -37,13 +37,23 @@ fn vtx_of(checksum: i32, meshes_per_part: &[&[Vec<[u16; 3]>]]) -> Vtx {
 	}
 }
 
+fn input<'a>(mdl: &'a [u8], vvd: &'a Vvd, vtx: &'a Vtx) -> Input<'a> {
+	Input {
+		mdl,
+		ani: None,
+		vvd: Some(vvd),
+		vtx: Some(vtx),
+		phy: None,
+	}
+}
+
 fn file<'a>(files: &'a [File], path: &str) -> &'a str {
 	&files.iter().find(|f| f.path == path).unwrap().text
 }
 
 #[test]
 fn static_prop_reference_mesh() {
-	let model = mdl::parse(&build(&Spec {
+	let data = build(&Spec {
 		checksum: 9,
 		flags: mdl::FLAG_STATIC_PROP,
 		bones: &["static_prop"],
@@ -52,8 +62,8 @@ fn static_prop_reference_mesh() {
 		skins: &[&[0]],
 		body_parts: &[("Body", &[("crate_ref.smd", 3, &[0])])],
 		..Spec::default()
-	}))
-	.unwrap();
+	});
+	let model = mdl::parse(&data).unwrap();
 	let vvd = Vvd {
 		checksum: 9,
 		vertices: vec![
@@ -62,14 +72,8 @@ fn static_prop_reference_mesh() {
 			vertex([0.0, 0.0, 3.0], [0.5, 1.0]),
 		],
 	};
-	let files = decompile(
-		&model,
-		&vvd,
-		&vtx_of(9, &[&[vec![[0, 1, 2]]]]),
-		None,
-		"crate",
-	)
-	.unwrap();
+	let vtx = vtx_of(9, &[&[vec![[0, 1, 2]]]]);
+	let files = decompile(&model, &input(&data, &vvd, &vtx), "crate").unwrap();
 	let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
 	assert_eq!(paths, ["crate_ref.smd", "crate_anims/idle.smd", "crate.qc"]);
 
@@ -96,7 +100,7 @@ fn static_prop_reference_mesh() {
 
 #[test]
 fn bodygroups_skins_bones_and_includes() {
-	let model = mdl::parse(&build(&Spec {
+	let data = build(&Spec {
 		checksum: 1,
 		bones: &["root", "hand"],
 		materials: &["body", "head", "head_red", "body_alt"],
@@ -108,21 +112,15 @@ fn bodygroups_skins_bones_and_includes() {
 		includes: &["models\\anims.mdl"],
 		attachments: &["muzzle"],
 		..Spec::default()
-	}))
-	.unwrap();
+	});
+	let model = mdl::parse(&data).unwrap();
 	let vvd = Vvd {
 		checksum: 1,
 		vertices: vec![vertex([0.0; 3], [0.0; 2]); 3],
 	};
 	let tri = vec![[0, 1, 2]];
-	let files = decompile(
-		&model,
-		&vvd,
-		&vtx_of(1, &[std::slice::from_ref(&tri), &[tri.clone(), vec![]]]),
-		None,
-		"guy",
-	)
-	.unwrap();
+	let vtx = vtx_of(1, &[std::slice::from_ref(&tri), &[tri.clone(), vec![]]]);
+	let files = decompile(&model, &input(&data, &vvd, &vtx), "guy").unwrap();
 	assert!(files.iter().any(|f| f.path == "hat_on.smd"));
 	let qc = file(&files, "guy.qc");
 	assert!(qc.contains("$bodygroup \"hat\"\n{\n\tstudio \"hat_on.smd\"\n\tblank\n}\n"));
@@ -143,16 +141,21 @@ fn bodygroups_skins_bones_and_includes() {
 
 #[test]
 fn other_builds_are_refused() {
-	let model = mdl::parse(&build(&Spec {
+	let data = build(&Spec {
 		checksum: 1,
+		bones: &["root"],
+		materials: &["m"],
+		skins: &[&[0]],
+		body_parts: &[("body", &[("body", 3, &[0])])],
 		..Spec::default()
-	}))
-	.unwrap();
+	});
+	let model = mdl::parse(&data).unwrap();
 	let vvd = Vvd {
 		checksum: 2,
 		vertices: Vec::new(),
 	};
-	assert!(decompile(&model, &vvd, &vtx_of(1, &[]), None, "x").is_err());
+	let vtx = vtx_of(1, &[]);
+	assert!(decompile(&model, &input(&data, &vvd, &vtx), "x").is_err());
 }
 
 #[test]
@@ -501,7 +504,7 @@ fn lod(switch_point: f32, triangles: Vec<[u16; 3]>) -> Lod {
 
 #[test]
 fn lods_replace_remove_and_merge_bones() {
-	let model = mdl::parse(&build(&Spec {
+	let data = build(&Spec {
 		checksum: 1,
 		// The shadow LOD flag.
 		flags: 0x40,
@@ -510,8 +513,8 @@ fn lods_replace_remove_and_merge_bones() {
 		skins: &[&[0]],
 		body_parts: &[("body", &[("body", 4, &[0])]), ("hat", &[("hat", 3, &[0])])],
 		..Spec::default()
-	}))
-	.unwrap();
+	});
+	let model = mdl::parse(&data).unwrap();
 	let weighted = |position: [f32; 3], bone: u8| Vertex {
 		bones: [bone, 0, 0],
 		..vertex(position, [0.0; 2])
@@ -544,7 +547,7 @@ fn lods_replace_remove_and_merge_bones() {
 		body_parts: vec![vec![body], vec![hat]],
 		material_replacements: vec![vec![], vec![(0, "skin_lod".into())], vec![]],
 	};
-	let files = decompile(&model, &vvd, &vtx, None, "guy").unwrap();
+	let files = decompile(&model, &input(&data, &vvd, &vtx), "guy").unwrap();
 	let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
 	assert!(paths.contains(&"body_lod1.smd"));
 	assert!(paths.contains(&"body_shadowlod.smd"));
@@ -578,5 +581,44 @@ fn vtx_material_replacements_point_backwards() {
 	assert_eq!(
 		vtx.material_replacements,
 		[vec![], vec![(3, "skin_lod".to_owned())]]
+	);
+}
+
+#[test]
+fn animations_and_sequences() {
+	let data = crate::mdl::anim::tests::sample();
+	let model = mdl::parse(&data).unwrap();
+	let input = Input {
+		mdl: &data,
+		ani: None,
+		vvd: None,
+		vtx: None,
+		phy: None,
+	};
+	let files = decompile(&model, &input, "guy").unwrap();
+	let qc = file(&files, "guy.qc");
+	assert!(qc.contains(
+		"$sequence \"run\" {\n\t\"guy_anims/run.smd\"\n\tfps 30.000000\n\twalkframe 2 LX\n\
+		\tactivity \"ACT_RUN\" 1\n\tloop\n\tfadeout 0.300000\n\t{ event 7 1 }\n}\n"
+	));
+	let smd = file(&files, "guy_anims/run.smd");
+	// Half of the movement is back on the root, then the root is turned for studiomdl.
+	assert!(smd.contains("time 1\n0 2.000000 -5.500000 3.000000 0.000000 0.000000 -1.570796\n"));
+	assert!(smd.contains("time 2\n0 2.000000 -8.000000 3.000000 0.000000 0.000000 -1.570796\n"));
+	assert!(smd.ends_with("1 1.000000 -2.000000 0.500000 0.000000 0.000000 0.000000\nend\n"));
+}
+
+#[test]
+fn angles_stay_near_the_previous_frame() {
+	let [x, y, z] = animation::closest_angles([0.0, 0.0, -3.1], [0.0, 0.0, 3.1]);
+	assert_eq!([x, y], [0.0, 0.0]);
+	assert!((z - (std::f32::consts::TAU - 3.1)).abs() < 1e-5);
+	// The other set of angles for the same rotation.
+	let pi = std::f32::consts::PI;
+	let r = animation::closest_angles([pi - 0.1, pi - 0.2, pi - 0.3], [-0.1, 0.2, -0.3]);
+	assert!(
+		r.iter()
+			.zip([-0.1, 0.2, -0.3])
+			.all(|(a, b)| (a - b).abs() < 1e-5)
 	);
 }

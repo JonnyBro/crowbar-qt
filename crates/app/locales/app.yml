@@ -34,7 +34,7 @@ tasks.none:
   ru: "Задач нет"
 app.unknown_file:
   en: "Prybar does not open \"%{name}\"."
-  ru: "Prybar не открывает «%{name}»."
+  ru: "Prybar не открывает \"%{name}\"."
 common.browse:
   en: "Browse…"
   ru: "Обзор…"
@@ -55,7 +55,7 @@ game.none:
   ru: "Игра не выбрана."
 game.none_hint:
   en: "Pick one on the Games page"
-  ru: "Выберите её на странице «Игры»"
+  ru: "Выберите её на странице \"Игры\""
 games.add_folder:
   en: "Add Game Folder…"
   ru: "Добавить папку игры…"
@@ -133,7 +133,7 @@ games.tools_missing:
   ru: "нет"
 games.tools_missing_tip:
   en: "No modding tools in this game's bin folder. Use \"Tools Folder\" to point at the bin folder of the Windows build or of another game."
-  ru: "В папке bin этой игры нет утилит для моддинга. Через «Папка утилит» укажите папку bin Windows-сборки или другой игры."
+  ru: "В папке bin этой игры нет утилит для моддинга. Через \"Папка утилит\" укажите папку bin Windows-сборки или другой игры."
 games.tools_reset:
   en: "Use the Game's Own"
   ru: "Использовать утилиты игры"
@@ -178,7 +178,7 @@ compile.no_p4:
   ru: "Без P4 (-nop4)"
 compile.no_studiomdl:
   en: "%{name} has no studiomdl. Set a tools folder on the Games page."
-  ru: "У %{name} нет studiomdl. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет studiomdl. Укажите папку утилит на странице \"Игры\"."
 compile.open_hlmv:
   en: "Open in HLMV"
   ru: "Открыть в HLMV"
@@ -190,7 +190,7 @@ compile.out_folder:
   ru: "Рабочая папка"
 compile.out_game:
   en: "Game's \"models\" folder"
-  ru: "Папка «models» игры"
+  ru: "Папка \"models\" игры"
 compile.out_subfolder:
   en: "Subfolder of the QC's folder"
   ru: "Подпапка рядом с QC"
@@ -229,7 +229,7 @@ compile.no_compiled_model:
   ru: "Скомпилированная модель не найдена. Сначала скомпилируйте её."
 compile.no_modelname:
   en: "WARNING: No $modelname found in the QC file; compiled files were left in the game's \"models\" folder."
-  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке «models» игры."
+  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке \"models\" игры."
 view.decompile:
   en: "Decompile To…"
   ru: "Декомпилировать в…"
@@ -244,7 +244,7 @@ view.no_file:
   ru: "Такого файла нет."
 view.hint:
   en: "Enter a model and press Check to see what the game can't find."
-  ru: "Укажите модель и нажмите «Проверить»: Prybar покажет, чего игра не найдёт."
+  ru: "Укажите модель и нажмите \"Проверить\": Prybar покажет, чего игра не найдёт."
 view.checking:
   en: "Reading the game's files…"
   ru: "Чтение файлов игры…"
@@ -346,7 +346,7 @@ view.mdl:
   ru: "Модель:"
 view.no_hlmv:
   en: "%{name} has no hlmv. Set a tools folder on the Games page."
-  ru: "У %{name} нет hlmv. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет hlmv. Укажите папку утилит на странице \"Игры\"."
 view.open:
   en: "Open in HLMV"
   ru: "Открыть в HLMV"
@@ -403,7 +403,7 @@ files.show_folder:
   ru: "Показать"
 packages.need_file:
   en: "Enter the path to a package or pick one with Browse."
-  ru: "Укажите путь к пакету или выберите его через «Обзор…»."
+  ru: "Укажите путь к пакету или выберите его через \"Обзор…\"."
 packages.need_folder:
   en: "Select an output folder."
   ru: "Выберите папку для распаковки."
@@ -493,7 +493,7 @@ pack.no_tag:
   ru: "(без тега)"
 pack.no_tool:
   en: "%{name} has no %{tool}. Set a tools folder on the Games page."
-  ru: "У %{name} нет %{tool}. Укажите папку утилит на странице «Игры»."
+  ru: "У %{name} нет %{tool}. Укажите папку утилит на странице \"Игры\"."
 pack.options:
   en: "Options:"
   ru: "Параметры:"
@@ -544,7 +544,7 @@ ws.changes_placeholder:
   ru: "Описание изменений (только для обновлений)"
 ws.confirm_new:
   en: "Create a new workshop item from \"%{name}\"?"
-  ru: "Создать новый предмет мастерской из «%{name}»?"
+  ru: "Создать новый предмет мастерской из \"%{name}\"?"
 ws.confirm_update:
   en: "Upload to workshop item %{id}?"
   ru: "Загрузить в предмет мастерской %{id}?"
@@ -619,7 +619,7 @@ dl.get_info:
   ru: "Получить сведения"
 dl.hint:
   en: "Enter workshop links or item IDs, or a collection, and press Get Info."
-  ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите «Получить сведения»."
+  ru: "Введите ссылки или ID предметов мастерской либо коллекцию и нажмите \"Получить сведения\"."
 dl.links_placeholder:
   en: "Workshop links or IDs; collections are expanded"
   ru: "Ссылки или ID предметов; коллекции раскрываются"
@@ -883,7 +883,7 @@ pack.check_will_skip:
   ru: "Они будут пропущены."
 pack.check_will_fail:
   en: "Remove them, add them to \"ignore\" in addon.json, or turn on skipping invalid files."
-  ru: "Уберите их, добавьте в «ignore» в addon.json или включите пропуск недопустимых файлов."
+  ru: "Уберите их, добавьте в \"ignore\" в addon.json или включите пропуск недопустимых файлов."
 pack.check_failed:
   en: "Could not read the folder: %{error}"
   ru: "Не удалось прочитать папку: %{error}"

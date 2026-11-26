@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+pub mod anim;
 pub mod phy;
 pub mod vtx;
 pub mod vvd;
@@ -12,6 +13,8 @@ pub enum Error {
 	Version(i32),
 	/// An offset or count points outside the file.
 	Truncated,
+	/// The animations live in a .ani that was not given.
+	MissingAni,
 }
 
 impl fmt::Display for Error {
@@ -20,6 +23,7 @@ impl fmt::Display for Error {
 			Self::NotMdl => f.write_str("not a compiled model (.mdl)"),
 			Self::Version(v) => write!(f, "model version {v} is not supported (44 to 49 are)"),
 			Self::Truncated => f.write_str("the model file is cut short or damaged"),
+			Self::MissingAni => f.write_str("the animations are in a .ani file that was not found"),
 		}
 	}
 }
