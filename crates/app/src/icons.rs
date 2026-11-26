@@ -4,8 +4,7 @@ use gpui_kit::assets::{Assets, IconName, icon_assets};
 use gpui_kit::component::Icon;
 use gpui_kit::{AssetSource, Result, SharedString};
 
-// The default Assets embed only the icons gpui-component itself uses; every other
-// Lucide icon the app shows has to be listed here or it renders blank.
+// Default Assets hold only gpui-component's icons; any other must be listed or it renders blank.
 icon_assets!(
 	ExtraIcons,
 	[

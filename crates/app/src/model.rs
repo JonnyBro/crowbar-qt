@@ -1,5 +1,4 @@
-//! What every page shares: the engine, the games, the game being worked on,
-//! the settings and the tasks with their logs.
+//! State every page shares: engine, games, settings, tasks.
 
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -62,9 +61,7 @@ fn severity_of(line: &str) -> Severity {
 	}
 }
 
-/// The first absolute path in `line` that exists. A quoted path may contain
-/// spaces; a bare one ends at whitespace or punctuation. "(12)" right after a
-/// path is a line number, as studiomdl prints it.
+/// The first existing absolute path in `line`; "(12)" right after it is a line number.
 pub fn find_link(line: &str) -> Option<Link> {
 	let bytes = line.as_bytes();
 	for (start, _) in line.match_indices('/') {

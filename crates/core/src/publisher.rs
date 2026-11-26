@@ -37,8 +37,7 @@ pub struct WorkshopItem {
 }
 
 impl WorkshopItem {
-	/// The size in bytes; `None` when gmpublish printed nothing sensible, as
-	/// it does for some items ("17179869184.0 GB").
+	/// `None` for gmpublish's nonsense sizes like "17179869184.0 GB".
 	pub fn size_bytes(&self) -> Option<u64> {
 		parse_size(&self.size)
 	}
@@ -116,8 +115,7 @@ pub fn publish_command(app: &App, request: &Request, user_env: &str) -> Result<C
 	if let Some(icon) = &request.icon {
 		args.extend(["-icon".to_owned(), path(icon)]);
 	}
-	// Without -changes gmpublish fills in "None Provided", so an empty note is
-	// passed as it is.
+	// Without -changes gmpublish writes "None Provided".
 	if !create {
 		args.extend(["-changes".to_owned(), request.changes.trim().to_owned()]);
 	}
@@ -127,8 +125,7 @@ pub fn publish_command(app: &App, request: &Request, user_env: &str) -> Result<C
 	Ok(command)
 }
 
-/// Collects items from `gmpublish list` output. Titles can contain line breaks,
-/// so lines are fed one by one and an item may span several of them.
+/// Titles can span lines, so lines are fed one by one.
 #[derive(Debug, Default)]
 pub struct ListParser {
 	items: Vec<WorkshopItem>,
@@ -199,8 +196,7 @@ pub fn parse_created_id(line: &str) -> Option<u64> {
 	digits.parse().ok()
 }
 
-/// gmpublish only takes a baseline 512x512 JPEG. Anything else is cropped to a
-/// square, scaled and written to `converted`. Returns the file to pass to gmpublish.
+/// gmpublish wants a baseline 512x512 JPEG; anything else is converted into `converted`.
 pub fn prepare_icon(icon: &Path, converted: &Path) -> Result<PathBuf> {
 	let read_error = |e: &dyn std::fmt::Display| Error::IconRead(icon.to_path_buf(), e.to_string());
 	let reader = ImageReader::open(icon)

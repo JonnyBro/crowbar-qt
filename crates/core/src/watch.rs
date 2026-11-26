@@ -7,9 +7,7 @@ use std::time::SystemTime;
 /// What a QC can pull in; a bare name is also tried with the first two.
 const SOURCE_EXTENSIONS: [&str; 8] = ["smd", "dmx", "vta", "qci", "qc", "vrd", "fbx", "obj"];
 
-/// The QC itself, the files it `$include`s and every source file it names
-/// that exists, resolved the way studiomdl does: from the QC's folder,
-/// through `$pushd`/`$popd`, in any letter case.
+/// Resolved like studiomdl: through `$pushd`, in any letter case.
 pub fn dependencies(qc: &Path) -> Vec<PathBuf> {
 	let mut found = Vec::new();
 	let mut seen = HashSet::new();
@@ -20,8 +18,7 @@ pub fn dependencies(qc: &Path) -> Vec<PathBuf> {
 	found
 }
 
-/// Folder contents by lower-case name, read once per look: a QC names many
-/// things that are not files, and each would cost a folder read.
+/// Folder listings by lowercase name, read once per look.
 #[derive(Default)]
 struct Listings(HashMap<PathBuf, HashMap<String, PathBuf>>);
 
@@ -93,8 +90,7 @@ fn collect(
 	}
 }
 
-/// A token that names an existing source file, from the current folder or the
-/// folder of the file that names it.
+/// Looked up in the current folder, then in the folder of the file that names it.
 fn resolve(dir: &Path, file: &Path, token: &str, listings: &mut Listings) -> Option<PathBuf> {
 	if token.starts_with('$') || token.len() < 2 {
 		return None;
@@ -176,20 +172,18 @@ fn stamps(files: Vec<PathBuf>) -> Stamps {
 #[derive(Debug, Default)]
 pub struct Watcher {
 	built: HashMap<PathBuf, Stamps>,
-	/// A change seen once; it counts when the next look finds it the same, so a
-	/// file still being saved is not built half-written.
+	/// A change counts once the next look finds it the same, so a half-saved file waits.
 	pending: HashMap<PathBuf, Stamps>,
 }
 
 impl Watcher {
-	/// Takes the files of `qc` as they are now as built.
+	/// Marks the files of `qc` as built in their current state.
 	pub fn built(&mut self, qc: &Path) {
 		self.pending.remove(qc);
 		self.built
 			.insert(qc.to_path_buf(), stamps(dependencies(qc)));
 	}
 
-	/// The QCs among `qcs` whose files changed and have since stayed the same.
 	/// A QC seen for the first time is only remembered.
 	pub fn poll(&mut self, qcs: &[PathBuf]) -> Vec<PathBuf> {
 		self.built.retain(|qc, _| qcs.contains(qc));

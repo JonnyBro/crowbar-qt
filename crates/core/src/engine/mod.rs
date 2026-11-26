@@ -1,5 +1,4 @@
-//! Background side of the app: the UI sends [`Command`]s, the engine works on a
-//! tokio runtime in its own thread and reports back with [`Event`]s.
+//! The UI sends [`Command`]s; the engine runs them on tokio and answers with [`Event`]s.
 
 mod messages;
 mod packages;
@@ -61,8 +60,7 @@ impl Engine {
 			.name("engine".into())
 			.spawn(move || {
 				runtime.block_on(run(paths, settings, cmd_rx, sink));
-				// Jobs still running (a tool waiting for its children) must not
-				// keep the app from quitting.
+				// Jobs still running must not keep the app from quitting.
 				runtime.shutdown_timeout(std::time::Duration::from_secs(3));
 			})?;
 		Ok(Self {
@@ -123,8 +121,7 @@ impl Context {
 	}
 }
 
-/// This run's temporary folder, removed when the engine stops. Folders left by
-/// runs that were killed are removed at start.
+/// Removed on stop; folders of killed runs are removed at start.
 struct Scratch(PathBuf);
 
 impl Scratch {

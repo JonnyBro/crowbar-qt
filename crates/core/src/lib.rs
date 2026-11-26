@@ -1,5 +1,4 @@
-//! Everything prybar does without a window: finding games, reading packages,
-//! running the game's tools. The app and the command line both sit on top of it.
+//! Everything without a window; the app and the CLI sit on top.
 
 rust_i18n::i18n!("locales", fallback = "en");
 
@@ -38,8 +37,7 @@ pub use settings::Settings;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// rust_i18n looks keys up in the calling crate's own file only, and shows a
-/// missing one as the bare key.
+/// rust_i18n shows a key missing from this crate's file as the bare key.
 #[cfg(test)]
 mod locale_keys {
 	use std::path::Path;

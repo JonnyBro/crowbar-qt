@@ -1,5 +1,4 @@
-//! Steam installations: libraries, installed apps, Proton builds and the
-//! Source mods in `steamapps/sourcemods`.
+//! Steam libraries, apps, Proton builds and sourcemods.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -37,8 +36,7 @@ pub struct App {
 	pub proton_path: Option<PathBuf>,
 	/// `tools_path` was set by the user rather than found in the game folder.
 	pub tools_overridden: bool,
-	/// A game folder that runs on top of another app (a Source mod, or a folder
-	/// added by hand); `id` is then that base app's, and `install_path` the folder itself.
+	/// Runs on another app (a mod or added folder); `id` is the base app's.
 	pub is_mod: bool,
 	pub base_name: Option<String>,
 }
@@ -57,8 +55,7 @@ pub struct Installation {
 	pub apps: Vec<App>,
 }
 
-/// Every Steam root under `home` that has a `steamapps` folder, without duplicates
-/// from the usual symlinks.
+/// Steam roots under `home`, without symlink duplicates.
 pub fn find_roots(home: &Path) -> Vec<PathBuf> {
 	const CANDIDATES: [&str; 7] = [
 		".local/share/Steam",
@@ -161,8 +158,7 @@ pub fn sort_by_name(apps: &mut [App]) {
 	apps.sort_by_cached_key(|app| app.name.to_lowercase());
 }
 
-/// Internal name Steam uses in `CompatToolMapping` for a Valve-shipped Proton
-/// folder, e.g. "Proton 9.0 (Beta)" -> "proton_9".
+/// E.g. "Proton 9.0 (Beta)" -> "proton_9".
 pub fn official_tool_name(directory_name: &str) -> Option<String> {
 	match directory_name {
 		"Proton - Experimental" => return Some("proton_experimental".into()),
@@ -183,9 +179,7 @@ pub fn official_tool_name(directory_name: &str) -> Option<String> {
 	}
 }
 
-/// Builds an app for a folder with a gameinfo.txt, borrowing tools, platform and
-/// Proton from the installed app its SteamAppId names. `None` if the folder has
-/// no gameinfo.txt.
+/// Tools, platform and Proton come from the app its SteamAppId names.
 pub fn app_for_game_dir(game_dir: &Path, installed: &[App]) -> Option<App> {
 	let file = find_file(game_dir, "gameinfo.txt")?;
 	// gameinfo.txt paths use backslashes that are not escapes.
@@ -223,9 +217,7 @@ pub fn app_for_game_dir(game_dir: &Path, installed: &[App]) -> Option<App> {
 	Some(app)
 }
 
-/// Points the app at a tools folder chosen by the user, e.g. the bin folder of
-/// the Windows build for a native game. If those tools are Windows programs and
-/// the app has no Proton of its own, one of `tools` is used with `prefix_dir`.
+/// Windows tools without the app's own Proton run with one of `tools` in `prefix_dir`.
 pub fn override_tools(app: &mut App, tools_path: &Path, tools: &[CompatTool], prefix_dir: &Path) {
 	if !tools_path.is_dir() {
 		return;
@@ -371,9 +363,7 @@ fn read_compat_mapping(root: &Path) -> HashMap<u32, String> {
 		.unwrap_or_default()
 }
 
-/// config_info is written by Proton into the prefix and lists paths inside the
-/// Proton build that last used it; that is the only record when the tool was
-/// picked by Steam's global default rather than a per-app mapping.
+/// The only record of Proton when Steam's global default picked it.
 fn proton_from_config_info(compat_data_path: &Path) -> Option<PathBuf> {
 	let text = std::fs::read_to_string(compat_data_path.join("config_info")).ok()?;
 	text.lines().find_map(|line| {

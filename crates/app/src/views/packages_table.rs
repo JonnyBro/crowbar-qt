@@ -25,8 +25,7 @@ const INDENT: f32 = 16.;
 
 type NodeId = usize;
 
-/// A folder or a file of the package. Folders that hold a single folder and
-/// nothing else are merged into one node named "a/b/c".
+/// A chain of single folders is merged into one node named "a/b/c".
 struct Node {
 	name: String,
 	/// Full path of the folder or file, for copying.
@@ -52,8 +51,7 @@ pub struct EntriesTable {
 	/// Node 0 is the root and is never shown.
 	nodes: Vec<Node>,
 	expanded: HashSet<NodeId>,
-	/// Nodes the filter lets through; `None` without a filter. Every folder
-	/// in it shows expanded.
+	/// What the filter lets through, folders expanded; `None` without a filter.
 	visible: Option<Vec<bool>>,
 	rows: Vec<Row>,
 	sort: Option<(usize, ColumnSort)>,
@@ -79,8 +77,7 @@ impl EntriesTable {
 		self.rebuild_rows();
 	}
 
-	/// Shows the files whose path contains `needle` (lower case, forward
-	/// slashes) and the folders that lead to them.
+	/// `needle` is lower case with forward slashes.
 	pub fn set_filter(&mut self, needle: &str) {
 		self.visible = (!needle.is_empty() && !self.nodes.is_empty()).then(|| {
 			let mut visible = vec![false; self.nodes.len()];
@@ -102,8 +99,7 @@ impl EntriesTable {
 			.position(|row| self.nodes[row.node].entry == Some(index))
 	}
 
-	/// Opens or closes the folder in `row_ix`. Returns the folder's row, which
-	/// stays where it was.
+	/// Returns the folder's row, which stays put.
 	pub fn toggle(&mut self, row_ix: usize) -> Option<usize> {
 		let row = *self.rows.get(row_ix)?;
 		if self.nodes[row.node].entry.is_some() || self.visible.is_some() {

@@ -47,8 +47,7 @@ pub fn parse(data: &[u8]) -> Result<Vvd> {
 			vertices: all,
 		});
 	}
-	// With LODs the vertices are shared out by a fixup table; every entry
-	// belongs to LOD 0, since lower LODs only drop vertices.
+	// LOD fixups only drop vertices, so every entry belongs to LOD 0.
 	let mut vertices = Vec::with_capacity(count);
 	for i in 0..fixups {
 		let at = fixup_start + i * FIXUP_SIZE;

@@ -46,7 +46,7 @@ Uses the same games, tools folders and Proton as the GUI. You can use Ctrl+C to 
 
 ## Layout
 
-- `crates/core`: everything without a window: Steam, games, packages, models, the game's tools.
+- `crates/core`: Steam, games, packages, models and the game's tools, without a window.
 - `crates/app`: the gpui window and the command line.
 
 Interface strings are in `crates/*/locales/*.yml`.

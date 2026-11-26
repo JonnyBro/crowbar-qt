@@ -62,8 +62,7 @@ pub fn compile_command(
 	Ok(command)
 }
 
-/// The value of `$modelname`, with forward slashes and a .mdl extension; `None`
-/// if the QC and the files it includes have none.
+/// With forward slashes and .mdl; included files are searched too.
 pub fn read_model_name(qc: &Path) -> Option<String> {
 	let name = find_model_name(qc, &mut HashSet::new())?.replace('\\', "/");
 	let name = clean_path(Path::new(&name)).to_string_lossy().into_owned();
@@ -99,8 +98,7 @@ fn find_model_name(qc: &Path, visited: &mut HashSet<PathBuf>) -> Option<String> 
 		.find_map(|included| find_model_name(&included, visited))
 }
 
-/// The argument of a QC command at the start of `line`: a quoted string or the
-/// next word.
+/// A quoted string or the next word.
 fn command_value<'a>(line: &'a str, command: &str) -> Option<&'a str> {
 	let line = line.trim_start();
 	let head = line.get(..command.len())?;
@@ -118,8 +116,7 @@ fn command_value<'a>(line: &'a str, command: &str) -> Option<&'a str> {
 	rest.split_whitespace().next()
 }
 
-/// Where a compiled model ends up: under `output_dir` when its files were moved
-/// there, otherwise in the game folder.
+/// Under `output_dir` when moved there, else in the game folder.
 pub fn compiled_model(
 	game_dir: &Path,
 	output_dir: Option<&Path>,
@@ -136,9 +133,7 @@ pub struct MoveResult {
 	pub log: Vec<String>,
 }
 
-/// studiomdl can only write into `<game_dir>/models`, so a different output
-/// folder is done the way Crowbar does it: move the compiled files afterwards,
-/// keeping the models/<subpath> layout.
+/// studiomdl writes only to `<game_dir>/models`, so other outputs are moved afterwards.
 pub fn move_compiled_model(game_dir: &Path, model_name: &str, output_dir: &Path) -> MoveResult {
 	let mut result = MoveResult::default();
 	let mut moved = 0;

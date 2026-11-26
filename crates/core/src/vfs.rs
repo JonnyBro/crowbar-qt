@@ -1,5 +1,4 @@
-//! The game's search paths in mount order and which copy of a file it loads.
-//! GMod ignores most of gameinfo.txt; its order is from wiki.facepunch.com/gmod/Filesystem.
+//! Search paths in mount order; GMod's order is from wiki.facepunch.com/gmod/Filesystem.
 
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;

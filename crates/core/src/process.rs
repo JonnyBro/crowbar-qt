@@ -1,5 +1,4 @@
-//! Running a tool with its output read line by line, and stopping it together
-//! with everything it started.
+//! Running a tool line by line and stopping it with its children.
 
 use std::future::Future;
 use std::io::{BufRead, BufReader};
@@ -16,8 +15,7 @@ use crate::launcher::{self, Command};
 const MARKER_VAR: &str = "PRYBAR_RUN";
 /// How long a cancelled tool gets to quit before it is killed.
 const TERM_GRACE: Duration = Duration::from_secs(2);
-/// Output still in the pipe when the tool exits; children that keep the pipe
-/// open must not hold the run up.
+/// Children holding the pipe open must not hold the run up.
 const DRAIN_TIMEOUT: Duration = Duration::from_millis(200);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,9 +25,7 @@ pub struct Exit {
 	pub cancelled: bool,
 }
 
-/// Runs `command` until it exits. Every output line (stdout and stderr in order,
-/// terminal codes, Proton noise and Z:\ paths cleaned up) goes to `on_line`.
-/// When `cancel` completes, the tool and its children get SIGTERM, then SIGKILL.
+/// Lines lose terminal codes, Proton noise and Z:\ paths; cancel sends SIGTERM, then SIGKILL.
 pub async fn run(
 	command: &Command,
 	mut on_line: impl FnMut(String),
@@ -54,8 +50,7 @@ pub async fn run(
 			cmd.current_dir(dir);
 		}
 		cmd.spawn()?
-		// The command holds our copies of the pipe's write end; dropping it here
-		// lets the reader see the end of output once the tool is gone.
+		// Drop our write ends of the pipe so the reader sees EOF.
 	};
 	let pid = child
 		.id()
@@ -144,9 +139,7 @@ fn signal_all(group: Option<Pid>, marker: &str, signal: Signal) {
 	kill_marked(marker, signal);
 }
 
-/// Wine starts Windows programs in sessions of their own, so signalling our
-/// process group misses them. They do inherit the environment, which lets them
-/// be found again by the marker.
+/// Wine runs programs in their own sessions; the marker in their environment finds them.
 fn kill_marked(marker: &str, signal: Signal) {
 	let Ok(proc) = std::fs::read_dir("/proc") else {
 		return;

@@ -1,5 +1,4 @@
-//! What the pages remember between runs: choices and options, the open page.
-//! Paths are not remembered; every run starts with empty path fields.
+//! What pages remember between runs; paths are not saved.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -78,8 +77,7 @@ impl SavedBounds {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputMode {
-	/// Compile: the game's models folder. Unpack: a subfolder of the package's folder.
-	/// Pack: the folder that holds the input folder.
+	/// Compile: the models folder; unpack: next to the package; pack: next to the input folder.
 	#[default]
 	Beside,
 	/// A subfolder of the input's folder (compile only).

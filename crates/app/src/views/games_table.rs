@@ -1,5 +1,4 @@
-//! The games and their game folders, as a sortable table. Sorting orders the
-//! games; each game's folders stay right under it.
+//! Games and their folders; sorting keeps folders under their game.
 
 use std::cmp::Ordering;
 use std::path::PathBuf;

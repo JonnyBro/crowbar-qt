@@ -150,8 +150,7 @@ struct Inner {
 	last_progress: Instant,
 }
 
-/// A running task. Dropping it without [`Task::finish`] marks it failed, so a
-/// job that panics or is aborted doesn't leave a task running forever.
+/// Dropped without [`Task::finish`], it counts as failed.
 pub(super) struct Task {
 	tasks: Tasks,
 	cancel: watch::Receiver<bool>,

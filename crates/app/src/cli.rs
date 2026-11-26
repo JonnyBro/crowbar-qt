@@ -17,8 +17,7 @@ use prybar_core::{
 #[derive(Parser)]
 #[command(name = "prybar", version = prybar_core::VERSION, about = "Source engine modding tool")]
 pub struct Cli {
-	/// .qc, .mdl, .vpk, .gma files or folders to open in the window. When a
-	/// window is already open, they open there.
+	/// Files or folders to open, in the running window if there is one.
 	pub files: Vec<PathBuf>,
 
 	#[command(subcommand)]
@@ -46,16 +45,14 @@ pub enum CliCommand {
 		mdl: Option<PathBuf>,
 	},
 
-	/// Check a model's files, materials and textures as the game finds them.
-	/// The model is a file or a game path such as models/props_c17/oildrum001.mdl.
+	/// Check a model's files, materials and textures (a file or a game path).
 	Inspect {
 		appid: u32,
 		game_dir: PathBuf,
 		model: String,
 	},
 
-	/// Write a QC and SMD files from a compiled model. A game path such as
-	/// models/props_c17/oildrum001.mdl needs --appid and --game-dir.
+	/// Write a QC and SMDs from a compiled model; game paths need --appid and --game-dir.
 	Decompile {
 		model: String,
 		output_dir: PathBuf,
@@ -85,8 +82,7 @@ pub enum CliCommand {
 	#[command(subcommand)]
 	Workshop(WorkshopCommand),
 
-	/// Save workshop items: from Steam's cache when subscribed, otherwise from
-	/// their direct link (old items only).
+	/// Save workshop items from Steam's cache or their direct link.
 	Download {
 		/// Links or IDs of items or collections.
 		#[arg(required = true)]
@@ -499,8 +495,7 @@ fn publish(appid: u32, mut request: publisher::Request) -> CliResult {
 	})
 }
 
-/// Saves workshop items: from Steam's cache when subscribed, otherwise from
-/// their direct link (old items only). Collections are expanded.
+/// From Steam's cache when subscribed, else the direct link; collections are expanded.
 fn download(items: &[String], output: &Path) -> CliResult {
 	let ids = workshop::parse_item_ids(&items.join(" "));
 	if ids.is_empty() {

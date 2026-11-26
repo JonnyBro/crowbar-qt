@@ -1,5 +1,4 @@
-//! Text KeyValues, the format of Steam's `.vdf`/`.acf` files and of
-//! `gameinfo.txt`.
+//! Text KeyValues: `.vdf`, `.acf`, gameinfo.txt.
 
 use std::path::Path;
 
@@ -79,8 +78,7 @@ pub enum FileError {
 	Parse(#[from] ParseError),
 }
 
-/// The returned node is a synthetic root with an empty key whose children are
-/// the top-level pairs.
+/// The root has an empty key and the top-level pairs as children.
 pub fn parse(text: &str, options: ParseOptions) -> Result<Node, ParseError> {
 	let mut parser = Parser {
 		text: text.strip_prefix('\u{feff}').unwrap_or(text),

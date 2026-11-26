@@ -1,5 +1,4 @@
-//! One window per user session. A second start hands its files to the window
-//! that is already open over a Unix socket and exits.
+//! One window per session: a second start hands its files over a Unix socket.
 
 use std::io::{Read, Write};
 use std::os::unix::ffi::OsStrExt;
@@ -18,8 +17,7 @@ pub enum Start {
 	First(Option<UnixListener>),
 }
 
-/// The socket this process bound, by inode: after a restart the new process
-/// binds its own at the same path, which must survive this one's exit.
+/// By inode: after a restart the new process's socket at the same path must outlive us.
 static OURS: OnceLock<(PathBuf, u64)> = OnceLock::new();
 
 /// Stops taking requests from later starts, so a new process can take over.
@@ -87,8 +85,7 @@ fn receive(mut stream: UnixStream) -> std::io::Result<Vec<PathBuf>> {
 		.collect())
 }
 
-/// Calls `on_request` from its own thread with the files of every later start;
-/// an empty list just asks to bring the window forward.
+/// An empty list only brings the window forward.
 pub fn listen(listener: UnixListener, on_request: impl Fn(Vec<PathBuf>) + Send + 'static) {
 	let spawned = std::thread::Builder::new()
 		.name("single-instance".into())

@@ -1,5 +1,4 @@
-//! Pieces every page builds with: labelled rows, choices, path fields, opening
-//! files and folders.
+//! Pieces every page builds with: rows, choices, path fields, opening files.
 
 use std::path::{Path, PathBuf};
 
@@ -217,8 +216,7 @@ const TEXT_FILES: [&str; 12] = [
 	"qc", "qci", "smd", "vta", "txt", "vmt", "lua", "json", "cfg", "fgd", "res", "log",
 ];
 
-/// A folder opens in the file manager, a text file in the editor at its line,
-/// anything else shows its folder.
+/// Folders open in the file manager, text files in the editor, the rest show their folder.
 pub fn open_link(link: &Link, editor: &str) {
 	let path = &link.path;
 	if path.is_dir() {
@@ -235,8 +233,7 @@ pub fn open_link(link: &Link, editor: &str) {
 	}
 }
 
-/// `editor` is a command with %f for the file and %l for the line, e.g.
-/// "code -g %f:%l"; empty uses the desktop's default program.
+/// `editor` takes %f and %l, e.g. "code -g %f:%l"; empty means the desktop default.
 pub fn open_in_editor(file: &Path, line: u32, editor: &str) {
 	let mut words = editor.split_whitespace();
 	if let Some(program) = words.next() {
@@ -270,8 +267,7 @@ pub fn image_format(data: &[u8]) -> Option<ImageFormat> {
 	}
 }
 
-/// Items without a value go after the rest whichever way the column sorts;
-/// `descending` turns around only the order of the values themselves.
+/// Missing values go last in either direction.
 pub fn missing_last<T: Ord>(a: Option<T>, b: Option<T>, descending: bool) -> std::cmp::Ordering {
 	use std::cmp::Ordering;
 	match (a, b) {

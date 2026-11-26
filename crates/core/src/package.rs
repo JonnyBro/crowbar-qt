@@ -1,5 +1,4 @@
-//! Reading VPK (v1/v2) and GMA packages, including the LZMA-compressed GMA
-//! files (`*.bin`) that old workshop items are stored as.
+//! VPK v1/v2 and GMA, including LZMA-packed workshop `*.bin`.
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
@@ -87,8 +86,7 @@ pub struct ExtractSummary {
 }
 
 impl Package {
-	/// For a numbered VPK part such as pak01_003.vpk, the matching pak01_dir.vpk
-	/// is opened instead.
+	/// A numbered part such as pak01_003.vpk opens its pak01_dir.vpk.
 	pub fn open(file: &Path) -> Result<Self> {
 		let mut head = Vec::with_capacity(13);
 		File::open(file)
@@ -169,9 +167,7 @@ impl Package {
 		result.map(|()| target)
 	}
 
-	/// Extracts the entries at `indexes`. `on_progress(done, total)` runs every
-	/// 64 entries and at the end, and can stop the run; `on_error` gets each
-	/// entry that failed.
+	/// `on_progress(done, total)` runs every 64 entries and can stop the run.
 	pub fn extract_many(
 		&self,
 		indexes: &[usize],
@@ -416,8 +412,7 @@ fn open_at(entry: &Entry, shown: &str) -> Result<File> {
 	Ok(file)
 }
 
-/// Package paths come from untrusted files; anything that would land outside
-/// the output folder is rejected.
+/// Rejects package paths that leave the output folder.
 fn safe_relative_path(path: &str) -> Option<PathBuf> {
 	let unified = path.replace('\\', "/");
 	if unified.contains(':') || unified.starts_with('/') {

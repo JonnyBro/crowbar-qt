@@ -1,5 +1,4 @@
-//! Column widths that survive restarts. Each table keeps the widths the user
-//! dragged to under its own key in the UI state.
+//! Column widths, saved per table in the UI state.
 
 use gpui_kit::component::table::{Column, TableDelegate, TableEvent, TableState};
 use gpui_kit::*;
@@ -24,10 +23,7 @@ pub trait Remembered: TableDelegate {
 	fn widths_mut(&mut self) -> &mut SavedWidths;
 }
 
-/// A table that starts with the saved widths and saves them again on resize.
-///
-/// Moving columns is off: the delegates draw cells by column index, so a moved
-/// header would sit over another column's data.
+/// Moving columns is off: cells are drawn by column index.
 pub fn new_table<D: Remembered, V: 'static>(
 	mut delegate: D,
 	model: &Entity<Model>,

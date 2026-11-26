@@ -1,17 +1,10 @@
-//! Packs a folder into a VPK v2 the way Valve's vpk tool does, without it.
-//!
-//! What vpk does, found by packing test folders with it:
-//! - every path is stored lowercase, as extension / folder / name; a missing
-//!   extension or the root folder is a single space;
-//! - file data follows the paths sorted upper-cased, component by component;
-//! - the tree lists extensions, folders and files in reverse order of first
-//!   appearance in that sort;
-//! - names starting with a dot are left out (Wine marks them hidden, which is
-//!   probably why), and so are the file types vpk refuses ([`REFUSED`]);
-//! - with -M a chunk is closed once it holds the chunk size or more, empty
-//!   files stay in the directory file, and no chunk MD5s are written;
-//! - the file ends with the MD5 of the tree, of the (empty) chunk MD5 section,
-//!   and of everything before this last one.
+//! VPK v2 writer matching Valve's vpk, found by testing it:
+//! - paths are lowercase; no extension or the root folder is " ";
+//! - data is sorted by upper-cased path components;
+//! - the tree is in reverse order of first appearance;
+//! - dot files and [`REFUSED`] types are skipped;
+//! - with -M a chunk closes at the chunk size, empty files stay in the dir file;
+//! - it ends with MD5s of the tree, the empty chunk MD5s and all before.
 
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -161,10 +154,7 @@ fn collect(
 	Ok(())
 }
 
-/// `output` names the single VPK, or `<name>.vpk` for `<name>_dir.vpk` and its
-/// chunks. Every file is written through a temporary one, so a failed or
-/// cancelled run leaves nothing half written. `on_file(path, done, total)` runs
-/// before each file is read; `cancelled` is polled between files.
+/// `output` is the VPK, or `<name>.vpk` for a chunked one; written through temp files.
 pub fn pack(
 	folder: &Path,
 	output: &Path,
@@ -343,8 +333,7 @@ fn len_u32(len: usize) -> u32 {
 /// A folder of one extension: its path and its files as entry indexes.
 type Folder<'a> = (&'a str, Vec<usize>);
 
-/// Extensions, then folders, then files, each in reverse order of first
-/// appearance.
+/// Extensions, folders, files, each in reverse order of first appearance.
 fn build_tree(entries: &[Entry]) -> Vec<u8> {
 	let mut exts: Vec<(&str, Vec<Folder>)> = Vec::new();
 	for (index, entry) in entries.iter().enumerate() {

@@ -64,9 +64,7 @@ pub struct Options {
 	pub extra: Vec<String>,
 }
 
-/// GMA: gmad writes straight to `output`.
-/// VPK: vpk has no output argument and always writes next to the input folder;
-/// [`finish_pack`] moves the result to where `output` says.
+/// vpk always writes next to the input; [`finish_pack`] moves the result.
 pub fn pack_command(
 	app: &App,
 	format: Format,
@@ -126,8 +124,7 @@ pub struct PackResult {
 	pub log: Vec<String>,
 }
 
-/// Call after the packer exits successfully. `started` keeps chunks left over
-/// from an earlier, larger multi-chunk build from being picked up.
+/// `started` skips chunks left from an earlier, larger build.
 pub fn finish_pack(
 	format: Format,
 	folder: &Path,
@@ -227,8 +224,7 @@ pub fn finish_pack(
 	result
 }
 
-/// "dir" or the chunk number, lower case, for `<folder_name>_dir.vpk` and
-/// `<folder_name>_000.vpk`.
+/// "dir" or the chunk number of `<folder>_dir.vpk` / `<folder>_000.vpk`.
 fn chunk_suffix(file_name: &str, folder_name: &str) -> Option<String> {
 	let stem = file_name.get(..file_name.len().checked_sub(4)?)?;
 	if !file_name[stem.len()..].eq_ignore_ascii_case(".vpk") {
@@ -291,9 +287,7 @@ pub fn read_addon_json(folder: &Path) -> Result<AddonInfo> {
 	})
 }
 
-/// Creates addon.json, or updates title, type and tags in an existing one while
-/// keeping every other key and the file's formatting. Refuses to touch a file
-/// it cannot parse.
+/// Changes only title, type and tags; refuses a file it can't parse.
 pub fn save_addon_json(folder: &Path, info: &AddonInfo) -> Result<()> {
 	let path = folder.join("addon.json");
 	let text = match std::fs::read(&path) {
@@ -393,9 +387,7 @@ fn format_tags(tags: &[String], original: &str, key_indent: &str, newline: &str)
 	format!("[{pad}{}{pad}]", items.join(separator))
 }
 
-/// Where a member of a JSON object's top level sits in the text, so single
-/// values can be replaced in place. Indices are byte offsets; every character
-/// that matters here is ASCII.
+/// A top-level member's byte span, for replacing in place.
 struct Member {
 	key: String,
 	key_start: usize,
@@ -516,8 +508,7 @@ fn line_indent(text: &str, pos: usize) -> &str {
 	if prefix.trim().is_empty() { prefix } else { "" }
 }
 
-/// Replaces title, type and tags inside the existing text; everything else
-/// (key order, indentation, line endings, other keys) stays byte for byte.
+/// Everything but title, type and tags stays byte for byte.
 fn update_addon_json(text: &str, info: &AddonInfo) -> Option<String> {
 	let layout = scan_object(text)?;
 	let newline = if text.contains("\r\n") { "\r\n" } else { "\n" };

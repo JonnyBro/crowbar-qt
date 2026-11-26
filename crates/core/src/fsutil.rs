@@ -3,8 +3,7 @@ use std::path::Path;
 
 use crate::paths::clean_path;
 
-/// Moves `source` to `target`, replacing it; across file systems it copies and
-/// deletes instead.
+/// Copies and deletes across file systems.
 pub fn move_file(source: &Path, target: &Path) -> io::Result<()> {
 	if clean_path(source) == clean_path(target) {
 		return Ok(());

@@ -1,6 +1,4 @@
-//! Turns a compiled model back into a QC and SMD files studiomdl can build.
-//! So far: reference meshes, skeleton, materials, skins, bodygroups,
-//! attachments and hitboxes; animations come out as the bind pose.
+//! Turns a compiled model back into a QC and SMDs; animations come out as the bind pose.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -42,8 +40,7 @@ pub struct File {
 	pub text: String,
 }
 
-/// Reads the model and its .vvd and .vtx, and writes the sources into
-/// `output_dir`. `vfs` is only needed for a game path.
+/// `vfs` is only needed for a game path.
 pub fn run(
 	vfs: Option<&Vfs>,
 	source: &ModelSource,
@@ -149,8 +146,7 @@ pub fn decompile(
 	Ok(files)
 }
 
-/// `$lod` and `$shadowlod` blocks, writing an SMD for each submodel whose
-/// triangles differ from LOD 0.
+/// `$lod` and `$shadowlod`, with an SMD for each submodel that differs from LOD 0.
 fn lods(
 	model: &Model,
 	vvd: &Vvd,
@@ -227,9 +223,7 @@ fn lods(
 	Ok(q)
 }
 
-/// studiomdl gives a LOD's vertices the weights of the nearest LOD 0 vertex,
-/// so bones a LOD never uses come back as `replacebone`, to whichever bone
-/// took their weight.
+/// studiomdl weights LOD vertices like the nearest LOD 0 one, so dropped bones become `replacebone`.
 fn replaced_bones(
 	vvd: &Vvd,
 	written: &[(String, &mdl::SubModel, &[mdl::vtx::Lod])],
@@ -391,8 +385,7 @@ fn nodes_and_skeleton(out: &mut String, bones: &[Bone], adjust_roots: bool) {
 	out.push_str("end\nskeleton\ntime 0\n");
 	for (i, bone) in bones.iter().enumerate() {
 		let (mut position, mut rotation) = (bone.position, bone.rotation);
-		// studiomdl turns what it reads 90° about Z; for animations that
-		// lands on the root bones, so they are turned back here.
+		// studiomdl turns input 90° about Z; in animations that lands on the root bones.
 		if adjust_roots && bone.parent < 0 {
 			position = [position[1], -position[0], position[2]];
 			rotation[2] -= std::f32::consts::FRAC_PI_2;

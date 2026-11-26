@@ -43,14 +43,12 @@ impl Language {
 pub struct Settings {
 	pub language: Language,
 	pub theme: Theme,
-	/// Color scheme names for the dark and light theme; empty means the default
-	/// one. The core doesn't know the schemes.
+	/// Scheme names for dark and light; empty means the default.
 	#[serde(skip_serializing_if = "String::is_empty")]
 	pub dark_scheme: String,
 	#[serde(skip_serializing_if = "String::is_empty")]
 	pub light_scheme: String,
-	/// Internal name of the Proton build that runs the tools of every game that
-	/// uses Proton; `None` keeps each game's own.
+	/// Proton for every game's tools; `None` keeps each game's own.
 	pub proton: Option<String>,
 	/// Extra environment for the game's tools, one `NAME=value` or `-NAME` per line.
 	#[serde(skip_serializing_if = "String::is_empty")]
@@ -63,8 +61,7 @@ pub struct Settings {
 	/// Game folders added by hand (a gameinfo.txt folder outside Steam's lists).
 	#[serde(skip_serializing_if = "Vec::is_empty")]
 	pub custom_folders: Vec<PathBuf>,
-	/// Pack with the game's gmad and vpk instead of Prybar's own writers, in
-	/// case the tools change before Prybar catches up.
+	/// Use the game's gmad and vpk instead of Prybar's writers.
 	#[serde(skip_serializing_if = "std::ops::Not::not")]
 	pub use_game_tools: bool,
 	/// Don't ask GitHub for a newer release at start.

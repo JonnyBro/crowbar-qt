@@ -23,8 +23,7 @@ pub enum Command {
 	SaveSettings(Settings),
 	/// Answered with [`Event::GamesLoaded`].
 	RefreshGames,
-	/// Compiles the QC files one after another, one task each; cancelling one
-	/// stops the rest. With `view_after`, a single successful model opens in HLMV.
+	/// One task per QC; cancelling one stops the rest.
 	Compile {
 		target: Target,
 		files: Vec<PathBuf>,
@@ -56,8 +55,7 @@ pub enum Command {
 		request: RequestId,
 		path: PathBuf,
 	},
-	/// Answered with [`Event::EntryRead`]; VTF arrives as a PNG of at most
-	/// [`TEXTURE_PREVIEW_SIDE`] pixels a side.
+	/// VTF comes back as a PNG at most [`TEXTURE_PREVIEW_SIDE`] a side.
 	ReadEntry {
 		request: RequestId,
 		package: Arc<Package>,
@@ -98,8 +96,7 @@ pub enum Command {
 		icon: Option<PathBuf>,
 		changes: String,
 	},
-	/// Items behind links, IDs and collections in `text`; answered with
-	/// [`Event::ItemsFound`].
+	/// Items behind the links, IDs and collections in `text`.
 	LookUpItems {
 		request: RequestId,
 		text: String,

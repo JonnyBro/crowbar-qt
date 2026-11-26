@@ -356,8 +356,7 @@ fn run_reads_the_files_beside_the_model() {
 	assert!(run(None, &game, &out).is_err());
 }
 
-/// One solid: a tetrahedron as ledge 0 (bone `client - 1`), a parent hull
-/// ledge to skip, then the shared point pool, then `text`.
+/// A tetrahedron ledge, a parent hull to skip, the point pool, then `text`.
 fn phy_file(checksum: i32, client: i32, text: &str) -> Vec<u8> {
 	let mut s = Vec::new();
 	let i32s = |d: &mut Vec<u8>, vs: &[i32]| {

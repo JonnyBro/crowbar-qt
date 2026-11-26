@@ -1,5 +1,4 @@
-//! Building the command line for a game's tool: natively, or through the game's
-//! Proton for Windows tools.
+//! Tool command lines, native or through Proton.
 
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -83,12 +82,10 @@ pub fn is_windows_executable(path: &Path) -> bool {
 		.is_ok_and(|()| &head == b"MZ")
 }
 
-/// Looks for `<name>.exe` or `<name>` in the game's tools folder, preferring a
-/// 64-bit build from its win64, x64 or linux64 subfolder.
+/// Prefers a 64-bit build from win64, x64 or linux64.
 pub fn find_tool(app: &App, name: &str) -> Option<PathBuf> {
 	let tools = app.tools_path.as_ref()?;
-	// 64-bit builds first: the 32-bit tools run out of address space on big
-	// jobs, e.g. gmad on addons over 2 GB.
+	// 32-bit tools run out of memory on big jobs, e.g. gmad on 2 GB addons.
 	["win64", "x64", "linux64", ""]
 		.iter()
 		.flat_map(|dir| {
@@ -112,8 +109,7 @@ pub fn to_windows_path(host_path: &Path) -> String {
 	)
 }
 
-/// Windows tools print and accept paths in any case; this finds the real one on
-/// disk, e.g. a lowercased "/home/user/my addon/a.qc" from studiomdl's output.
+/// Windows tools print paths in any case; this finds the real one.
 pub fn find_path_ignoring_case(base: &Path, relative: &str) -> Option<PathBuf> {
 	let mut current = base.to_path_buf();
 	for part in relative.split('/').filter(|p| !p.is_empty()) {
@@ -201,9 +197,7 @@ fn is_env_name(name: &str) -> bool {
 		&& chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// Applies the user's environment lines: `NAME=value` sets, `-NAME` removes;
-/// blank lines and lines starting with `#` are skipped. Returns the lines it
-/// could not read.
+/// `NAME=value` sets, `-NAME` removes, `#` comments; returns the bad lines.
 pub fn apply_environment_lines(env: &mut BTreeMap<String, String>, lines: &str) -> Vec<String> {
 	let mut invalid = Vec::new();
 	for raw in lines.lines() {
@@ -228,8 +222,7 @@ pub fn apply_environment_lines(env: &mut BTreeMap<String, String>, lines: &str) 
 	invalid
 }
 
-/// `user_env` is the settings' tool environment, applied before the Proton
-/// variables so a setting can't break them.
+/// `user_env` goes first so it can't break the Proton variables.
 pub fn build(
 	app: &App,
 	executable: &Path,
@@ -255,8 +248,7 @@ pub fn build(
 		.as_ref()
 		.ok_or_else(|| Error::NoPrefix(app.name.clone()))?;
 
-	// "run" goes through Proton's steam.exe shim, which gives the program a
-	// working Steam API but drops its stdout. "runinprefix" skips the shim.
+	// "run" keeps the Steam API but drops stdout; "runinprefix" skips the shim.
 	let verb = match mode {
 		Mode::Console => "runinprefix",
 		Mode::Gui => "run",
@@ -282,8 +274,7 @@ pub fn build(
 	);
 	env.insert("SteamAppId".into(), app_id.clone());
 	env.insert("SteamGameId".into(), app_id);
-	// Under Wine's Wayland driver the menus of these old Win32 tools close as
-	// soon as they open, so a global PROTON_ENABLE_WAYLAND=1 must not reach them.
+	// Under Wine's Wayland driver these tools' menus close at once.
 	env.remove("PROTON_ENABLE_WAYLAND");
 	Ok(command)
 }

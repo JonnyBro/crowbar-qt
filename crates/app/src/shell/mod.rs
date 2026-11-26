@@ -320,8 +320,7 @@ impl Shell {
 		}
 	}
 
-	/// Once the last running task stops while the window is in the background,
-	/// one notification sums up what finished there.
+	/// One notification for what finished while the window was in the background.
 	fn on_task_finished(
 		&mut self,
 		event: &TaskFinished,
@@ -382,8 +381,7 @@ impl Shell {
 		}
 	}
 
-	/// The new process must not find this one's socket, or it would hand its
-	/// start over to the window that is about to close.
+	/// The new process must not find this one's socket and hand its start back.
 	fn restart(&mut self, window: &mut Window, cx: &mut Context<Self>) {
 		let bounds = crate::ui_state::SavedBounds::from_window(window.window_bounds());
 		self.model.update(cx, |model, _| {
@@ -447,8 +445,7 @@ impl Shell {
 		cx.notify();
 	}
 
-	/// Files dropped on the window or given on the command line open on the
-	/// page that handles them.
+	/// Opens each file on the page that handles it.
 	pub fn open_paths(&mut self, paths: Vec<PathBuf>, window: &mut Window, cx: &mut Context<Self>) {
 		let extension = |path: &PathBuf| {
 			path.extension()

@@ -1,5 +1,4 @@
-//! `.phy`: collision as convex pieces (IVP compact ledges), plus a text block
-//! with masses, damping and ragdoll joints.
+//! `.phy`: convex pieces (IVP ledges) and a text block of masses and joints.
 
 use super::{Error, Reader, Result};
 
@@ -68,8 +67,7 @@ fn solid(r: Reader, surface: usize, end: usize) -> Result<Solid> {
 	if r.bytes::<4>(surface + 44)? != *b"IVPS" {
 		return Err(Error::NotMdl);
 	}
-	// Ledges sit one after another, followed by their points; with several
-	// ledges the points are one shared pool after the last ledge.
+	// Ledges come first, then points; several ledges share one pool after the last.
 	let mut ledges_end = (surface + r.count(surface + 32)?).min(end);
 	let mut pieces = Vec::new();
 	let mut ledge = surface + SURFACE_HEADER;

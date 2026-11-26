@@ -1,5 +1,4 @@
-//! The Source games prybar works with: what Steam has installed, adjusted by the
-//! settings (chosen tools folders, folders added by hand, the chosen Proton).
+//! Games from Steam, adjusted by the settings.
 
 use std::path::{Path, PathBuf};
 
@@ -32,8 +31,7 @@ impl Games {
 		)
 	}
 
-	/// `prefixes_dir` holds the Wine prefixes made for games whose chosen
-	/// tools need Proton.
+	/// `prefixes_dir` holds Wine prefixes for tools that need Proton.
 	pub fn from_installations(
 		installations: Vec<Installation>,
 		settings: &Settings,
@@ -111,8 +109,7 @@ impl Games {
 		self.targets().find(|target| target.game_dir == game_dir)
 	}
 
-	/// The installed app with this id; mods and added folders only when no
-	/// installed app has it.
+	/// Mods and added folders only when no installed app has the id.
 	pub fn app(&self, app_id: u32) -> Option<&App> {
 		self.apps
 			.iter()
@@ -120,8 +117,7 @@ impl Games {
 			.or_else(|| self.apps.iter().find(|app| app.id == app_id))
 	}
 
-	/// The saved game folder if it is still there, otherwise the first game that
-	/// can run the tools, otherwise the first game.
+	/// The saved folder if it exists, else the first game that runs the tools, else the first.
 	pub fn current(&self, saved: Option<&Path>) -> Option<Target> {
 		saved
 			.and_then(|dir| self.target(dir))

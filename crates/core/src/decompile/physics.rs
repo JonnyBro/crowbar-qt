@@ -75,8 +75,7 @@ pub(super) fn physics(model: &Model, phy: &Phy, stem: &str) -> (File, String) {
 					}
 				})
 				.collect();
-			// studiomdl tells convex pieces apart by shared vertices, so each point
-			// gets one normal, out from the piece's centre, wherever it is used.
+			// studiomdl splits convex pieces by shared vertices, so each point gets one normal.
 			let centre = points
 				.iter()
 				.fold([0.0; 3], |acc, p| {
@@ -206,8 +205,7 @@ pub(super) fn physics(model: &Model, phy: &Phy, stem: &str) -> (File, String) {
 	(File { path, text: smd }, q)
 }
 
-/// Per-joint values where a solid differs from the rest; masses come back as
-/// the bias studiomdl spread the total by.
+/// Masses come back as the bias studiomdl spread the total by.
 fn joint_lines(q: &mut String, solids: &[&Node]) {
 	let float = |s: &Node, k: &str| s.get(k).and_then(|v| v.parse::<f64>().ok());
 	let total_mass: f64 = solids.iter().filter_map(|s| float(s, "mass")).sum();

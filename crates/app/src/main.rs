@@ -108,8 +108,7 @@ fn fatal(message: &str) -> ! {
 /// Logs go to stderr and to a daily file in the logs folder.
 fn init_logging(paths: &AppPaths) -> Option<tracing_appender::non_blocking::WorkerGuard> {
 	use tracing_subscriber::{EnvFilter, fmt};
-	// zbus warns on every portal file dialog: the request object is gone
-	// before it reads its properties, which the dialog doesn't need.
+	// zbus warns on every portal file dialog; the warning is harmless.
 	let default = if cfg!(debug_assertions) {
 		"info,prybar=debug,prybar_core=debug,wgpu_hal=warn,wgpu_core=warn,zbus=error"
 	} else {
@@ -152,8 +151,7 @@ fn init_logging(paths: &AppPaths) -> Option<tracing_appender::non_blocking::Work
 	}
 }
 
-/// rust_i18n looks keys up in the calling crate's own file only, and shows a
-/// missing one as the bare key.
+/// rust_i18n shows a key missing from this crate's file as the bare key.
 #[cfg(test)]
 mod locale_keys {
 	use std::path::Path;

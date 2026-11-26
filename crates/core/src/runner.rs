@@ -6,8 +6,7 @@ use crate::launcher::{self, Command, Error, Mode, Result, tool_path};
 use crate::paths::clean_path;
 use crate::steam::{App, Platform};
 
-/// Asks the Steam client to start the game, so Steam picks Proton or the native
-/// build itself. `game_dir` becomes -game.
+/// Through the Steam client, which picks Proton or native.
 pub fn game_command(app: &App, game_dir: Option<&Path>, options: &[String]) -> Result<Command> {
 	let mut args = vec!["-applaunch".to_owned(), app.id.to_string()];
 	if let Some(game_dir) = game_dir {
@@ -19,8 +18,7 @@ pub fn game_command(app: &App, game_dir: Option<&Path>, options: &[String]) -> R
 				clean_path(game_dir).display().to_string()
 			});
 		} else {
-			// A relative -game works for both builds; an absolute one would need
-			// Z:\ form under Proton and a host path natively.
+			// Relative -game works for both; absolute needs Z:\ under Proton.
 			let relative = game_dir.strip_prefix(&app.install_path).unwrap_or(game_dir);
 			args.push(relative.display().to_string());
 		}
@@ -65,7 +63,7 @@ pub fn hlmv_command(
 		return Err(Error::Missing(mdl.to_path_buf()));
 	}
 	let windows = launcher::is_windows_executable(&executable);
-	// -olddialogs makes HLMV accept a model from anywhere on disk, not only from the game's folders.
+	// -olddialogs adds the file explorer browser back to the "File" menu, allowing selecting files not only from the game's folder.
 	let mut args = vec![
 		"-olddialogs".into(),
 		"-game".into(),

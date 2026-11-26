@@ -1,5 +1,4 @@
-//! The QC files to compile, with checkboxes for picking several and the state
-//! of each file's last compile.
+//! QC files to compile and the result of each one's last compile.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};

@@ -1,5 +1,4 @@
-//! New releases on GitHub, and replacing the running binary with the one from
-//! a release archive.
+//! GitHub releases and replacing the running binary.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -46,8 +45,7 @@ impl Release {
 	}
 }
 
-/// The latest release if it's newer than this build; `None` if it isn't or the
-/// repository has no releases yet.
+/// `None` when it isn't newer or there are no releases.
 pub async fn check(client: &Client) -> Result<Option<Release>, String> {
 	let Some(bytes) = client.fetch_optional(LATEST_RELEASE_API).await? else {
 		return Ok(None);
@@ -98,8 +96,7 @@ fn is_newer(tag: &str, current: &str) -> bool {
 	}
 }
 
-/// The binary that runs now. Once it has been replaced, the kernel reports the
-/// old file as "… (deleted)", but the path is still the right one.
+/// Once replaced, the kernel adds " (deleted)" to the path, but the path is still right.
 pub fn current_exe() -> std::io::Result<PathBuf> {
 	let exe = std::env::current_exe()?;
 	Ok(
@@ -110,8 +107,7 @@ pub fn current_exe() -> std::io::Result<PathBuf> {
 	)
 }
 
-/// Whether this binary can replace itself, which needs a folder the user can
-/// write to. A package manager's system folder is not one.
+/// Needs a folder the user can write to, not a package manager's.
 pub fn can_replace_self() -> bool {
 	current_exe()
 		.ok()
@@ -119,8 +115,7 @@ pub fn can_replace_self() -> bool {
 		.is_some_and(|dir| tempfile::tempfile_in(dir).is_ok())
 }
 
-/// Downloads the release archive, checks it against `SHA256SUMS` and puts its
-/// binary in place of the running one. The new version runs from the next start.
+/// Checked against `SHA256SUMS`; the new version runs from the next start.
 pub async fn install(
 	client: &Client,
 	release: &Release,
@@ -219,8 +214,7 @@ fn replace_binary(archive: &Path, dir: &Path, target: &Path) -> Result<(), Strin
 		new.as_file()
 			.set_permissions(std::fs::Permissions::from_mode(0o755))
 			.map_err(|e| e.to_string())?;
-		// A rename leaves the running process on the old file, which stays
-		// readable until it exits.
+		// The running process keeps the old file until it exits.
 		new.persist(target).map_err(|e| e.to_string())?;
 		return Ok(());
 	}

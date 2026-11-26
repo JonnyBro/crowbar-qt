@@ -1,6 +1,4 @@
-//! The application menu entry, icon and file types in the user's
-//! ~/.local/share, so the window opens .qc, .mdl, .vpk and .gma files from the
-//! file manager.
+//! Menu entry, icon and file types in ~/.local/share.
 
 use std::path::{Path, PathBuf};
 
@@ -29,8 +27,7 @@ fn files() -> Option<Files> {
 	})
 }
 
-/// The entry runs this binary by its full path: a release archive is unpacked
-/// anywhere, rarely into PATH.
+/// Full path to the binary: release archives rarely land in PATH.
 fn desktop_entry(exe: &Path) -> String {
 	let exe = exe.display().to_string();
 	let quoted = if exe.contains([' ', '"', '\\', '$', '`']) {
@@ -81,8 +78,7 @@ pub fn uninstall() -> Result<(), String> {
 	Ok(())
 }
 
-/// Keeps an installed entry pointing at this binary after the archive moved,
-/// and its icon and types current after an update.
+/// Keeps the installed entry current after the binary moved or updated.
 pub fn refresh_if_installed() {
 	let Some(files) = files() else {
 		return;
@@ -101,8 +97,7 @@ pub fn refresh_if_installed() {
 	}
 }
 
-/// The databases are optional: without the tools, desktops pick the files up
-/// on their next scan.
+/// The tools are optional; desktops rescan on their own.
 fn refresh_caches(files: &Files) {
 	for (tool, dir) in [
 		("update-mime-database", &files.mime_root),

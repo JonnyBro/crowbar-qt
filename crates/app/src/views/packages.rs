@@ -58,8 +58,7 @@ pub struct PackagesView {
 	opening: Option<RequestId>,
 	open_error: Option<String>,
 	entries: Entity<TableState<EntriesTable>>,
-	/// The entry clicked last, shown in the preview; the one "Unpack selected"
-	/// takes when none is checked.
+	/// Shown in the preview; what "Unpack selected" takes when nothing is checked.
 	focused: Option<usize>,
 	preview: Preview,
 	/// Applied once the package opened from Game Files is loaded.

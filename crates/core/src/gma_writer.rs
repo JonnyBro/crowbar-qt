@@ -1,10 +1,4 @@
-//! Packs an addon folder into a GMA the way gmad does, without gmad.
-//!
-//! Layout (version 3, all numbers little endian): "GMAD", version u8, SteamID
-//! u64 (0), timestamp u64, required content (an empty list: one NUL), title,
-//! description JSON, author, addon version i32 (1); then per file: number u32
-//! from 1, path, size i64, CRC32 u32; a 0 u32; the file data in the same
-//! order; last, the CRC32 of everything before it.
+//! GMA v3 writer, byte for byte like gmad.
 
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -130,9 +124,7 @@ struct Entry {
 	crc: u32,
 }
 
-/// Writes through a temporary file next to `output`, so a failed or
-/// cancelled run leaves no half-written addon. `on_file(name, done, total)`
-/// runs before each file is read; `cancelled` is polled between files.
+/// Through a temp file; `on_file(name, done, total)` runs before each file.
 pub fn pack(
 	folder: &Path,
 	output: &Path,

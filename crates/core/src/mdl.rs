@@ -1,4 +1,4 @@
-//! Compiled model header, versions 44–49. Geometry (.vvd, .vtx) is not read.
+//! The .mdl header, versions 44–49; the .vvd, .vtx and .phy readers are in submodules.
 
 use std::fmt;
 

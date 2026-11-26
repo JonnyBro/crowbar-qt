@@ -1,5 +1,4 @@
-//! Steam Workshop items: IDs and links, details from the Web API, Steam's own
-//! download cache, steamcmd and direct downloads.
+//! Workshop IDs, Web API details, Steam's cache, steamcmd and direct downloads.
 
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -76,8 +75,7 @@ pub fn parse_item_id(text: &str) -> Option<u64> {
 	})
 }
 
-/// Every item ID in `text`: links and bare IDs separated by spaces, commas,
-/// semicolons or lines, without duplicates.
+/// Links and bare IDs, without duplicates.
 pub fn parse_item_ids(text: &str) -> Vec<u64> {
 	let mut ids = Vec::new();
 	for part in text.split(|c: char| c.is_whitespace() || c == ',' || c == ';') {
@@ -100,8 +98,7 @@ fn number(value: &Value) -> Option<u64> {
 		.or_else(|| value.as_str().and_then(|s| s.parse().ok()))
 }
 
-/// The items of a collection from GetCollectionDetails, and whether the ID was
-/// a collection at all.
+/// The collection's items, and whether the ID was a collection.
 pub fn parse_collection(json: &[u8]) -> (Vec<u64>, bool) {
 	let root: Value = serde_json::from_slice(json).unwrap_or_default();
 	let collection = &root["response"]["collectiondetails"][0];
@@ -195,9 +192,7 @@ pub fn find_steamcmd() -> Option<PathBuf> {
 		.find(|path| path.is_file())
 }
 
-/// steamcmd is a cut-down Steam client: given the real HOME it treats ~/.steam
-/// as its own install and rewrites the Steam client's files there, e.g. the list
-/// of libraries. `home_dir` is a folder of its own it runs in instead.
+/// With the real HOME steamcmd rewrites Steam's own files, so it runs in `home_dir`.
 pub fn steamcmd_command(
 	steamcmd: Option<&Path>,
 	home_dir: &Path,
@@ -253,8 +248,7 @@ fn steamcmd_command_in(
 	})
 }
 
-/// The path from steamcmd's `Success. Downloaded item ... to "<path>"` line.
-/// Depending on the item it names the downloaded file or its folder.
+/// From `Success. Downloaded item ... to "<path>"`: a file or a folder.
 pub fn parse_steamcmd_path(line: &str) -> Option<String> {
 	let rest = &line[line.find("Success. Downloaded item ")? + "Success. Downloaded item ".len()..];
 	let digits = rest.chars().take_while(char::is_ascii_digit).count();
@@ -290,9 +284,7 @@ pub fn file_base_name(details: &ItemDetails, with_title: bool) -> String {
 	format!("{} ({})", safe.trim(), details.id)
 }
 
-/// Copies a downloaded file into `output_dir` as `<base_name>.<ext>`.
-/// With `convert`, LZMA-compressed files are unpacked and become .gma when they
-/// hold an addon.
+/// With `convert`, LZMA files are unpacked and addons become .gma.
 pub fn save_file(
 	file: &Path,
 	output_dir: &Path,
@@ -386,8 +378,7 @@ impl Client {
 		))
 	}
 
-	/// Like [`Self::fetch_bytes`], with `None` for 404 and the plain reqwest
-	/// error, for hosts other than Steam.
+	/// `None` for 404; for hosts other than Steam.
 	pub async fn fetch_optional(&self, url: &str) -> std::result::Result<Option<Vec<u8>>, String> {
 		let response = self.http.get(url).send().await.map_err(|e| e.to_string())?;
 		if response.status() == reqwest::StatusCode::NOT_FOUND {
@@ -414,9 +405,7 @@ impl Client {
 			.to_vec())
 	}
 
-	/// Downloads `url` into `file`, through a temporary file next to it so a
-	/// failed or cancelled download leaves nothing behind. `on_progress(received, total)`
-	/// runs after every chunk.
+	/// Through a temp file; `on_progress(received, total)` runs after each chunk.
 	pub async fn download(
 		&self,
 		url: &str,

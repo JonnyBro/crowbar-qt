@@ -311,7 +311,7 @@ impl SettingsView {
 					menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, cx| {
 						widgets::set_text(&editor, command.clone(), window, cx);
 						let editor = editor.clone();
-						// Applied right away rather than on the next blur.
+						// Applied right away, without waiting for the field to lose focus.
 						window.defer(cx, move |window, cx| {
 							editor.update(cx, |state, cx| state.focus(window, cx));
 						});

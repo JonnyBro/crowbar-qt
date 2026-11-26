@@ -1,5 +1,4 @@
-//! Jobs that run one of the game's tools: compiling, viewing, packing, starting
-//! the game or Hammer.
+//! Jobs that run the game's tools.
 
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -193,8 +192,7 @@ pub(super) async fn hammer(context: Context, target: Target) {
 	}
 }
 
-/// Steam starts the game and returns at once, or keeps running when Steam itself
-/// wasn't; either way the task ends once Steam has the request.
+/// The task ends once Steam has the request.
 pub(super) async fn run_game(context: Context, target: Target, options: Vec<String>) {
 	let name = target.app.name.clone();
 	let task = context
@@ -372,8 +370,7 @@ fn pack_gma(task: &Task, folder: &Path, output: &Path, skip_invalid: bool) -> Op
 		folder = folder.display(),
 		output = output.display()
 	));
-	// The writer reads files synchronously; this keeps the task borrowed
-	// instead of moving it to a blocking thread.
+	// Keeps the task borrowed instead of moving it to a blocking thread.
 	let result = tokio::task::block_in_place(|| {
 		gma_writer::pack(
 			folder,

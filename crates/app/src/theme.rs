@@ -11,8 +11,7 @@ const THEMES: &str = include_str!("../assets/themes.json");
 pub const DEFAULT_DARK: &str = "Prybar Dark";
 pub const DEFAULT_LIGHT: &str = "Prybar Light";
 
-/// Tried in order for logs and paths. Fira Code is bundled; the rest only
-/// matter if loading it failed.
+/// Fira Code is bundled; the rest are fallbacks.
 const MONO_FONTS: &[&str] = &[
 	"Fira Code",
 	"JetBrains Mono",
@@ -149,8 +148,7 @@ mod tests {
 	// gpui_kit's prelude has a `test` attribute of its own.
 	use ::core::prelude::v1::test;
 
-	/// A theme gpui-component can't read is skipped without a word; a theme
-	/// without highlight colors gives the code editor the default light ones.
+	/// gpui-component skips unreadable themes silently and gives the editor light colors if highlights are missing.
 	#[test]
 	fn bundled_themes_parse_with_highlight_colors() {
 		let set: ThemeSet = serde_json::from_str(THEMES).expect("themes.json parses");
