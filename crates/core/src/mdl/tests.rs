@@ -17,6 +17,8 @@ pub(crate) struct Spec<'a> {
 	pub attachments: &'a [&'a str],
 	pub includes: &'a [&'a str],
 	pub surface_prop: &'a str,
+	/// Of every submodel, in .vvd vertices.
+	pub first_vertex: i32,
 }
 
 struct Writer(Vec<u8>);
@@ -65,6 +67,15 @@ pub(crate) fn build(spec: &Spec) -> Vec<u8> {
 	w.0[328..332].copy_from_slice(&5.5f32.to_le_bytes());
 
 	w.named(156, BONE_SIZE, 0, spec.bones);
+	if !spec.bones.is_empty() {
+		// A chain: each bone hangs off the one before, one unit along X.
+		let start = w.0[160..164].try_into().map(i32::from_le_bytes).unwrap() as usize;
+		for i in 0..spec.bones.len() {
+			let bone = start + i * BONE_SIZE;
+			w.i32(bone + 4, i as i32 - 1);
+			w.0[bone + 32..bone + 36].copy_from_slice(&(i as f32).to_le_bytes());
+		}
+	}
 	let labels: Vec<&str> = spec.sequences.iter().map(|s| s.0).collect();
 	w.named(188, SEQUENCE_SIZE, 4, &labels);
 	if !spec.sequences.is_empty() {
@@ -112,6 +123,7 @@ pub(crate) fn build(spec: &Spec) -> Vec<u8> {
 				w.0[model..model + name.len()].copy_from_slice(name.as_bytes());
 				w.i32(model + 72, meshes.len() as i32);
 				w.i32(model + 80, *vertices);
+				w.i32(model + 84, spec.first_vertex * VVD_VERTEX_SIZE);
 				let mesh_start = w.reserve(MESH_SIZE * meshes.len());
 				w.i32(model + 76, (mesh_start - model) as i32);
 				for (i, slot) in meshes.iter().enumerate() {
@@ -146,6 +158,7 @@ fn reads_what_a_model_needs() {
 		attachments: &["top"],
 		includes: &["models/anims.mdl"],
 		surface_prop: "wood_crate",
+		..Spec::default()
 	});
 	let m = parse(&data).unwrap();
 	assert_eq!(m.version, 48);
@@ -153,7 +166,9 @@ fn reads_what_a_model_needs() {
 	assert_eq!(m.name, "test.mdl");
 	assert!(m.is_static_prop());
 	assert_eq!(m.mass, 5.5);
-	assert_eq!(m.bones, ["root", "lid"]);
+	let names: Vec<&str> = m.bones.iter().map(|b| b.name.as_str()).collect();
+	assert_eq!(names, ["root", "lid"]);
+	assert_eq!(m.bones[0].parent, -1);
 	assert_eq!(
 		m.sequences,
 		[Sequence {
@@ -164,7 +179,7 @@ fn reads_what_a_model_needs() {
 	assert_eq!(m.materials, ["crate", "crate_dirty", "unused"]);
 	assert_eq!(m.material_folders, ["models\\props\\", "models/shared/"]);
 	assert_eq!(m.skins, [vec![0, 0], vec![1, 1]]);
-	assert_eq!(m.attachments, ["top"]);
+	assert_eq!(m.attachments[0].name, "top");
 	assert_eq!(m.include_models, ["models/anims.mdl"]);
 	assert_eq!(m.surface_prop, "wood_crate");
 	assert_eq!(m.body_parts.len(), 2);
@@ -172,10 +187,11 @@ fn reads_what_a_model_needs() {
 	assert_eq!(lid.name, "lid");
 	assert_eq!(lid.models[0].name, "lid_ref");
 	assert_eq!(lid.models[0].vertices, 8);
-	assert_eq!(lid.models[0].mesh_skin_slots, [1]);
+	assert_eq!(lid.models[0].meshes[0].skin_slot, 1);
 	assert_eq!(lid.models[1].name, "");
 
-	assert_eq!(m.materials_of(&lid.models[0], 1), [1]);
+	assert_eq!(m.bones[1].parent, 0);
+	assert_eq!(m.bones[1].position, [1.0, 0.0, 0.0]);
 	assert!(m.material_used(0));
 	assert!(m.material_used(1));
 	assert!(!m.material_used(2));

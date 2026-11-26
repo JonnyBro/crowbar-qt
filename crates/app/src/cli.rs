@@ -54,6 +54,17 @@ pub enum CliCommand {
 		model: String,
 	},
 
+	/// Write a QC and SMD files from a compiled model. A game path such as
+	/// models/props_c17/oildrum001.mdl needs --appid and --game-dir.
+	Decompile {
+		model: String,
+		output_dir: PathBuf,
+		#[arg(long, requires = "game_dir")]
+		appid: Option<u32>,
+		#[arg(long, requires = "appid")]
+		game_dir: Option<PathBuf>,
+	},
+
 	/// Start the game through Steam with -game.
 	Run {
 		appid: u32,
@@ -167,6 +178,12 @@ pub fn run(command: CliCommand) -> ExitCode {
 			options,
 		} => run_game(appid, &game_dir, &options),
 		CliCommand::Hammer { appid, game_dir } => hammer(appid, &game_dir),
+		CliCommand::Decompile {
+			model,
+			output_dir,
+			appid,
+			game_dir,
+		} => decompile_model(&model, &output_dir, appid.zip(game_dir)),
 		CliCommand::Inspect {
 			appid,
 			game_dir,
@@ -316,7 +333,7 @@ fn compile(appid: u32, game_dir: &Path, qc: &Path, output_dir: Option<&Path>) ->
 		return Ok(code);
 	}
 	let Some(model_name) = studiomdl::read_model_name(qc) else {
-		println!("{}", rust_i18n::t!("studio.no_modelname"));
+		println!("{}", rust_i18n::t!("compile.no_modelname"));
 		return Ok(ExitCode::FAILURE);
 	};
 	let moved = studiomdl::move_compiled_model(game_dir, &model_name, output_dir);
@@ -678,6 +695,26 @@ fn which(appid: u32, game_dir: &Path, path: &str) -> CliResult {
 			),
 			vfs::MountKind::Folder => println!("{}\t{}", source.size, source.file().display()),
 		}
+	}
+	Ok(ExitCode::SUCCESS)
+}
+
+fn decompile_model(model: &str, output_dir: &Path, game: Option<(u32, PathBuf)>) -> CliResult {
+	use prybar_core::inspect::ModelSource;
+
+	let (source, vfs) = if Path::new(model).is_file() {
+		let path = std::path::absolute(model).map_err(|e| e.to_string())?;
+		(ModelSource::File(path), None)
+	} else {
+		let (appid, game_dir) =
+			game.ok_or("not a file; give --appid and --game-dir for a game path")?;
+		let (context, target) = vfs_target(appid, &game_dir)?;
+		let mounts = vfs::mounts(&context.games, &target);
+		let vfs = Vfs::build(mounts, |_| ControlFlow::Continue(()));
+		(ModelSource::Game(model.to_owned()), vfs)
+	};
+	for file in prybar_core::decompile::run(vfs.as_ref(), &source, output_dir)? {
+		println!("{}", file.display());
 	}
 	Ok(ExitCode::SUCCESS)
 }

@@ -114,6 +114,25 @@ impl ViewView {
 		cx.notify();
 	}
 
+	fn decompile(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let Some(source) = self.source(cx) else {
+			window.push_notification(Notification::warning(t!("view.no_file").into_owned()), cx);
+			return;
+		};
+		let options = widgets::PickOptions {
+			folders: true,
+			multiple: false,
+		};
+		widgets::pick_paths(options, window, cx, move |this: &mut Self, paths, _, cx| {
+			let model = this.model.read(cx);
+			model.send(Command::Decompile {
+				target: model.target.clone(),
+				source,
+				output_dir: paths[0].clone(),
+			});
+		});
+	}
+
 	fn open(&mut self, with_model: bool, cx: &mut Context<Self>) {
 		let mdl = match (&self.report, self.source(cx)) {
 			// HLMV needs a file on disk; a model in a package gets its game path.
@@ -451,11 +470,11 @@ fn structure(report: &Inspection, cx: &App) -> Div {
 	))
 	.child(line(
 		t!("view.attachment_names").into_owned(),
-		names(m.attachments.iter().map(String::as_str).collect()),
+		names(m.attachments.iter().map(|a| a.name.as_str()).collect()),
 	))
 	.child(line(
 		t!("view.bone_names").into_owned(),
-		names(m.bones.iter().map(String::as_str).collect()),
+		names(m.bones.iter().map(|b| b.name.as_str()).collect()),
 	))
 }
 
@@ -510,6 +529,16 @@ impl Render for ViewView {
 							.loading(checking)
 							.disabled(!has_game || !has_model)
 							.on_click(cx.listener(|this, _, window, cx| this.inspect(window, cx))),
+					)
+					.child(
+						Button::new("view-decompile")
+							.label(t!("view.decompile"))
+							.small()
+							.outline()
+							.disabled(!has_model)
+							.on_click(
+								cx.listener(|this, _, window, cx| this.decompile(window, cx)),
+							),
 					)
 					.child(
 						Button::new("view-open")

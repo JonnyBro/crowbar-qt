@@ -218,6 +218,15 @@ compile.view_after:
 compile.view_after_hint:
   en: "When a single model was compiled."
   ru: "Если скомпилирована одна модель."
+compile.no_compiled_model:
+  en: "The compiled model was not found. Compile it first."
+  ru: "Скомпилированная модель не найдена. Сначала скомпилируйте её."
+compile.no_modelname:
+  en: "WARNING: No $modelname found in the QC file; compiled files were left in the game's \"models\" folder."
+  ru: "ВНИМАНИЕ: в файле QC нет $modelname; скомпилированные файлы остались в папке \"models\" игры."
+view.decompile:
+  en: "Decompile To…"
+  ru: "Декомпилировать в…"
 view.check:
   en: "Check"
   ru: "Проверить"
@@ -342,8 +351,8 @@ view.placeholder:
   en: "A .mdl file, or a path in the game such as models/props_c17/oildrum001.mdl"
   ru: "Файл .mdl или путь в игре, например models/props_c17/oildrum001.mdl"
 view.subtitle:
-  en: "Checks a model's files, materials and textures the way the game finds them, and opens it in HLMV."
-  ru: "Проверяет файлы, материалы и текстуры модели так, как их находит игра, и открывает её в HLMV."
+  en: "Checks a model's files, materials and textures the way the game finds them, decompiles it and opens it in HLMV."
+  ru: "Проверяет файлы, материалы и текстуры модели так, как их находит игра, декомпилирует её и открывает в HLMV."
 packages.file_placeholder:
   en: "Path to a .vpk, .gma or workshop .bin file"
   ru: "Путь к файлу .vpk, .gma или .bin из мастерской"

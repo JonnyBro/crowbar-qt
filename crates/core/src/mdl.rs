@@ -2,6 +2,9 @@
 
 use std::fmt;
 
+pub mod vtx;
+pub mod vvd;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
 	NotMdl,
@@ -36,14 +39,21 @@ pub struct Model {
 	pub checksum: i32,
 	pub name: String,
 	pub flags: u32,
+	pub eye_position: [f32; 3],
+	pub illum_position: [f32; 3],
 	pub hull_min: [f32; 3],
 	pub hull_max: [f32; 3],
+	pub view_min: [f32; 3],
+	pub view_max: [f32; 3],
 	pub mass: f32,
+	pub contents: i32,
+	pub directional_light_dot: u8,
 	pub surface_prop: String,
 	pub key_values: String,
-	pub bones: Vec<String>,
+	pub bones: Vec<Bone>,
 	pub sequences: Vec<Sequence>,
-	pub attachments: Vec<String>,
+	pub attachments: Vec<Attachment>,
+	pub hitbox_sets: Vec<HitboxSet>,
 	pub pose_parameters: Vec<String>,
 	pub flex_count: usize,
 	/// Without folder.
@@ -56,6 +66,40 @@ pub struct Model {
 	pub include_models: Vec<String>,
 	/// Animations kept in a separate .ani.
 	pub anim_blocks: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Bone {
+	pub name: String,
+	/// -1 for a root.
+	pub parent: i32,
+	/// Bind pose, relative to the parent.
+	pub position: [f32; 3],
+	/// Radians.
+	pub rotation: [f32; 3],
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attachment {
+	pub name: String,
+	pub bone: i32,
+	/// 3×4, relative to the bone.
+	pub matrix: [[f32; 4]; 3],
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HitboxSet {
+	pub name: String,
+	pub boxes: Vec<Hitbox>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hitbox {
+	pub bone: i32,
+	pub group: i32,
+	pub min: [f32; 3],
+	pub max: [f32; 3],
+	pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +119,17 @@ pub struct SubModel {
 	/// Empty for a `blank` choice.
 	pub name: String,
 	pub vertices: u32,
-	pub mesh_skin_slots: Vec<u16>,
+	/// First vertex in the .vvd.
+	pub first_vertex: u32,
+	pub meshes: Vec<Mesh>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mesh {
+	pub skin_slot: u16,
+	/// Relative to the submodel's first vertex.
+	pub first_vertex: u32,
+	pub vertices: u32,
 }
 
 impl Model {
@@ -85,8 +139,9 @@ impl Model {
 			.body_parts
 			.iter()
 			.flat_map(|p| &p.models)
-			.flat_map(|m| &m.mesh_skin_slots);
-		slots.into_iter().any(|&slot| {
+			.flat_map(|m| &m.meshes)
+			.map(|mesh| mesh.skin_slot);
+		slots.into_iter().any(|slot| {
 			self.skins
 				.iter()
 				.any(|row| row.get(slot as usize).is_some_and(|&m| m as usize == index))
@@ -104,20 +159,6 @@ impl Model {
 	pub fn is_static_prop(&self) -> bool {
 		self.flags & FLAG_STATIC_PROP != 0
 	}
-
-	pub fn materials_of(&self, submodel: &SubModel, skin: usize) -> Vec<usize> {
-		let Some(row) = self.skins.get(skin).or_else(|| self.skins.first()) else {
-			return Vec::new();
-		};
-		let mut out: Vec<usize> = submodel
-			.mesh_skin_slots
-			.iter()
-			.filter_map(|&slot| row.get(slot as usize).map(|&m| m as usize))
-			.collect();
-		out.sort_unstable();
-		out.dedup();
-		out
-	}
 }
 
 const HEADER_SIZE: usize = 408;
@@ -128,6 +169,10 @@ const MESH_SIZE: usize = 116;
 const BONE_SIZE: usize = 216;
 const SEQUENCE_SIZE: usize = 212;
 const ATTACHMENT_SIZE: usize = 92;
+const HITBOX_SET_SIZE: usize = 12;
+const HITBOX_SIZE: usize = 68;
+/// One `mstudiovertex_t` in the .vvd; submodels give their first vertex in bytes.
+const VVD_VERTEX_SIZE: i32 = 48;
 const POSE_PARAMETER_SIZE: usize = 20;
 const INCLUDE_MODEL_SIZE: usize = 8;
 
@@ -150,7 +195,14 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 	}
 	let vec3 = |at: usize| -> Result<[f32; 3]> { Ok([r.f32(at)?, r.f32(at + 4)?, r.f32(at + 8)?]) };
 
-	let bones = r.table(156, BONE_SIZE, |at| r.name_at(at, at))?;
+	let bones = r.table(156, BONE_SIZE, |at| {
+		Ok(Bone {
+			name: r.name_at(at, at)?,
+			parent: r.i32(at + 4)?,
+			position: vec3(at + 32)?,
+			rotation: vec3(at + 60)?,
+		})
+	})?;
 	let sequences = r.table(188, SEQUENCE_SIZE, |at| {
 		Ok(Sequence {
 			name: r.name_at(at, at + 4)?,
@@ -183,19 +235,61 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 			let meshes = r.count(at + 72)?;
 			let mesh_start = at + r.offset(at + 76)?;
 			let vertices = r.i32(at + 80)?.max(0) as u32;
-			let mesh_skin_slots = (0..meshes)
-				.map(|m| Ok(r.i32(mesh_start + m * MESH_SIZE)?.clamp(0, u16::MAX as i32) as u16))
+			let first_vertex = (r.i32(at + 84)? / VVD_VERTEX_SIZE).max(0) as u32;
+			let meshes = (0..meshes)
+				.map(|m| {
+					let mesh = mesh_start + m * MESH_SIZE;
+					Ok(Mesh {
+						skin_slot: r.i32(mesh)?.clamp(0, u16::MAX as i32) as u16,
+						vertices: r.i32(mesh + 8)?.max(0) as u32,
+						first_vertex: r.i32(mesh + 12)?.max(0) as u32,
+					})
+				})
 				.collect::<Result<_>>()?;
 			models.push(SubModel {
 				name,
 				vertices,
-				mesh_skin_slots,
+				first_vertex,
+				meshes,
 			});
 		}
 		Ok(BodyPart { name, models })
 	})?;
 
-	let attachments = r.table(240, ATTACHMENT_SIZE, |at| r.name_at(at, at))?;
+	let attachments = r.table(240, ATTACHMENT_SIZE, |at| {
+		let mut matrix = [[0.0; 4]; 3];
+		for (row, cells) in matrix.iter_mut().enumerate() {
+			for (col, cell) in cells.iter_mut().enumerate() {
+				*cell = r.f32(at + 12 + (row * 4 + col) * 4)?;
+			}
+		}
+		Ok(Attachment {
+			name: r.name_at(at, at)?,
+			bone: r.i32(at + 8)?,
+			matrix,
+		})
+	})?;
+	let hitbox_sets = r.table(172, HITBOX_SET_SIZE, |set| {
+		let count = r.count(set + 4)?;
+		let start = set + r.offset(set + 8)?;
+		let boxes = (0..count)
+			.map(|i| {
+				let at = start + i * HITBOX_SIZE;
+				Ok(Hitbox {
+					bone: r.i32(at)?,
+					group: r.i32(at + 4)?,
+					min: vec3(at + 8)?,
+					max: vec3(at + 20)?,
+					// Old studiomdl wrote this offset from the file start, at an empty string.
+					name: r.name_at(at, at + 32).unwrap_or_default(),
+				})
+			})
+			.collect::<Result<_>>()?;
+		Ok(HitboxSet {
+			name: r.name_at(set, set)?,
+			boxes,
+		})
+	})?;
 	let pose_parameters = r.table(300, POSE_PARAMETER_SIZE, |at| r.name_at(at, at))?;
 	let include_models = r.table(336, INCLUDE_MODEL_SIZE, |at| r.name_at(at, at + 4))?;
 	let key_values = match (r.offset(312)?, r.count(316)?) {
@@ -216,14 +310,21 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 		checksum: r.i32(8)?,
 		name: r.fixed_string(12, 64)?,
 		flags: r.i32(152)? as u32,
+		eye_position: vec3(80)?,
+		illum_position: vec3(92)?,
 		hull_min: vec3(104)?,
 		hull_max: vec3(116)?,
+		view_min: vec3(128)?,
+		view_max: vec3(140)?,
 		mass: r.f32(328)?,
+		contents: r.i32(332)?,
+		directional_light_dot: data[376],
 		surface_prop,
 		key_values,
 		bones,
 		sequences,
 		attachments,
+		hitbox_sets,
 		pose_parameters,
 		flex_count: r.count(260)?,
 		materials,
@@ -236,30 +337,30 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 }
 
 #[derive(Clone, Copy)]
-struct Reader<'a>(&'a [u8]);
+pub(crate) struct Reader<'a>(&'a [u8]);
 
 impl Reader<'_> {
-	fn bytes<const N: usize>(&self, at: usize) -> Result<[u8; N]> {
+	pub(crate) fn bytes<const N: usize>(&self, at: usize) -> Result<[u8; N]> {
 		self.0
 			.get(at..at.checked_add(N).ok_or(Error::Truncated)?)
 			.and_then(|b| b.try_into().ok())
 			.ok_or(Error::Truncated)
 	}
 
-	fn i32(&self, at: usize) -> Result<i32> {
+	pub(crate) fn i32(&self, at: usize) -> Result<i32> {
 		Ok(i32::from_le_bytes(self.bytes(at)?))
 	}
 
-	fn u16(&self, at: usize) -> Result<u16> {
+	pub(crate) fn u16(&self, at: usize) -> Result<u16> {
 		Ok(u16::from_le_bytes(self.bytes(at)?))
 	}
 
-	fn f32(&self, at: usize) -> Result<f32> {
+	pub(crate) fn f32(&self, at: usize) -> Result<f32> {
 		Ok(f32::from_le_bytes(self.bytes(at)?))
 	}
 
 	/// Rejects negative counts and ones larger than the file.
-	fn count(&self, at: usize) -> Result<usize> {
+	pub(crate) fn count(&self, at: usize) -> Result<usize> {
 		let n = self.i32(at)?;
 		usize::try_from(n)
 			.ok()
@@ -267,7 +368,7 @@ impl Reader<'_> {
 			.ok_or(Error::Truncated)
 	}
 
-	fn offset(&self, at: usize) -> Result<usize> {
+	pub(crate) fn offset(&self, at: usize) -> Result<usize> {
 		self.count(at)
 	}
 

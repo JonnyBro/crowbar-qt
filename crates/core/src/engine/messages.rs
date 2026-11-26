@@ -82,6 +82,12 @@ pub enum Command {
 		target: Target,
 		source: ModelSource,
 	},
+	/// A task; the game is only needed for a game path.
+	Decompile {
+		target: Option<Target>,
+		source: ModelSource,
+		output_dir: PathBuf,
+	},
 	/// gmpublish's list of your items, then their details from Steam.
 	WorkshopList(Target),
 	/// Packs `content` first when it is a folder.

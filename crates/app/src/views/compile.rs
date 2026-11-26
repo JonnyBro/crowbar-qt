@@ -280,7 +280,7 @@ impl CompileView {
 			}),
 			None => {
 				window.push_notification(
-					Notification::warning(t!("task.no_compiled_model").into_owned()),
+					Notification::warning(t!("compile.no_compiled_model").into_owned()),
 					cx,
 				);
 			}

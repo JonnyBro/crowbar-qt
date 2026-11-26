@@ -21,6 +21,7 @@ pub enum TaskKind {
 	Pack,
 	Unpack,
 	Search,
+	Decompile,
 	WorkshopList,
 	Publish,
 	Download,

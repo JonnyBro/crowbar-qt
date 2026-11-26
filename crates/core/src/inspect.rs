@@ -109,8 +109,12 @@ impl Inspection {
 	}
 }
 
-pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
-	let (file, data, game_path) = match source {
+/// The `.mdl` itself; `vfs` is only needed for a game path.
+pub(crate) fn read_model(
+	vfs: Option<&Vfs>,
+	source: &ModelSource,
+) -> Result<(Source, Vec<u8>), String> {
+	match source {
 		ModelSource::File(path) => {
 			let data = vfs::read_file(path, MAX_FILE)?;
 			let file = Source {
@@ -122,15 +126,52 @@ pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
 					.unwrap_or_default(),
 				size: data.len() as u64,
 			};
-			(file, data, game_path_of(path))
+			Ok((file, data))
 		}
 		ModelSource::Game(path) => {
 			let (file, data) = vfs
-				.read(path, MAX_FILE)
+				.and_then(|vfs| vfs.read(path, MAX_FILE))
 				.ok_or_else(|| format!("the game has no {path}"))?;
-			let path = normalize(path);
-			(file, data?, Some(path))
+			Ok((file, data?))
 		}
+	}
+}
+
+/// `extension` next to the model: beside the file, or under the same game path.
+pub(crate) fn read_companion(
+	vfs: Option<&Vfs>,
+	source: &ModelSource,
+	extension: &str,
+) -> Option<(Source, Result<Vec<u8>, String>)> {
+	match source {
+		ModelSource::File(path) => {
+			let stem = path.file_stem()?.to_string_lossy();
+			let found = vfs::resolve_ci(path.parent()?, &format!("{stem}.{extension}"))?;
+			let data = vfs::read_file(&found, MAX_FILE);
+			let source = Source {
+				mount: path.parent()?.to_path_buf(),
+				kind: MountKind::Folder,
+				path: found.file_name()?.to_string_lossy().into_owned(),
+				size: data.as_ref().map_or(0, |d| d.len() as u64),
+			};
+			Some((source, data))
+		}
+		ModelSource::Game(path) => {
+			let path = normalize(path);
+			let stem = path.strip_suffix(".mdl")?;
+			vfs?.read(&format!("{stem}.{extension}"), MAX_FILE)
+		}
+	}
+}
+
+/// The engine reads .dx90.vtx; old tools wrote the others.
+pub(crate) const VTX_EXTENSIONS: [&str; 4] = ["dx90.vtx", "vtx", "dx80.vtx", "sw.vtx"];
+
+pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
+	let (file, data) = read_model(Some(vfs), source)?;
+	let game_path = match source {
+		ModelSource::File(path) => game_path_of(path),
+		ModelSource::Game(path) => Some(normalize(path)),
 	};
 	let model = mdl::parse(&data).map_err(|e| e.to_string())?;
 
@@ -143,7 +184,7 @@ pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
 		ModelSource::Game(_) => None,
 	};
 
-	let companions = companions(vfs, source, game_path.as_deref(), &file, &model);
+	let companions = companions(vfs, source, &model);
 	let materials = model
 		.materials
 		.iter()
@@ -191,34 +232,8 @@ fn same_file(a: &Path, b: &Path) -> bool {
 	}
 }
 
-fn companions(
-	vfs: &Vfs,
-	source: &ModelSource,
-	game_path: Option<&str>,
-	file: &Source,
-	model: &Model,
-) -> Vec<Companion> {
-	let read = |extension: &str| -> Option<(Source, Result<Vec<u8>, String>)> {
-		match source {
-			ModelSource::File(path) => {
-				let stem = path.file_stem()?.to_string_lossy();
-				let name = format!("{stem}.{extension}");
-				let found = vfs::resolve_ci(path.parent()?, &name)?;
-				let data = vfs::read_file(&found, MAX_FILE);
-				let source = Source {
-					mount: file.mount.clone(),
-					kind: MountKind::Folder,
-					path: found.file_name()?.to_string_lossy().into_owned(),
-					size: data.as_ref().map_or(0, |d| d.len() as u64),
-				};
-				Some((source, data))
-			}
-			ModelSource::Game(_) => {
-				let stem = game_path?.strip_suffix(".mdl")?;
-				vfs.read(&format!("{stem}.{extension}"), MAX_FILE)
-			}
-		}
-	};
+fn companions(vfs: &Vfs, source: &ModelSource, model: &Model) -> Vec<Companion> {
+	let read = |extension: &str| read_companion(Some(vfs), source, extension);
 	let check = |extension: &'static str, required: bool| {
 		let state = match read(extension) {
 			None => CompanionState::Missing,
@@ -239,8 +254,7 @@ fn companions(
 
 	let geometry = model.has_geometry();
 	let mut out = vec![check("vvd", geometry)];
-	// The engine reads .dx90.vtx; old tools wrote the others.
-	let vtx = ["dx90.vtx", "vtx", "dx80.vtx", "sw.vtx"]
+	let vtx = VTX_EXTENSIONS
 		.into_iter()
 		.map(|ext| check(ext, geometry))
 		.find(|c| !matches!(c.state, CompanionState::Missing))

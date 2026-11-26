@@ -9,6 +9,7 @@ use rust_i18n::t;
 use super::Context;
 use super::messages::{Event, RequestId, TEXTURE_PREVIEW_SIDE};
 use super::task::{TaskKind, TaskState};
+use crate::decompile;
 use crate::games::Target;
 use crate::inspect::{self, ModelSource};
 use crate::package::Package;
@@ -147,6 +148,47 @@ pub(super) fn inspect_model(
 			.expect("building is only stopped by the callback");
 		let result = inspect::inspect(&vfs, &source).map(Arc::new);
 		sink.emit(Event::ModelInspected { request, result });
+	});
+}
+
+pub(super) fn decompile(
+	context: &Context,
+	target: Option<Target>,
+	source: ModelSource,
+	output_dir: PathBuf,
+) {
+	let name = match &source {
+		ModelSource::File(path) => path
+			.file_name()
+			.map(|n| n.to_string_lossy().into_owned())
+			.unwrap_or_default(),
+		ModelSource::Game(path) => path.rsplit(['/', '\\']).next().unwrap_or(path).to_owned(),
+	};
+	let task = context.tasks.start(
+		TaskKind::Decompile,
+		t!("task.decompile", name = name).into_owned(),
+	);
+	let games = context.games.clone();
+	tokio::task::spawn_blocking(move || {
+		let vfs = match (&source, &target) {
+			(ModelSource::Game(_), Some(target)) => {
+				task.line(t!("task.search_where"));
+				Vfs::build(vfs::mounts(&games, target), |_| ControlFlow::Continue(()))
+			}
+			_ => None,
+		};
+		match decompile::run(vfs.as_ref(), &source, &output_dir) {
+			Ok(files) => {
+				for file in &files {
+					task.line(file.display().to_string());
+				}
+				task.line(t!("task.decompiled", count = files.len()));
+				task.line(t!("task.decompile_note"));
+				task.add_output(output_dir);
+				task.finish(TaskState::Succeeded);
+			}
+			Err(e) => task.fail(e),
+		}
 	});
 }
 

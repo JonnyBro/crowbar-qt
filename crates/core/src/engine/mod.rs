@@ -262,6 +262,11 @@ async fn run(
 				target,
 				source,
 			} => packages::inspect_model(&context, request, target, source),
+			Command::Decompile {
+				target,
+				source,
+				output_dir,
+			} => packages::decompile(&context, target, source, output_dir),
 			Command::WorkshopList(target) => {
 				tokio::spawn(workshop::list(context.clone(), target));
 			}
