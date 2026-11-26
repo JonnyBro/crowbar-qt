@@ -641,6 +641,12 @@ fn qc(
 		q.push('\n');
 	}
 
+	for bone in &model.bones {
+		if let Some(j) = &bone.jiggle {
+			jiggle_bone(&mut q, &bone.name, j);
+		}
+	}
+
 	for folder in &model.material_folders {
 		let _ = writeln!(q, "$cdmaterials {}", quote(folder));
 	}
@@ -717,6 +723,109 @@ fn qc(
 
 	q.push_str(animation);
 	q
+}
+
+fn jiggle_bone(q: &mut String, bone: &str, j: &mdl::Jiggle) {
+	let deg = |r: f32| num(r.to_degrees());
+	let has = |flag: u32| j.flags & flag != 0;
+	let _ = writeln!(q, "$jigglebone {}\n{{", quote(bone));
+	for (flag, block) in [
+		(mdl::JIGGLE_FLEXIBLE, "is_flexible"),
+		(mdl::JIGGLE_RIGID, "is_rigid"),
+	] {
+		if !has(flag) {
+			continue;
+		}
+		let _ = writeln!(
+			q,
+			"\t{block}\n\t{{\n\t\tlength {}\n\t\ttip_mass {}",
+			num(j.length),
+			num(j.tip_mass)
+		);
+		if flag == mdl::JIGGLE_FLEXIBLE {
+			for (key, v) in [
+				("yaw_stiffness", j.yaw_stiffness),
+				("yaw_damping", j.yaw_damping),
+				("pitch_stiffness", j.pitch_stiffness),
+				("pitch_damping", j.pitch_damping),
+				("along_stiffness", j.along_stiffness),
+				("along_damping", j.along_damping),
+			] {
+				let _ = writeln!(q, "\t\t{key} {}", num(v));
+			}
+			if !has(mdl::JIGGLE_LENGTH_CONSTRAINT) {
+				q.push_str("\t\tallow_length_flex\n");
+			}
+		}
+		if has(mdl::JIGGLE_ANGLE_CONSTRAINT) {
+			let _ = writeln!(q, "\t\tangle_constraint {}", deg(j.angle_limit));
+		}
+		for (constraint, name, range, friction, bounce) in [
+			(
+				mdl::JIGGLE_YAW_CONSTRAINT,
+				"yaw",
+				j.yaw,
+				j.yaw_friction,
+				j.yaw_bounce,
+			),
+			(
+				mdl::JIGGLE_PITCH_CONSTRAINT,
+				"pitch",
+				j.pitch,
+				j.pitch_friction,
+				j.pitch_bounce,
+			),
+		] {
+			if has(constraint) {
+				let _ = writeln!(
+					q,
+					"\t\t{name}_constraint {} {}\n\t\t{name}_friction {}\n\t\t{name}_bounce {}",
+					deg(range[0]),
+					deg(range[1]),
+					num(friction),
+					num(bounce)
+				);
+			}
+		}
+		q.push_str("\t}\n");
+	}
+	if has(mdl::JIGGLE_BASE_SPRING) {
+		let _ = writeln!(
+			q,
+			"\thas_base_spring\n\t{{\n\t\tbase_mass {}\n\t\tstiffness {}\n\t\tdamping {}",
+			num(j.base_mass),
+			num(j.base_stiffness),
+			num(j.base_damping)
+		);
+		for (name, [min, max, friction]) in [
+			("left", j.base_left),
+			("up", j.base_up),
+			("forward", j.base_forward),
+		] {
+			let _ = writeln!(
+				q,
+				"\t\t{name}_constraint {} {}\n\t\t{name}_friction {}",
+				num(min),
+				num(max),
+				num(friction)
+			);
+		}
+		q.push_str("\t}\n");
+	}
+	if has(mdl::JIGGLE_BOING) {
+		let [speed, angle, damping, frequency, amplitude] = j.boing;
+		// studiomdl keeps the cosine of the angle.
+		let _ = writeln!(
+			q,
+			"\tis_boing\n\t{{\n\t\timpact_speed {}\n\t\timpact_angle {}\n\t\tdamping_rate {}\n\t\tfrequency {}\n\t\tamplitude {}\n\t}}",
+			num(speed),
+			num(angle.clamp(-1.0, 1.0).acos().to_degrees()),
+			num(damping),
+			num(frequency),
+			num(amplitude)
+		);
+	}
+	q.push_str("}\n");
 }
 
 /// Only the skin slots that differ between families, as studiomdl expects.

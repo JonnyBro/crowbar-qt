@@ -605,6 +605,12 @@ fn animations_and_sequences() {
 		\tactivity \"ACT_RUN\" 1\n\tloop\n\tfadeout 0.300000\n\t{ event 7 1 }\n}\n"
 	));
 	assert!(qc.contains("$ikchain \"foot\" \"child\" knee 0.700000 0.000000 0.000000\n"));
+	assert!(qc.contains(
+		"$jigglebone \"child\"\n{\n\tis_flexible\n\t{\n\t\tlength 10.000000\n\t\ttip_mass 1.000000\n\
+		\t\tyaw_stiffness 100.000000\n\t\tyaw_damping 2.000000\n\t\tpitch_stiffness 90.000000\n\
+		\t\tpitch_damping 3.000000\n\t\talong_stiffness 80.000000\n\t\talong_damping 4.000000\n\
+		\t\tangle_constraint 28.647890\n\t}\n}\n"
+	));
 	let smd = file(&files, "guy_anims/run.smd");
 	// Half of the movement is back on the root, then the root is turned for studiomdl.
 	assert!(smd.contains("time 1\n0 2.000000 -5.500000 3.000000 0.000000 0.000000 -1.570796\n"));

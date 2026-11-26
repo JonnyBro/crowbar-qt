@@ -54,10 +54,11 @@ const SEQUENCE: usize = 1300;
 const MOVEMENT: usize = 1700;
 const CHAIN: usize = 1760;
 const RULE: usize = 1840;
+const JIGGLE: usize = 2000;
 
 /// Two bones; the root moves along X over three frames, the child is raw data.
 pub(crate) fn sample() -> Vec<u8> {
-	let mut b = Builder::new(2000);
+	let mut b = Builder::new(2200);
 	b.i32(156, 2);
 	b.i32(160, BONES as i32);
 	for (i, name) in ["root", "child"].iter().enumerate() {
@@ -68,6 +69,18 @@ pub(crate) fn sample() -> Vec<u8> {
 		b.f32(at + 36, 2.0);
 		b.f32(at + 40, 3.0);
 		b.f32(at + 72, 0.5);
+	}
+
+	// The child jiggles: flexible, with angle and length constraints.
+	let child_bone = BONES + BONE_SIZE;
+	b.i32(child_bone + 164, 5);
+	b.i32(child_bone + 168, (JIGGLE - child_bone) as i32);
+	b.i32(JIGGLE, 0x31);
+	for (i, v) in [10.0, 1.0, 100.0, 2.0, 90.0, 3.0, 80.0, 4.0, 0.5]
+		.iter()
+		.enumerate()
+	{
+		b.f32(JIGGLE + 4 + i * 4, *v);
 	}
 
 	b.i32(180, 1);

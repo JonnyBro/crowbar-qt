@@ -85,6 +85,46 @@ pub struct Bone {
 	pub rotation: [f32; 3],
 	/// Model space to bone space in the bind pose.
 	pub pose_to_bone: [[f32; 4]; 3],
+	pub jiggle: Option<Jiggle>,
+}
+
+pub const JIGGLE_FLEXIBLE: u32 = 0x01;
+pub const JIGGLE_RIGID: u32 = 0x02;
+pub const JIGGLE_YAW_CONSTRAINT: u32 = 0x04;
+pub const JIGGLE_PITCH_CONSTRAINT: u32 = 0x08;
+pub const JIGGLE_ANGLE_CONSTRAINT: u32 = 0x10;
+pub const JIGGLE_LENGTH_CONSTRAINT: u32 = 0x20;
+pub const JIGGLE_BASE_SPRING: u32 = 0x40;
+pub const JIGGLE_BOING: u32 = 0x80;
+
+/// `$jigglebone`; angles in radians.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Jiggle {
+	pub flags: u32,
+	pub length: f32,
+	pub tip_mass: f32,
+	pub yaw_stiffness: f32,
+	pub yaw_damping: f32,
+	pub pitch_stiffness: f32,
+	pub pitch_damping: f32,
+	pub along_stiffness: f32,
+	pub along_damping: f32,
+	pub angle_limit: f32,
+	pub yaw: [f32; 2],
+	pub yaw_friction: f32,
+	pub yaw_bounce: f32,
+	pub pitch: [f32; 2],
+	pub pitch_friction: f32,
+	pub pitch_bounce: f32,
+	pub base_mass: f32,
+	pub base_stiffness: f32,
+	pub base_damping: f32,
+	/// Min, max and friction along left, up and forward.
+	pub base_left: [f32; 3],
+	pub base_up: [f32; 3],
+	pub base_forward: [f32; 3],
+	/// Impact speed, impact angle, damping rate, frequency, amplitude.
+	pub boing: [f32; 5],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -182,6 +222,7 @@ const HITBOX_SIZE: usize = 68;
 /// One `mstudiovertex_t` in the .vvd; submodels give their first vertex in bytes.
 const VVD_VERTEX_SIZE: i32 = 48;
 const POSE_PARAMETER_SIZE: usize = 20;
+const PROC_JIGGLE: i32 = 5;
 const INCLUDE_MODEL_SIZE: usize = 8;
 
 /// Tells an unsupported model from a broken one.
@@ -219,6 +260,13 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 			position: vec3(at + 32)?,
 			rotation: vec3(at + 60)?,
 			pose_to_bone: matrix(at + 96)?,
+			jiggle: match r.i32(at + 164)? {
+				// A broken one is left out rather than failing the whole model.
+				PROC_JIGGLE => at
+					.checked_add_signed(r.i32(at + 168)? as isize)
+					.and_then(|j| jiggle(r, j).ok()),
+				_ => None,
+			},
 		})
 	})?;
 	let sequences = r.table(188, SEQUENCE_SIZE, |at| {
@@ -345,6 +393,41 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 		body_parts,
 		include_models,
 		anim_blocks: r.count(352)?,
+	})
+}
+
+fn jiggle(r: Reader, at: usize) -> Result<Jiggle> {
+	let f = |i: usize| r.f32(at + 4 + i * 4);
+	let flags = r.i32(at)? as u32;
+	Ok(Jiggle {
+		flags,
+		length: f(0)?,
+		tip_mass: f(1)?,
+		yaw_stiffness: f(2)?,
+		yaw_damping: f(3)?,
+		pitch_stiffness: f(4)?,
+		pitch_damping: f(5)?,
+		along_stiffness: f(6)?,
+		along_damping: f(7)?,
+		angle_limit: f(8)?,
+		yaw: [f(9)?, f(10)?],
+		yaw_friction: f(11)?,
+		yaw_bounce: f(12)?,
+		pitch: [f(13)?, f(14)?],
+		pitch_friction: f(15)?,
+		pitch_bounce: f(16)?,
+		base_mass: f(17)?,
+		base_stiffness: f(18)?,
+		base_damping: f(19)?,
+		base_left: [f(20)?, f(21)?, f(22)?],
+		base_up: [f(23)?, f(24)?, f(25)?],
+		base_forward: [f(26)?, f(27)?, f(28)?],
+		// Older files end before these.
+		boing: if flags & JIGGLE_BOING != 0 {
+			[f(29)?, f(30)?, f(31)?, f(32)?, f(33)?]
+		} else {
+			[0.0; 5]
+		},
 	})
 }
 
