@@ -61,7 +61,14 @@ fn static_prop_reference_mesh() {
 			vertex([0.0, 0.0, 3.0], [0.5, 1.0]),
 		],
 	};
-	let files = decompile(&model, &vvd, &vtx_of(9, &[&[vec![[0, 1, 2]]]]), "crate").unwrap();
+	let files = decompile(
+		&model,
+		&vvd,
+		&vtx_of(9, &[&[vec![[0, 1, 2]]]]),
+		None,
+		"crate",
+	)
+	.unwrap();
 	let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
 	assert_eq!(paths, ["crate_ref.smd", "crate_anims/idle.smd", "crate.qc"]);
 
@@ -111,6 +118,7 @@ fn bodygroups_skins_bones_and_includes() {
 		&model,
 		&vvd,
 		&vtx_of(1, &[std::slice::from_ref(&tri), &[tri.clone(), vec![]]]),
+		None,
 		"guy",
 	)
 	.unwrap();
@@ -143,7 +151,7 @@ fn other_builds_are_refused() {
 		checksum: 2,
 		vertices: Vec::new(),
 	};
-	assert!(decompile(&model, &vvd, &vtx_of(1, &[]), "x").is_err());
+	assert!(decompile(&model, &vvd, &vtx_of(1, &[]), None, "x").is_err());
 }
 
 #[test]
@@ -345,4 +353,141 @@ fn run_reads_the_files_beside_the_model() {
 	assert!(run(None, &source, &out).unwrap_err().contains(".vvd"));
 	let game = ModelSource::Game("models/thing.mdl".into());
 	assert!(run(None, &game, &out).is_err());
+}
+
+/// One solid: a tetrahedron as ledge 0 (bone `client - 1`), a parent hull
+/// ledge to skip, then the shared point pool, then `text`.
+fn phy_file(checksum: i32, client: i32, text: &str) -> Vec<u8> {
+	let mut s = Vec::new();
+	let i32s = |d: &mut Vec<u8>, vs: &[i32]| {
+		for v in vs {
+			d.extend_from_slice(&v.to_le_bytes());
+		}
+	};
+	// Surface header: the ledge tree root is past both ledges and the points.
+	let ledge0 = 48;
+	let tris = [[0u16, 1, 2], [0, 2, 3], [0, 3, 1], [1, 3, 2]];
+	let ledge1 = ledge0 + 16 + tris.len() * 16;
+	let pool = ledge1 + 16 + 16;
+	let root = pool + 4 * 16;
+	s.extend_from_slice(&[0; 32]);
+	i32s(&mut s, &[root as i32, 0, 0]);
+	s.extend_from_slice(b"IVPS");
+	for (at, children, client, count) in [(ledge0, 0, client, tris.len()), (ledge1, 1, 0, 1)] {
+		i32s(
+			&mut s,
+			&[(pool - at) as i32, client, children | 4 | (8 << 8)],
+		);
+		s.extend_from_slice(&(count as u16).to_le_bytes());
+		s.extend_from_slice(&[0, 0]);
+		let list: &[[u16; 3]] = if children == 0 { &tris } else { &[[0, 1, 2]] };
+		for t in list {
+			s.extend_from_slice(&[0; 4]);
+			for i in t {
+				s.extend_from_slice(&i.to_le_bytes());
+				s.extend_from_slice(&[0, 0]);
+			}
+		}
+	}
+	for p in [
+		[0.0f32, 0.0, 0.0],
+		[0.0254, 0.0, 0.0],
+		[0.0, 0.0254, 0.0],
+		[0.0, 0.0, 0.0254],
+	] {
+		for v in p {
+			s.extend_from_slice(&v.to_le_bytes());
+		}
+		s.extend_from_slice(&[0; 4]);
+	}
+	let mut solid = b"VPHY".to_vec();
+	solid.extend_from_slice(&[0; 24]);
+	solid.extend_from_slice(&s);
+
+	let mut d = Vec::new();
+	i32s(&mut d, &[16, 0, 1, checksum, solid.len() as i32]);
+	d.extend_from_slice(&solid);
+	d.extend_from_slice(text.as_bytes());
+	d.push(0);
+	d
+}
+
+#[test]
+fn phy_reads_ledges_and_text() {
+	let phy = mdl::phy::parse(&phy_file(5, 3, "solid {\n\"index\" \"0\"\n}\n")).unwrap();
+	assert_eq!(phy.checksum, 5);
+	assert_eq!(phy.solids.len(), 1);
+	// The parent hull is left out.
+	assert_eq!(phy.solids[0].pieces.len(), 1);
+	let piece = &phy.solids[0].pieces[0];
+	assert_eq!(piece.bone, 2);
+	assert_eq!(piece.triangles.len(), 4);
+	// Meters to inches, IVP's Y and Z swapped back.
+	let round = |p: [f32; 3]| p.map(|v| (v * 1000.0).round() / 1000.0);
+	assert_eq!(round(piece.points[1]), [1.0, 0.0, 0.0]);
+	assert_eq!(round(piece.points[2]), [0.0, 0.0, -1.0]);
+	assert_eq!(round(piece.points[3]), [0.0, 1.0, 0.0]);
+	assert_eq!(phy.text, "solid {\n\"index\" \"0\"\n}\n");
+	assert!(mdl::phy::parse(&phy_file(5, 0, "")[..60]).is_err());
+}
+
+#[test]
+fn collision_model_for_a_static_prop() {
+	let model = mdl::parse(&build(&Spec {
+		checksum: 5,
+		flags: mdl::FLAG_STATIC_PROP,
+		bones: &["static_prop"],
+		..Spec::default()
+	}))
+	.unwrap();
+	let text = "solid {\n\"index\" \"0\"\n\"name\" \"box\"\n\"mass\" \"30.0\"\n\"inertia\" \"1.0\"\n\"damping\" \"0.0\"\n\"rotdamping\" \"0.0\"\n}\n\
+		editparams {\n\"rootname\" \" \"\n\"totalmass\" \"30.0\"\n\"concave\" \"1\"\n}\n\
+		break {\"model\" \"gib1\" \"fadetime\" \"20\" }\n";
+	let phy = mdl::phy::parse(&phy_file(5, 0, text)).unwrap();
+	let (smd, q) = physics::physics(&model, &phy, "box");
+	assert_eq!(smd.path, "box_physics.smd");
+	assert_eq!(
+		q,
+		"$collisionmodel \"box_physics.smd\"\n{\n\t$mass 30.0\n\t$inertia 1.0\n\t$damping 0.0\n\t$rotdamping 0.0\n\t$concave\n\t$maxconvexpieces 1\n}\n\
+		$collisiontext\n{\n\t\"break\"\n\t{\n\t\t\"model\" \"gib1\"\n\t\t\"fadetime\" \"20\"\n\t}\n}\n"
+	);
+	// Turned back by 90° like the rest of a static prop; one normal per point.
+	assert!(smd.text.contains("\n0 0.000000 -1.000000 0.000000 "));
+	let lines: Vec<&str> = smd
+		.text
+		.lines()
+		.filter(|l| l.starts_with("0 1.000000 0.000000 0.000000"))
+		.collect();
+	assert!(lines.len() > 1 && lines.iter().all(|l| *l == lines[0]));
+}
+
+#[test]
+fn collision_joints_for_a_ragdoll() {
+	let model = mdl::parse(&build(&Spec {
+		checksum: 5,
+		bones: &["pelvis", "thigh"],
+		..Spec::default()
+	}))
+	.unwrap();
+	let text = "solid {\n\"index\" \"0\"\n\"name\" \"pelvis\"\n\"mass\" \"10\"\n\"volume\" \"100\"\n\"inertia\" \"2\"\n}\n\
+		solid {\n\"index\" \"1\"\n\"name\" \"thigh\"\n\"mass\" \"30\"\n\"volume\" \"100\"\n\"inertia\" \"5\"\n}\n\
+		ragdollconstraint {\n\"parent\" \"0\"\n\"child\" \"1\"\n\"xmin\" \"-10\"\n\"xmax\" \"20\"\n\"xfriction\" \"0.2\"\n}\n\
+		collisionrules {\n\"collisionpair\" \"0,1\"\n\"collisionpair\" \"1,0\"\n}\n\
+		animatedfriction {\n\"animfrictionmin\" \"1\"\n\"animfrictionmax\" \"2\"\n\"animfrictiontimein\" \"3\"\n\"animfrictiontimeout\" \"4\"\n\"animfrictiontimehold\" \"5\"\n}\n\
+		editparams {\n\"rootname\" \"pelvis\"\n\"totalmass\" \"40\"\n}\n";
+	let mut phy = mdl::phy::parse(&phy_file(5, 2, text)).unwrap();
+	phy.solids.push(phy.solids[0].clone());
+	let (_, q) = physics::physics(&model, &phy, "guy");
+	assert!(q.starts_with("$collisionjoints \"guy_physics.smd\"\n{\n\t$mass 40\n"));
+	assert!(q.contains("\t$rootbone \"pelvis\"\n"));
+	assert!(
+		q.contains("\t$jointmassbias \"pelvis\" 0.500000\n\t$jointmassbias \"thigh\" 1.500000\n")
+	);
+	assert!(q.contains("\t$jointinertia \"thigh\" 5\n"));
+	// Friction is stored a fifth of what the QC says.
+	assert!(q.contains("\t$jointconstrain \"thigh\" x limit -10 20 1.000000\n"));
+	assert!(
+		q.contains("\t$jointcollide \"thigh\" \"pelvis\"\n\t$jointcollide \"pelvis\" \"thigh\"\n")
+	);
+	assert!(q.contains("\t$animatedfriction 1 2 3 5 4\n"));
 }

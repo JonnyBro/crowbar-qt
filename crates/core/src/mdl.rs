@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+pub mod phy;
 pub mod vtx;
 pub mod vvd;
 
@@ -77,6 +78,8 @@ pub struct Bone {
 	pub position: [f32; 3],
 	/// Radians.
 	pub rotation: [f32; 3],
+	/// Model space to bone space in the bind pose.
+	pub pose_to_bone: [[f32; 4]; 3],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -194,6 +197,15 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 		return Err(Error::Truncated);
 	}
 	let vec3 = |at: usize| -> Result<[f32; 3]> { Ok([r.f32(at)?, r.f32(at + 4)?, r.f32(at + 8)?]) };
+	let matrix = |at: usize| -> Result<[[f32; 4]; 3]> {
+		let mut m = [[0.0; 4]; 3];
+		for (row, cells) in m.iter_mut().enumerate() {
+			for (col, cell) in cells.iter_mut().enumerate() {
+				*cell = r.f32(at + (row * 4 + col) * 4)?;
+			}
+		}
+		Ok(m)
+	};
 
 	let bones = r.table(156, BONE_SIZE, |at| {
 		Ok(Bone {
@@ -201,6 +213,7 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 			parent: r.i32(at + 4)?,
 			position: vec3(at + 32)?,
 			rotation: vec3(at + 60)?,
+			pose_to_bone: matrix(at + 96)?,
 		})
 	})?;
 	let sequences = r.table(188, SEQUENCE_SIZE, |at| {
@@ -257,16 +270,10 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 	})?;
 
 	let attachments = r.table(240, ATTACHMENT_SIZE, |at| {
-		let mut matrix = [[0.0; 4]; 3];
-		for (row, cells) in matrix.iter_mut().enumerate() {
-			for (col, cell) in cells.iter_mut().enumerate() {
-				*cell = r.f32(at + 12 + (row * 4 + col) * 4)?;
-			}
-		}
 		Ok(Attachment {
 			name: r.name_at(at, at)?,
 			bone: r.i32(at + 8)?,
-			matrix,
+			matrix: matrix(at + 12)?,
 		})
 	})?;
 	let hitbox_sets = r.table(172, HITBOX_SET_SIZE, |set| {

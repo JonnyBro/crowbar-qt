@@ -198,8 +198,8 @@ task.decompiled:
   en: "Wrote %{count} file(s)."
   ru: "Записано файлов: %{count}."
 task.decompile_note:
-  en: "Meshes, skeleton, materials, skins, bodygroups, attachments and hitboxes are decompiled; animations, collision, LODs and flexes are not yet."
-  ru: "Восстановлены сетки, скелет, материалы, скины, bodygroups, точки крепления и хитбоксы. Анимации, коллизия, LOD и флексы пока нет."
+  en: "Meshes, skeleton, materials, skins, bodygroups, attachments, hitboxes and collision are decompiled; animations, LODs and flexes are not yet."
+  ru: "Восстановлены сетки, скелет, материалы, скины, bodygroups, точки крепления, хитбоксы и коллизия. Анимации, LOD и флексы пока нет."
 task.unpack:
   en: "Unpack %{name}"
   ru: "Распаковка %{name}"

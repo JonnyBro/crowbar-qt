@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use crate::inspect::{ModelSource, VTX_EXTENSIONS, read_companion, read_model};
 use crate::vfs::Vfs;
 
+use crate::mdl::phy::Phy;
 use crate::mdl::vtx::Vtx;
 use crate::mdl::vvd::{Vertex, Vvd};
 use crate::mdl::{self, Bone, Model};
@@ -64,7 +65,11 @@ pub fn run(
 		.file_stem()
 		.map(|s| smd_name(&s.to_string_lossy(), "model"))
 		.unwrap_or_else(|| "model".into());
-	let files = decompile(&model, &vvd, &vtx, &stem)?;
+	// Collision is optional; a .phy that can't be read is left out like a missing one.
+	let phy = read_companion(vfs, source, "phy")
+		.and_then(|(_, data)| data.ok())
+		.and_then(|data| mdl::phy::parse(&data).ok());
+	let files = decompile(&model, &vvd, &vtx, phy.as_ref(), &stem)?;
 	let mut written = Vec::with_capacity(files.len());
 	for f in files {
 		let path = output_dir.join(&f.path);
@@ -77,7 +82,13 @@ pub fn run(
 	Ok(written)
 }
 
-pub fn decompile(model: &Model, vvd: &Vvd, vtx: &Vtx, stem: &str) -> Result<Vec<File>, String> {
+pub fn decompile(
+	model: &Model,
+	vvd: &Vvd,
+	vtx: &Vtx,
+	phy: Option<&Phy>,
+	stem: &str,
+) -> Result<Vec<File>, String> {
 	if vvd.checksum != model.checksum || vtx.checksum != model.checksum {
 		return Err("the .vvd or .vtx belongs to another build of the model".into());
 	}
@@ -113,9 +124,20 @@ pub fn decompile(model: &Model, vvd: &Vvd, vtx: &Vtx, stem: &str) -> Result<Vec<
 		path: idle.clone(),
 		text: idle_smd(model),
 	});
+	let collision = match phy {
+		Some(phy) if phy.checksum != model.checksum => {
+			"// The .phy belongs to another build of the model; collision is left out.\n".into()
+		}
+		Some(phy) if !phy.solids.is_empty() => {
+			let (smd, block) = physics::physics(model, phy, stem);
+			files.push(smd);
+			block
+		}
+		_ => String::new(),
+	};
 	files.push(File {
 		path: format!("{stem}.qc"),
-		text: qc(model, &body_parts, &idle),
+		text: qc(model, &body_parts, &idle, &collision),
 	});
 	Ok(files)
 }
@@ -250,7 +272,12 @@ fn idle_smd(model: &Model) -> String {
 	out
 }
 
-fn qc(model: &Model, body_parts: &[(String, Vec<Option<String>>)], idle: &str) -> String {
+fn qc(
+	model: &Model,
+	body_parts: &[(String, Vec<Option<String>>)],
+	idle: &str,
+	collision: &str,
+) -> String {
 	let mut q = String::new();
 	let flags = model.flags;
 	let _ = writeln!(q, "$modelname {}", quote(&model.name));
@@ -420,6 +447,10 @@ fn qc(model: &Model, body_parts: &[(String, Vec<Option<String>>)], idle: &str) -
 	}
 	q.push('\n');
 
+	if !collision.is_empty() {
+		let _ = writeln!(q, "{collision}");
+	}
+
 	let sequence = model.sequences.first().map_or("idle", |s| s.name.as_str());
 	let _ = writeln!(q, "$sequence {} {}", quote(sequence), quote(idle));
 	if model.sequences.len() > 1 {
@@ -507,6 +538,8 @@ fn matrix_angles(m: [[f32; 4]; 3]) -> [f32; 3] {
 	};
 	[pitch.to_degrees(), yaw.to_degrees(), roll.to_degrees()]
 }
+
+mod physics;
 
 #[cfg(test)]
 mod tests;
