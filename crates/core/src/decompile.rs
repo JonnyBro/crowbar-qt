@@ -754,6 +754,9 @@ fn bone_options(q: &mut String, model: &Model) {
 		if !saved.is_empty() {
 			let _ = writeln!(q, "$bonesaveframe {name}{saved}");
 		}
+		if bone.flags & mdl::BONE_FIXED_ALIGNMENT != 0 {
+			let _ = writeln!(q, "$limitrotation {name}");
+		}
 		if bone.flags & mdl::BONE_SCREEN_ALIGN_SPHERE != 0 {
 			let _ = writeln!(q, "$screenalign {name} \"sphere\"");
 		} else if bone.flags & mdl::BONE_SCREEN_ALIGN_CYLINDER != 0 {

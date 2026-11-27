@@ -789,7 +789,7 @@ fn bone_and_attachment_options() {
 	model.surface_prop = "flesh".into();
 	model.bones[0].surface_prop = "flesh".into();
 	model.bones[1].surface_prop = "metal".into();
-	model.bones[0].flags = mdl::BONE_SCREEN_ALIGN_CYLINDER;
+	model.bones[0].flags = mdl::BONE_SCREEN_ALIGN_CYLINDER | mdl::BONE_FIXED_ALIGNMENT;
 	model.attachments.push(mdl::Attachment {
 		name: "light".into(),
 		bone: 0,
@@ -810,7 +810,7 @@ fn bone_and_attachment_options() {
 	let files = decompile(&model, &input, "guy").unwrap();
 	let qc = file(&files, "guy.qc");
 	assert!(qc.contains(
-		"$screenalign \"root\" \"cylinder\"\n$bonemerge \"child\"\n\
+		"$limitrotation \"root\"\n$screenalign \"root\" \"cylinder\"\n$bonemerge \"child\"\n\
 		$bonesaveframe \"child\" position rotation\n$jointsurfaceprop \"child\" \"metal\"\n"
 	));
 	assert!(qc.contains("rotate 0.000000 0.000000 0.000000 world_align\n"));
