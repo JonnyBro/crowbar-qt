@@ -148,6 +148,8 @@ pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, 
 		}
 		_ => String::new(),
 	};
+	let (vrd, procedural) = procedural::procedural_bones(model, stem);
+	files.extend(vrd);
 	files.push(File {
 		path: format!("{stem}.qc"),
 		text: qc(
@@ -155,6 +157,7 @@ pub fn decompile(model: &Model, input: &Input, stem: &str) -> Result<Vec<File>, 
 			&body_parts,
 			&flex_blocks,
 			&lods,
+			&procedural,
 			&animation,
 			&collision,
 		),
@@ -527,6 +530,7 @@ fn qc(
 	body_parts: &[(String, Vec<Option<String>>)],
 	flex_blocks: &HashMap<usize, String>,
 	lods: &str,
+	procedural: &str,
 	animation: &str,
 	collision: &str,
 ) -> String {
@@ -641,6 +645,7 @@ fn qc(
 		q.push('\n');
 	}
 
+	q.push_str(procedural);
 	for bone in &model.bones {
 		if let Some(j) = &bone.jiggle {
 			jiggle_bone(&mut q, &bone.name, j);
@@ -907,6 +912,7 @@ fn matrix_angles(m: [[f32; 4]; 3]) -> [f32; 3] {
 mod animation;
 mod flex;
 mod physics;
+mod procedural;
 
 #[cfg(test)]
 mod tests;

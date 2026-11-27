@@ -692,3 +692,42 @@ fn smooth_step_inverse() {
 		assert!((3.0 * t * t - 2.0 * t * t * t - y).abs() < 1e-5);
 	}
 }
+
+#[test]
+fn vrd_uses_names_after_the_dot() {
+	use crate::mdl::{Procedural, Trigger};
+	let data = build(&Spec {
+		bones: &["ValveBiped.root", "ValveBiped.arm", "ValveBiped.helper"],
+		attachments: &["aim"],
+		..Spec::default()
+	});
+	let mut model = mdl::parse(&data).unwrap();
+	model.bones[2].procedural = Some(Procedural::Quaternion {
+		control: 1,
+		triggers: vec![Trigger {
+			tolerance: std::f32::consts::FRAC_PI_2,
+			trigger: [0.0, 0.0, 0.0, 1.0],
+			position: [1.0, 0.0, 0.0],
+			rotation: [0.0, 0.0, 0.0, 1.0],
+		}],
+	});
+	model.bones[1].procedural = Some(Procedural::AimAt {
+		parent: 0,
+		aim: 0,
+		at_attachment: true,
+		aim_vector: [0.0, 1.0, 0.0],
+		up_vector: [1.0, 0.0, 0.0],
+		base: [0.0; 3],
+	});
+	let (vrd, q) = procedural::procedural_bones(&model, "guy");
+	let vrd = vrd.unwrap();
+	assert_eq!(q, "$proceduralbones \"guy.vrd\"\n");
+	assert!(
+		vrd.text
+			.contains("<aimconstraint> arm root aim\n<aimvector> 0.000000 1.000000 0.000000\n")
+	);
+	assert!(vrd.text.contains(
+		"<helper> helper arm root arm\n<basepos> 0 0 0\n\
+		<trigger> 90.000000 0.000000 0.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000\n"
+	));
+}

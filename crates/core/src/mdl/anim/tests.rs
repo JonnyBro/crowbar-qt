@@ -275,3 +275,34 @@ fn quaternion_to_roll_pitch_yaw() {
 	let [roll, _, _] = quaternion_angles([half_turn, 0.0, 0.0, half_turn]);
 	assert!((roll - std::f32::consts::FRAC_PI_2).abs() < 1e-6);
 }
+
+#[test]
+fn quaternion_procedural_bone() {
+	let mut data = sample();
+	let child = BONES + BONE_SIZE;
+	let at = 2120;
+	let put = |data: &mut Vec<u8>, o: usize, v: [u8; 4]| data[o..o + 4].copy_from_slice(&v);
+	put(&mut data, child + 164, 2i32.to_le_bytes());
+	put(&mut data, child + 168, ((at - child) as i32).to_le_bytes());
+	put(&mut data, at, 0i32.to_le_bytes());
+	put(&mut data, at + 4, 1i32.to_le_bytes());
+	put(&mut data, at + 8, 12i32.to_le_bytes());
+	for (i, v) in [
+		2.0f32, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0,
+	]
+	.iter()
+	.enumerate()
+	{
+		put(&mut data, at + 12 + i * 4, v.to_le_bytes());
+	}
+	let model = crate::mdl::parse(&data).unwrap();
+	assert_eq!(model.bones[1].jiggle, None);
+	let Some(crate::mdl::Procedural::Quaternion { control, triggers }) = &model.bones[1].procedural
+	else {
+		panic!("no quaternion bone");
+	};
+	assert_eq!(*control, 0);
+	assert_eq!(triggers[0].tolerance, 0.5);
+	assert_eq!(triggers[0].position, [1.0, 2.0, 3.0]);
+	assert_eq!(triggers[0].rotation, [0.0, 0.0, 0.0, 1.0]);
+}

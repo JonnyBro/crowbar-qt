@@ -86,6 +86,42 @@ pub struct Bone {
 	/// Model space to bone space in the bind pose.
 	pub pose_to_bone: [[f32; 4]; 3],
 	pub jiggle: Option<Jiggle>,
+	/// A helper bone driven by others, from `$proceduralbones`.
+	pub procedural: Option<Procedural>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Procedural {
+	/// Moves to the poses of whichever triggers the control bone's rotation is near.
+	Quaternion {
+		control: i32,
+		triggers: Vec<Trigger>,
+	},
+	/// Six poses, one per direction the control bone's axis can point.
+	Axis {
+		control: i32,
+		axis: i32,
+		positions: [[f32; 3]; 6],
+		rotations: [[f32; 4]; 6],
+	},
+	/// Points at another bone, or at an attachment when `at_attachment`.
+	AimAt {
+		parent: i32,
+		aim: i32,
+		at_attachment: bool,
+		aim_vector: [f32; 3],
+		up_vector: [f32; 3],
+		base: [f32; 3],
+	},
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Trigger {
+	/// Radians.
+	pub tolerance: f32,
+	pub trigger: [f32; 4],
+	pub position: [f32; 3],
+	pub rotation: [f32; 4],
 }
 
 pub const JIGGLE_FLEXIBLE: u32 = 0x01;
@@ -222,7 +258,12 @@ const HITBOX_SIZE: usize = 68;
 /// One `mstudiovertex_t` in the .vvd; submodels give their first vertex in bytes.
 const VVD_VERTEX_SIZE: i32 = 48;
 const POSE_PARAMETER_SIZE: usize = 20;
+const PROC_AXIS: i32 = 1;
+const PROC_QUATERNION: i32 = 2;
+const PROC_AIM_AT_BONE: i32 = 3;
+const PROC_AIM_AT_ATTACHMENT: i32 = 4;
 const PROC_JIGGLE: i32 = 5;
+const TRIGGER_SIZE: usize = 48;
 const INCLUDE_MODEL_SIZE: usize = 8;
 
 /// Tells an unsupported model from a broken one.
@@ -254,19 +295,19 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 	};
 
 	let bones = r.table(156, BONE_SIZE, |at| {
+		let kind = r.i32(at + 164)?;
+		// A broken one is left out rather than failing the whole model.
+		let data = at.checked_add_signed(r.i32(at + 168)? as isize);
 		Ok(Bone {
 			name: r.name_at(at, at)?,
 			parent: r.i32(at + 4)?,
 			position: vec3(at + 32)?,
 			rotation: vec3(at + 60)?,
 			pose_to_bone: matrix(at + 96)?,
-			jiggle: match r.i32(at + 164)? {
-				// A broken one is left out rather than failing the whole model.
-				PROC_JIGGLE => at
-					.checked_add_signed(r.i32(at + 168)? as isize)
-					.and_then(|j| jiggle(r, j).ok()),
-				_ => None,
-			},
+			jiggle: data
+				.filter(|_| kind == PROC_JIGGLE)
+				.and_then(|j| jiggle(r, j).ok()),
+			procedural: data.and_then(|p| procedural(r, kind, p).ok()).flatten(),
 		})
 	})?;
 	let sequences = r.table(188, SEQUENCE_SIZE, |at| {
@@ -394,6 +435,57 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 		include_models,
 		anim_blocks: r.count(352)?,
 	})
+}
+
+fn procedural(r: Reader, kind: i32, at: usize) -> Result<Option<Procedural>> {
+	let vec3 = |at: usize| -> Result<[f32; 3]> { Ok([r.f32(at)?, r.f32(at + 4)?, r.f32(at + 8)?]) };
+	let quat = |at: usize| -> Result<[f32; 4]> {
+		Ok([r.f32(at)?, r.f32(at + 4)?, r.f32(at + 8)?, r.f32(at + 12)?])
+	};
+	Ok(Some(match kind {
+		PROC_QUATERNION => {
+			let count = r.count(at + 4)?;
+			let start = at + r.offset(at + 8)?;
+			let triggers = (0..count)
+				.map(|i| {
+					let t = start + i * TRIGGER_SIZE;
+					let inverse = r.f32(t)?;
+					Ok(Trigger {
+						tolerance: if inverse != 0.0 { 1.0 / inverse } else { 0.0 },
+						trigger: quat(t + 4)?,
+						position: vec3(t + 20)?,
+						rotation: quat(t + 32)?,
+					})
+				})
+				.collect::<Result<_>>()?;
+			Procedural::Quaternion {
+				control: r.i32(at)?,
+				triggers,
+			}
+		}
+		PROC_AXIS => {
+			let (mut positions, mut rotations) = ([[0.0; 3]; 6], [[0.0; 4]; 6]);
+			for i in 0..6 {
+				positions[i] = vec3(at + 8 + i * 12)?;
+				rotations[i] = quat(at + 80 + i * 16)?;
+			}
+			Procedural::Axis {
+				control: r.i32(at)?,
+				axis: r.i32(at + 4)?,
+				positions,
+				rotations,
+			}
+		}
+		PROC_AIM_AT_BONE | PROC_AIM_AT_ATTACHMENT => Procedural::AimAt {
+			parent: r.i32(at)?,
+			aim: r.i32(at + 4)?,
+			at_attachment: kind == PROC_AIM_AT_ATTACHMENT,
+			aim_vector: vec3(at + 8)?,
+			up_vector: vec3(at + 20)?,
+			base: vec3(at + 32)?,
+		},
+		_ => return Ok(None),
+	}))
 }
 
 fn jiggle(r: Reader, at: usize) -> Result<Jiggle> {
