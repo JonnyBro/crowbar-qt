@@ -27,6 +27,8 @@ rustPlatform.buildRustPackage {
 
   dontUseCmakeConfigure = true;
 
+  dontCargoUseSystemLibs = true;
+
   doCheck = false;
 
   postInstall = ''
