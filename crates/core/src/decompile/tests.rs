@@ -778,3 +778,40 @@ fn vrd_uses_names_after_the_dot() {
 		<trigger> 90.000000 0.000000 0.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000\n"
 	));
 }
+
+#[test]
+fn bone_and_attachment_options() {
+	let mut data = crate::mdl::anim::tests::sample();
+	let flags = 408 + 216 + 160;
+	data[flags..flags + 4].copy_from_slice(&0x640000u32.to_le_bytes());
+	let mut model = mdl::parse(&data).unwrap();
+	assert_eq!(model.bones[1].flags, 0x640000);
+	model.surface_prop = "flesh".into();
+	model.bones[0].surface_prop = "flesh".into();
+	model.bones[1].surface_prop = "metal".into();
+	model.bones[0].flags = mdl::BONE_SCREEN_ALIGN_CYLINDER;
+	model.attachments.push(mdl::Attachment {
+		name: "light".into(),
+		bone: 0,
+		flags: mdl::ATTACHMENT_WORLD_ALIGN,
+		matrix: [
+			[1.0, 0.0, 0.0, 0.0],
+			[0.0, 1.0, 0.0, 0.0],
+			[0.0, 0.0, 1.0, 0.0],
+		],
+	});
+	let input = Input {
+		mdl: &data,
+		ani: None,
+		vvd: None,
+		vtx: None,
+		phy: None,
+	};
+	let files = decompile(&model, &input, "guy").unwrap();
+	let qc = file(&files, "guy.qc");
+	assert!(qc.contains(
+		"$screenalign \"root\" \"cylinder\"\n$bonemerge \"child\"\n\
+		$bonesaveframe \"child\" position rotation\n$jointsurfaceprop \"child\" \"metal\"\n"
+	));
+	assert!(qc.contains("rotate 0.000000 0.000000 0.000000 world_align\n"));
+}

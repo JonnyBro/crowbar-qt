@@ -579,21 +579,7 @@ fn qc(
 		let _ = writeln!(q, "$surfaceprop {}", quote(&model.surface_prop));
 	}
 	if model.contents != CONTENTS_SOLID {
-		let names: Vec<&str> = CONTENTS
-			.iter()
-			.filter(|(bit, _)| model.contents & bit != 0)
-			.map(|(_, name)| *name)
-			.collect();
-		let names = if names.is_empty() {
-			vec!["notsolid"]
-		} else {
-			names
-		};
-		let _ = writeln!(
-			q,
-			"$contents {}",
-			names.iter().map(|n| quote(n)).collect::<Vec<_>>().join(" ")
-		);
+		let _ = writeln!(q, "$contents {}", contents(model.contents));
 	}
 	for (flag, command) in [
 		(FLAG_FORCE_OPAQUE, "$opaque"),
@@ -645,6 +631,8 @@ fn qc(
 		q.push('\n');
 	}
 
+	bone_options(&mut q, model);
+
 	q.push_str(procedural);
 	for bone in &model.bones {
 		if let Some(j) = &bone.jiggle {
@@ -669,11 +657,16 @@ fn qc(
 		let [pitch, yaw, roll] = matrix_angles(m);
 		let _ = writeln!(
 			q,
-			"$attachment {} {} {} rotate {}",
+			"$attachment {} {} {} rotate {}{}",
 			quote(&attachment.name),
 			quote(&bone_name(attachment.bone)),
 			vec3([m[0][3], m[1][3], m[2][3]]),
-			vec3([pitch, yaw, roll])
+			vec3([pitch, yaw, roll]),
+			if attachment.flags & mdl::ATTACHMENT_WORLD_ALIGN != 0 {
+				" world_align"
+			} else {
+				""
+			}
 		);
 	}
 	if !model.attachments.is_empty() {
@@ -728,6 +721,54 @@ fn qc(
 
 	q.push_str(animation);
 	q
+}
+
+fn contents(bits: i32) -> String {
+	let names: Vec<String> = CONTENTS
+		.iter()
+		.filter(|(bit, _)| bits & bit != 0)
+		.map(|(_, name)| quote(name))
+		.collect();
+	if names.is_empty() {
+		quote("notsolid")
+	} else {
+		names.join(" ")
+	}
+}
+
+fn bone_options(q: &mut String, model: &Model) {
+	let start = q.len();
+	for bone in &model.bones {
+		let name = quote(&bone.name);
+		if bone.flags & mdl::BONE_USED_BY_BONE_MERGE != 0 {
+			let _ = writeln!(q, "$bonemerge {name}");
+		}
+		let saved = [
+			(mdl::BONE_HAS_SAVEFRAME_POS, " position"),
+			(mdl::BONE_HAS_SAVEFRAME_ROT, " rotation"),
+		]
+		.iter()
+		.filter(|(flag, _)| bone.flags & flag != 0)
+		.map(|(_, word)| *word)
+		.collect::<String>();
+		if !saved.is_empty() {
+			let _ = writeln!(q, "$bonesaveframe {name}{saved}");
+		}
+		if bone.flags & mdl::BONE_SCREEN_ALIGN_SPHERE != 0 {
+			let _ = writeln!(q, "$screenalign {name} \"sphere\"");
+		} else if bone.flags & mdl::BONE_SCREEN_ALIGN_CYLINDER != 0 {
+			let _ = writeln!(q, "$screenalign {name} \"cylinder\"");
+		}
+		if bone.surface_prop != model.surface_prop && !bone.surface_prop.is_empty() {
+			let _ = writeln!(q, "$jointsurfaceprop {name} {}", quote(&bone.surface_prop));
+		}
+		if bone.contents != model.contents {
+			let _ = writeln!(q, "$jointcontents {name} {}", contents(bone.contents));
+		}
+	}
+	if q.len() > start {
+		q.push('\n');
+	}
 }
 
 fn jiggle_bone(q: &mut String, bone: &str, j: &mdl::Jiggle) {

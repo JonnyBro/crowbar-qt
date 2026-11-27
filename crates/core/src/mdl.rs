@@ -38,6 +38,13 @@ pub const VERSIONS: std::ops::RangeInclusive<i32> = 44..=49;
 /// `$staticprop`.
 pub const FLAG_STATIC_PROP: u32 = 0x10;
 
+pub const BONE_SCREEN_ALIGN_SPHERE: u32 = 0x08;
+pub const BONE_SCREEN_ALIGN_CYLINDER: u32 = 0x10;
+pub const BONE_USED_BY_BONE_MERGE: u32 = 0x40000;
+pub const BONE_HAS_SAVEFRAME_POS: u32 = 0x200000;
+pub const BONE_HAS_SAVEFRAME_ROT: u32 = 0x400000;
+pub const ATTACHMENT_WORLD_ALIGN: u32 = 0x10000;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Model {
 	pub version: i32,
@@ -85,6 +92,9 @@ pub struct Bone {
 	pub rotation: [f32; 3],
 	/// Model space to bone space in the bind pose.
 	pub pose_to_bone: [[f32; 4]; 3],
+	pub flags: u32,
+	pub surface_prop: String,
+	pub contents: i32,
 	pub jiggle: Option<Jiggle>,
 	/// A helper bone driven by others, from `$proceduralbones`.
 	pub procedural: Option<Procedural>,
@@ -167,6 +177,7 @@ pub struct Jiggle {
 pub struct Attachment {
 	pub name: String,
 	pub bone: i32,
+	pub flags: u32,
 	/// 3×4, relative to the bone.
 	pub matrix: [[f32; 4]; 3],
 }
@@ -304,6 +315,9 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 			position: vec3(at + 32)?,
 			rotation: vec3(at + 60)?,
 			pose_to_bone: matrix(at + 96)?,
+			flags: r.i32(at + 160)? as u32,
+			surface_prop: r.name_at(at, at + 176)?,
+			contents: r.i32(at + 180)?,
 			jiggle: data
 				.filter(|_| kind == PROC_JIGGLE)
 				.and_then(|j| jiggle(r, j).ok()),
@@ -367,6 +381,7 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 		Ok(Attachment {
 			name: r.name_at(at, at)?,
 			bone: r.i32(at + 8)?,
+			flags: r.i32(at + 4)? as u32,
 			matrix: matrix(at + 12)?,
 		})
 	})?;
