@@ -5070,7 +5070,7 @@ dependencies = [
 
 [[package]]
 name = "prybar"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "chrono",
  "clap",
@@ -5092,7 +5092,7 @@ dependencies = [
 
 [[package]]
 name = "prybar-core"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "crc32fast",
  "directories",
