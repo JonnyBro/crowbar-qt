@@ -53,6 +53,6 @@ rustPlatform.buildRustPackage {
     homepage = "https://github.com/JonnyBro/prybar";
     license = lib.licenses.gpl3Plus;
     mainProgram = "prybar";
-    platforms = [ "x86_64-linux" "aarch64-linux" ];
+    platforms = [ "x86_64-linux" ];
   };
 }
