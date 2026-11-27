@@ -199,7 +199,9 @@ mod tests {
 			);
 		}
 
+		// Neither a tools folder nor a bin of the game's own.
 		app.tools_path = None;
+		app.install_path = dir.join("elsewhere");
 		assert_eq!(
 			hammer_command(&app, &game_dir, ""),
 			Err(Error::NoTool("Test".into(), "hammer"))

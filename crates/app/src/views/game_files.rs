@@ -11,6 +11,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::Command;
 use prybar_core::engine::{Event, RequestId, TaskId};
+use prybar_core::inspect::ModelSource;
 use prybar_core::vfs::{Found, MountKind};
 use rust_i18n::t;
 
@@ -148,6 +149,10 @@ impl GameFilesView {
 		empty_state(text.into_owned(), cx)
 	}
 
+	fn decompile(&mut self, source: ModelSource, window: &mut Window, cx: &mut Context<Self>) {
+		widgets::decompile_to(&self.model, source, window, cx);
+	}
+
 	fn sources(&self, cx: &mut Context<Self>) -> AnyElement {
 		let theme = cx.theme().clone();
 		let Some(found) = &self.found else {
@@ -224,7 +229,8 @@ impl GameFilesView {
 				)
 				.child(action)
 		});
-		let model = found.path.to_ascii_lowercase().ends_with(".mdl").then(|| {
+		let is_model = found.path.to_ascii_lowercase().ends_with(".mdl");
+		let model = is_model.then(|| {
 			let path = found.path.clone();
 			Button::new("inspect-model")
 				.label(t!("files.inspect"))
@@ -232,6 +238,16 @@ impl GameFilesView {
 				.outline()
 				.on_click(cx.listener(move |_, _, _, cx| {
 					cx.emit(InspectModel(path.clone()));
+				}))
+		});
+		let decompile = is_model.then(|| {
+			let path = found.path.clone();
+			Button::new("decompile-model")
+				.label(t!("view.decompile"))
+				.xsmall()
+				.outline()
+				.on_click(cx.listener(move |this, _, window, cx| {
+					this.decompile(ModelSource::Game(path.clone()), window, cx);
 				}))
 		});
 		v_flex()
@@ -252,7 +268,8 @@ impl GameFilesView {
 							.mono(cx)
 							.child(found.path.clone()),
 					)
-					.children(model),
+					.children(model)
+					.children(decompile),
 			)
 			.child(
 				v_flex()

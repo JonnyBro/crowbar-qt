@@ -162,7 +162,9 @@ pub(super) fn decompile(
 			.file_name()
 			.map(|n| n.to_string_lossy().into_owned())
 			.unwrap_or_default(),
-		ModelSource::Game(path) => path.rsplit(['/', '\\']).next().unwrap_or(path).to_owned(),
+		ModelSource::Game(path) | ModelSource::Package { path, .. } => {
+			path.rsplit(['/', '\\']).next().unwrap_or(path).to_owned()
+		}
 	};
 	let task = context.tasks.start(
 		TaskKind::Decompile,

@@ -119,18 +119,7 @@ impl ViewView {
 			window.push_notification(Notification::warning(t!("view.no_file").into_owned()), cx);
 			return;
 		};
-		let options = widgets::PickOptions {
-			folders: true,
-			multiple: false,
-		};
-		widgets::pick_paths(options, window, cx, move |this: &mut Self, paths, _, cx| {
-			let model = this.model.read(cx);
-			model.send(Command::Decompile {
-				target: model.target.clone(),
-				source,
-				output_dir: paths[0].clone(),
-			});
-		});
+		widgets::decompile_to(&self.model, source, window, cx);
 	}
 
 	fn open(&mut self, with_model: bool, cx: &mut Context<Self>) {

@@ -12,6 +12,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 use prybar_core::Command;
 use prybar_core::engine::{Event, RequestId};
+use prybar_core::inspect::ModelSource;
 use prybar_core::package::Package;
 use rust_i18n::t;
 
@@ -352,6 +353,43 @@ impl PackagesView {
 		}
 	}
 
+	/// A model has no preview, but it can be decompiled straight from the package.
+	fn model_actions(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+		let entry = self.focused_entry()?;
+		if !entry.path.to_ascii_lowercase().ends_with(".mdl") {
+			return None;
+		}
+		let source = ModelSource::Package {
+			package: self.package.as_ref()?.file.clone(),
+			path: entry.path.clone(),
+		};
+		Some(
+			v_flex()
+				.size_full()
+				.p_4()
+				.gap_3()
+				.items_center()
+				.justify_center()
+				.child(
+					div()
+						.w_full()
+						.text_center()
+						.text_sm()
+						.child(entry.path.clone()),
+				)
+				.child(
+					Button::new("package-decompile")
+						.label(t!("view.decompile"))
+						.small()
+						.outline()
+						.on_click(cx.listener(move |this, _, window, cx| {
+							widgets::decompile_to(&this.model, source.clone(), window, cx);
+						})),
+				)
+				.into_any_element(),
+		)
+	}
+
 	fn preview(&self, cx: &App) -> AnyElement {
 		let theme = cx.theme();
 		let centered = |text: String| empty_state(text, cx);
@@ -561,7 +599,10 @@ impl Render for PackagesView {
 							.border_color(theme.border)
 							.rounded(theme.radius)
 							.overflow_hidden()
-							.child(self.preview(cx)),
+							.child(match self.model_actions(cx) {
+								Some(actions) => actions,
+								None => self.preview(cx),
+							}),
 					),
 			)
 			.child(field(t!("packages.output").into_owned(), output_row, cx))

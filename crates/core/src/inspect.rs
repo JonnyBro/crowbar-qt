@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::mdl::{self, Model};
+use crate::package::Package;
 use crate::vdf::{self, Node, ParseOptions};
 use crate::vfs::{self, Found, MountKind, Source, Vfs, normalize};
 
@@ -24,6 +25,11 @@ pub enum ModelSource {
 	File(PathBuf),
 	/// Such as `models/props_c17/oildrum001.mdl`.
 	Game(String),
+	/// A file inside a VPK or GMA, by its path there.
+	Package {
+		package: PathBuf,
+		path: String,
+	},
 }
 
 #[derive(Debug, Clone)]
@@ -134,7 +140,33 @@ pub(crate) fn read_model(
 				.ok_or_else(|| format!("the game has no {path}"))?;
 			Ok((file, data?))
 		}
+		ModelSource::Package { package, path } => {
+			let (file, data) = package_file(package, path)?
+				.ok_or_else(|| format!("{} has no {path}", package.display()))?;
+			Ok((file, data?))
+		}
 	}
+}
+
+/// Where a file was found, and its data or why it could not be read.
+type Read = (Source, Result<Vec<u8>, String>);
+
+fn package_file(package: &Path, path: &str) -> Result<Option<Read>, String> {
+	let opened = Package::open(package).map_err(|e| e.to_string())?;
+	let wanted = normalize(path);
+	let Some(entry) = opened.entries.iter().find(|e| normalize(&e.path) == wanted) else {
+		return Ok(None);
+	};
+	let source = Source {
+		mount: package.to_path_buf(),
+		kind: MountKind::Package,
+		path: entry.path.clone(),
+		size: entry.size,
+	};
+	Ok(Some((
+		source,
+		opened.read(entry, MAX_FILE).map_err(|e| e.to_string()),
+	)))
 }
 
 /// `extension` next to the model: beside the file, or under the same game path.
@@ -142,7 +174,7 @@ pub(crate) fn read_companion(
 	vfs: Option<&Vfs>,
 	source: &ModelSource,
 	extension: &str,
-) -> Option<(Source, Result<Vec<u8>, String>)> {
+) -> Option<Read> {
 	match source {
 		ModelSource::File(path) => {
 			let stem = path.file_stem()?.to_string_lossy();
@@ -161,6 +193,13 @@ pub(crate) fn read_companion(
 			let stem = path.strip_suffix(".mdl")?;
 			vfs?.read(&format!("{stem}.{extension}"), MAX_FILE)
 		}
+		ModelSource::Package { package, path } => {
+			let path = normalize(path);
+			let stem = path.strip_suffix(".mdl")?;
+			package_file(package, &format!("{stem}.{extension}"))
+				.ok()
+				.flatten()
+		}
 	}
 }
 
@@ -171,7 +210,7 @@ pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
 	let (file, data) = read_model(Some(vfs), source)?;
 	let game_path = match source {
 		ModelSource::File(path) => game_path_of(path),
-		ModelSource::Game(path) => Some(normalize(path)),
+		ModelSource::Game(path) | ModelSource::Package { path, .. } => Some(normalize(path)),
 	};
 	let model = mdl::parse(&data).map_err(|e| e.to_string())?;
 
@@ -181,7 +220,7 @@ pub fn inspect(vfs: &Vfs, source: &ModelSource) -> Result<Inspection, String> {
 			.and_then(|p| vfs.find(p))
 			.map(|found| found.sources[0].clone())
 			.filter(|winner| !same_file(&winner.file(), path)),
-		ModelSource::Game(_) => None,
+		ModelSource::Game(_) | ModelSource::Package { .. } => None,
 	};
 
 	let companions = companions(vfs, source, &model);

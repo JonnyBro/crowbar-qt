@@ -82,17 +82,20 @@ pub fn is_windows_executable(path: &Path) -> bool {
 		.is_ok_and(|()| &head == b"MZ")
 }
 
-/// Prefers a 64-bit build from win64, x64 or linux64.
+/// Prefers 64-bit builds; falls back to the game's bin, where native GMod keeps gmad_linux.
 pub fn find_tool(app: &App, name: &str) -> Option<PathBuf> {
-	let tools = app.tools_path.as_ref()?;
-	// 32-bit tools run out of memory on big jobs, e.g. gmad on 2 GB addons.
-	["win64", "x64", "linux64", ""]
+	let own_bin = (!app.install_path.as_os_str().is_empty()).then(|| app.install_path.join("bin"));
+	let names = [
+		format!("{name}.exe"),
+		name.to_owned(),
+		format!("{name}_linux"),
+	];
+	app.tools_path
 		.iter()
-		.flat_map(|dir| {
-			[format!("{name}.exe"), name.to_owned()]
-				.into_iter()
-				.map(move |file| tools.join(dir).join(file))
-		})
+		.chain(own_bin.iter())
+		// 32-bit tools run out of memory on big jobs, e.g. gmad on 2 GB addons.
+		.flat_map(|tools| ["win64", "x64", "linux64", ""].map(|dir| tools.join(dir)))
+		.flat_map(|dir| names.iter().map(move |file| dir.join(file)))
 		.find(|path| path.is_file())
 }
 
@@ -235,7 +238,21 @@ pub fn build(
 	}
 	let mut command = Command::new(executable, args);
 	apply_environment_lines(&mut command.env, user_env);
+	let app_id = app.id.to_string();
 	if !is_windows_executable(executable) {
+		// Native tools load libsteam_api.so and the rest from their own folder.
+		if let Some(dir) = executable.parent() {
+			let libraries = match command.env.get("LD_LIBRARY_PATH") {
+				Some(old) if !old.is_empty() => format!("{}:{old}", dir.display()),
+				_ => dir.display().to_string(),
+			};
+			command.env.insert("LD_LIBRARY_PATH".into(), libraries);
+		}
+		command
+			.env
+			.entry("SteamAppId".into())
+			.or_insert_with(|| app_id.clone());
+		command.env.entry("SteamGameId".into()).or_insert(app_id);
 		return Ok(command);
 	}
 
@@ -259,7 +276,6 @@ pub fn build(
 		.chain(command.args)
 		.collect();
 
-	let app_id = app.id.to_string();
 	let env = &mut command.env;
 	env.insert(
 		"STEAM_COMPAT_DATA_PATH".into(),
@@ -463,6 +479,49 @@ mod tests {
 
 		app.tools_path = Some(bin.join("win64"));
 		assert_eq!(find_tool(&app, "gmad"), Some(bin.join("win64/gmad.exe")));
+	}
+
+	#[test]
+	fn native_tools_in_the_games_own_bin() {
+		let temp = tempfile::tempdir().unwrap();
+		let game = temp.path().join("GarrysMod");
+		write(&game.join("bin/gmad_linux"), b"\x7fELF");
+		write(&game.join("bin/gmpublish_linux"), b"\x7fELF");
+		let windows = temp.path().join("windows/bin");
+		write(&windows.join("win64/gmad.exe"), b"MZ");
+		write(&windows.join("studiomdl.exe"), b"MZ");
+
+		// Without a tools folder: only what the native build ships.
+		let mut app = App {
+			id: 4000,
+			install_path: game.clone(),
+			..App::default()
+		};
+		assert_eq!(find_tool(&app, "gmad"), Some(game.join("bin/gmad_linux")));
+		assert_eq!(find_tool(&app, "studiomdl"), None);
+
+		// A chosen Windows folder wins; what it lacks still comes from the game.
+		app.tools_path = Some(windows.clone());
+		assert_eq!(
+			find_tool(&app, "gmad"),
+			Some(windows.join("win64/gmad.exe"))
+		);
+		assert_eq!(
+			find_tool(&app, "gmpublish"),
+			Some(game.join("bin/gmpublish_linux"))
+		);
+
+		let command = build(
+			&app,
+			&game.join("bin/gmpublish_linux"),
+			vec![],
+			Mode::Console,
+			"",
+		)
+		.unwrap();
+		let libraries = &command.env["LD_LIBRARY_PATH"];
+		assert!(libraries.starts_with(&game.join("bin").display().to_string()));
+		assert_eq!(command.env["SteamAppId"], "4000");
 	}
 
 	#[test]

@@ -359,6 +359,53 @@ fn run_reads_the_files_beside_the_model() {
 	assert!(run(None, &game, &out).is_err());
 }
 
+#[test]
+fn run_reads_a_model_inside_a_package() {
+	let temp = tempfile::tempdir().unwrap();
+	let addon = temp.path().join("addon");
+	std::fs::create_dir_all(addon.join("models")).unwrap();
+	std::fs::write(
+		addon.join("addon.json"),
+		r#"{"title": "t", "type": "model", "tags": []}"#,
+	)
+	.unwrap();
+	let mdl = build(&Spec {
+		checksum: 5,
+		bones: &["root"],
+		materials: &["m"],
+		skins: &[&[0]],
+		body_parts: &[("body", &[("ref", 4, &[0])])],
+		..Spec::default()
+	});
+	std::fs::write(addon.join("models/thing.mdl"), mdl).unwrap();
+	std::fs::write(addon.join("models/thing.vvd"), vvd_file(4, &[])).unwrap();
+	std::fs::write(
+		addon.join("models/thing.dx90.vtx"),
+		vtx_file(&[0, 1, 2], &[0, 1, 2], 1, false),
+	)
+	.unwrap();
+	let gma = temp.path().join("thing.gma");
+	crate::gma_writer::pack(&addon, &gma, false, |_, _, _| {}, || false).unwrap();
+
+	let out = temp.path().join("out");
+	let source = ModelSource::Package {
+		package: gma.clone(),
+		path: "Models/Thing.mdl".into(),
+	};
+	let written = run(None, &source, &out).unwrap();
+	assert_eq!(written.len(), 3);
+	assert!(out.join("thing.qc").is_file());
+	let missing = ModelSource::Package {
+		package: gma,
+		path: "models/none.mdl".into(),
+	};
+	assert!(
+		run(None, &missing, &out)
+			.unwrap_err()
+			.contains("models/none.mdl")
+	);
+}
+
 /// A tetrahedron ledge, a parent hull to skip, the point pool, then `text`.
 fn phy_file(checksum: i32, client: i32, text: &str) -> Vec<u8> {
 	let mut s = Vec::new();

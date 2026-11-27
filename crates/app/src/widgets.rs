@@ -9,7 +9,10 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 use rust_i18n::t;
 
-use crate::model::Link;
+use prybar_core::Command;
+use prybar_core::inspect::ModelSource;
+
+use crate::model::{Link, Model};
 
 /// A page's heading and the line under it.
 pub fn page_header(title: String, subtitle: Option<String>, cx: &App) -> Div {
@@ -156,6 +159,28 @@ pub fn pick_paths<V: 'static>(
 		}
 	})
 	.detach();
+}
+
+/// Asks for a folder, then decompiles `source` into it as a task.
+pub fn decompile_to<V: 'static>(
+	model: &Entity<Model>,
+	source: ModelSource,
+	window: &mut Window,
+	cx: &mut Context<V>,
+) {
+	let model = model.clone();
+	let options = PickOptions {
+		folders: true,
+		multiple: false,
+	};
+	pick_paths(options, window, cx, move |_: &mut V, paths, _, cx| {
+		let model = model.read(cx);
+		model.send(Command::Decompile {
+			target: model.target.clone(),
+			source,
+			output_dir: paths[0].clone(),
+		});
+	});
 }
 
 /// Fills `input` with a folder the user picks.
