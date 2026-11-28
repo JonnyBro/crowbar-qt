@@ -7,7 +7,7 @@ Native Linux tool for Source engine modding, inspired by [Crowbar](https://githu
 
 ## Installing
 
-Unpack `prybar-vX.Y.Z-linux-x86_64.tar.gz` from the releases page into a folder you own, such as `~/Apps/prybar`. Settings > Application > Add to Menu adds Prybar to the application menu and opens `.qc`, `.mdl`, `.vpk` and `.gma` files from the file manager in Prybar.
+Unpack `prybar-vX.Y.Z-linux-x86_64.tar.gz` (or `-linux-aarch64` on ARM) from the releases page into a folder you own, such as `~/Apps/prybar`. Settings > Application > Add to Menu adds Prybar to the application menu and opens `.qc`, `.mdl`, `.vpk` and `.gma` files from the file manager in Prybar.
 
 Prybar checks GitHub for updates at start (this can be turned off in the settings).\
 If an update is available, the sidebar shows a button that downloads the release, verifies its checksum and replaces the binary.
@@ -92,7 +92,7 @@ Interface strings are in `crates/*/locales/*.yml`.
 
 ## Releases
 
-CI (`.github/workflows/ci.yml`) runs fmt, clippy and tests. A `vX.Y.Z` tag matching the version in `Cargo.toml` builds the Linux archive and publishes a release with git-cliff notes.
+CI (`.github/workflows/ci.yml`) runs fmt, clippy and tests. A `vX.Y.Z` tag matching the version in `Cargo.toml` builds the Linux archives for x86_64 and aarch64 and publishes a release with git-cliff notes.
 
 ## License
 

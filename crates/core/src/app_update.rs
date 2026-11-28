@@ -10,7 +10,6 @@ use sha2::{Digest, Sha256};
 use crate::workshop::Client;
 
 const LATEST_RELEASE_API: &str = "https://api.github.com/repos/JonnyBro/prybar/releases/latest";
-const ARCHIVE_SUFFIX: &str = "-linux-x86_64.tar.gz";
 const SUMS: &str = "SHA256SUMS";
 const BINARY: &str = "prybar";
 
@@ -54,6 +53,10 @@ pub async fn check(client: &Client) -> Result<Option<Release>, String> {
 	Ok(release_if_newer(latest, crate::VERSION))
 }
 
+fn archive_suffix() -> String {
+	format!("-linux-{}.tar.gz", std::env::consts::ARCH)
+}
+
 fn release_if_newer(latest: LatestRelease, current: &str) -> Option<Release> {
 	if !is_newer(&latest.tag_name, current) {
 		return None;
@@ -63,10 +66,11 @@ fn release_if_newer(latest: LatestRelease, current: &str) -> Option<Release> {
 		.iter()
 		.find(|a| a.name == SUMS)
 		.map(|a| a.browser_download_url.clone());
+	let suffix = archive_suffix();
 	let archive = latest
 		.assets
 		.into_iter()
-		.find(|a| a.name.ends_with(ARCHIVE_SUFFIX));
+		.find(|a| a.name.ends_with(&suffix));
 	Some(Release {
 		version: latest.tag_name.trim_start_matches('v').to_owned(),
 		url: latest.html_url,
@@ -239,16 +243,23 @@ mod tests {
 
 	#[test]
 	fn finds_assets() {
-		let latest: LatestRelease = serde_json::from_str(
-			r#"{"tag_name":"v9.0.0","html_url":"https://x/r","assets":[
-				{"name":"SHA256SUMS","browser_download_url":"https://x/s"},
-				{"name":"prybar-v9.0.0-linux-x86_64.tar.gz","browser_download_url":"https://x/a"}
-			]}"#,
-		)
+		let other = if std::env::consts::ARCH == "aarch64" {
+			"x86_64"
+		} else {
+			"aarch64"
+		};
+		let latest: LatestRelease = serde_json::from_str(&format!(
+			r#"{{"tag_name":"v9.0.0","html_url":"https://x/r","assets":[
+				{{"name":"SHA256SUMS","browser_download_url":"https://x/s"}},
+				{{"name":"prybar-v9.0.0-linux-{other}.tar.gz","browser_download_url":"https://x/b"}},
+				{{"name":"prybar-v9.0.0{}","browser_download_url":"https://x/a"}}
+			]}}"#,
+			archive_suffix()
+		))
 		.unwrap();
 		let release = release_if_newer(latest, "2.0.0").unwrap();
 		assert_eq!(release.version, "9.0.0");
-		assert!(release.installable());
+		assert_eq!(release.archive.unwrap().browser_download_url, "https://x/a");
 	}
 
 	#[test]

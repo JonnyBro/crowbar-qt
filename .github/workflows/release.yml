@@ -17,8 +17,15 @@ jobs:
 
   linux:
     needs: ci
-    # The oldest supported Ubuntu, so the binary's glibc is old enough for most distributions.
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          # The oldest supported Ubuntu, so the binary's glibc is old enough for most distributions.
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +58,7 @@ jobs:
 
       - name: Pack
         run: |
-          name="prybar-$GITHUB_REF_NAME-linux-x86_64"
+          name="prybar-$GITHUB_REF_NAME-linux-${{ matrix.arch }}"
           mkdir -p "dist/$name"
           cp target/release/prybar LICENSE README.md "dist/$name/"
           cp crates/app/assets/desktop/prybar.desktop crates/app/assets/desktop/prybar.svg \
@@ -63,7 +70,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: linux-${{ matrix.arch }}
           path: dist/*
 
   release:
